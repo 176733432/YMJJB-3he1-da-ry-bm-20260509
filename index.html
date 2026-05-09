@@ -1,0 +1,1381 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智档Pro · 综合管理系统（微加固版）</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --primary-dark: #1557b0;
+            --danger: #d93025;
+            --danger-dark: #a50e0e;
+            --success: #188038;
+            --warning: #e8710a;
+            --bg: #f0f2f5;
+            --card-bg: #ffffff;
+            --text: #202124;
+            --text-secondary: #5f6368;
+            --border: #e0e0e0;
+            --border-light: #f1f3f4;
+            --shadow: 0 2px 8px rgba(0,0,0,0.08);
+            --shadow-lg: 0 8px 30px rgba(0,0,0,0.12);
+            --radius: 10px;
+            --radius-sm: 6px;
+            --transition: 0.2s ease;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; min-height: 100vh; }
+        body.no-copy { user-select: none; -webkit-user-select: none; }
+        .app-header { background: var(--card-bg); border-bottom: 1px solid var(--border); padding: 0 20px; display: flex; align-items: center; justify-content: space-between; height: 56px; box-shadow: var(--shadow); position: sticky; top: 0; z-index: 100; }
+        .app-header .logo { font-size: 18px; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 8px; }
+        .app-header .logo .icon { width: 32px; height: 32px; background: var(--primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 16px; }
+        .header-actions { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+        .sync-status { font-size: 11px; color: var(--text-secondary); display: flex; align-items: center; gap: 5px; }
+        .sync-dot { width: 7px; height: 7px; border-radius: 50%; background: #34a853; animation: pulse-dot 2s infinite; }
+        .sync-dot.offline { background: #ea4335; animation: none; }
+        @keyframes pulse-dot { 0%,100%{box-shadow:0 0 0 0 rgba(52,168,83,0.4)} 50%{box-shadow:0 0 0 10px rgba(52,168,83,0)} }
+        .main-tab-nav { display: flex; gap: 2px; padding: 12px 20px 0; background: var(--card-bg); border-bottom: 1px solid var(--border-light); position: sticky; top: 56px; z-index: 90; }
+        .main-tab-btn { padding: 10px 20px; border:none; background:transparent; cursor:pointer; font-size: 14px; font-weight: 500; color: var(--text-secondary); border-radius: var(--radius-sm) var(--radius-sm) 0 0; transition: var(--transition); white-space: nowrap; position: relative; }
+        .main-tab-btn:hover { color: var(--primary); background: rgba(26,115,232,0.04); }
+        .main-tab-btn.active { color: var(--primary); font-weight: 700; }
+        .main-tab-btn.active::after { content:''; position:absolute; bottom:0; left:16px; right:16px; height:3px; background: var(--primary); border-radius:3px 3px 0 0; }
+        /* 移除 sub-tab-nav 样式，不再需要 */
+        .main-container { max-width: 1600px; margin: 0 auto; padding: 16px 20px; }
+        .system-panel { display: none; }
+        .system-panel.active { display: block; animation: fadeIn 0.25s ease; }
+        @keyframes fadeIn { from{opacity:0;transform:translateY(6px)} to{opacity:1;transform:translateY(0)} }
+        .card { background: var(--card-bg); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; margin-bottom: 16px; border: 1px solid var(--border-light); }
+        .card-title { font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--text); display: flex; align-items: center; gap: 8px; cursor: default; }
+        .btn { display: inline-flex; align-items: center; justify-content: center; gap: 5px; padding: 8px 14px; border: none; border-radius: var(--radius-sm); cursor: pointer; font-size: 13px; font-weight: 500; transition: var(--transition); white-space: nowrap; letter-spacing: 0.2px; text-decoration: none; }
+        .btn-primary { background: var(--primary); color: #fff; } .btn-primary:hover { background: var(--primary-dark); box-shadow: 0 4px 12px rgba(26,115,232,0.3); }
+        .btn-danger { background: var(--danger); color: #fff; } .btn-danger:hover { background: var(--danger-dark); }
+        .btn-outline { background: #fff; color: var(--primary); border: 1.5px solid var(--primary); } .btn-outline:hover { background: rgba(26,115,232,0.06); }
+        .btn-success { background: var(--success); color: #fff; } .btn-success:hover { background: #146b2e; }
+        .btn-warning { background: var(--warning); color: #fff; } .btn-warning:hover { background: #c7620a; }
+        .btn-sm { padding: 5px 10px; font-size: 11px; border-radius: 4px; }
+        .btn:disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
+        .btn-info { background: #f0f7ff; color: #1a73e8; border: 1.5px solid #1a73e8; } .btn-info:hover { background: #e3f0ff; }
+        .form-group { margin-bottom: 10px; }
+        .form-group label { display: block; font-weight: 500; margin-bottom: 4px; color: var(--text); font-size: 12px; letter-spacing: 0.2px; }
+        .form-group input, .form-group select { width: 100%; padding: 8px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm); font-size: 13px; transition: var(--transition); background: #fafafa; color: var(--text); }
+        .form-group input:focus, .form-group select:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px rgba(26,115,232,0.1); background: #fff; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 10px; }
+        .table-wrapper { overflow-x: auto; border-radius: var(--radius-sm); border: 1px solid var(--border); max-height: 55vh; overflow-y: auto; position: relative; -webkit-overflow-scrolling: touch; }
+        .table-wrapper table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 12px; }
+        .table-wrapper thead { position: sticky; top: 0; z-index: 10; }
+        .table-wrapper thead th { background: #d4e4ff; font-weight: 700; color: var(--text); padding: 10px 6px; border: 1px solid var(--border); white-space: nowrap; text-align: center; font-size: 11px; cursor: pointer; user-select: none; }
+        .table-wrapper thead th:hover { background: #b8d4fe; }
+        .table-wrapper thead th .sort-arrow { margin-left: 2px; font-size: 9px; }
+        .table-wrapper tbody td { padding: 6px 4px; border: 1px solid var(--border-light); text-align: center; white-space: nowrap; font-size: 11px; max-width: 140px; overflow: hidden; text-overflow: ellipsis; }
+        .table-wrapper tbody tr:nth-child(odd) { background: #e6f9e6; }
+        .table-wrapper tbody tr:nth-child(even) { background: #fefde6; }
+        .table-wrapper tbody tr:hover { background: #d2e3fc !important; }
+        .table-wrapper tbody tr.selected { background: #b3d9ff !important; }
+        .table-wrapper .checkbox-cell { width: 32px; text-align: center; }
+        .table-wrapper .checkbox-cell input { width: 14px; height: 14px; cursor: pointer; accent-color: var(--primary); }
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 200; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.2s ease; }
+        .modal { background: #fff; border-radius: var(--radius); box-shadow: var(--shadow-lg); width: 90%; max-width: 1000px; max-height: 85vh; overflow-y: auto; padding: 24px 26px; position: relative; }
+        .modal h3 { font-size: 16px; margin-bottom: 16px; color: var(--text); }
+        .modal-close { position: absolute; top: 12px; right: 14px; background: none; border: none; font-size: 22px; cursor: pointer; color: #999; width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; }
+        .modal-close:hover { background: #f5f5f5; color: #333; }
+        .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border-light); align-items: center; }
+        .toast-container { position: fixed; top: 16px; right: 16px; z-index: 999; display: flex; flex-direction: column; gap: 6px; }
+        .toast { padding: 10px 16px; border-radius: var(--radius-sm); color: #fff; font-weight: 500; font-size: 13px; box-shadow: var(--shadow-lg); animation: slideInRight 0.3s ease; max-width: 380px; }
+        .toast.success { background: #188038; } .toast.error { background: #d93025; } .toast.info { background: #1a73e8; }
+        @keyframes slideInRight { from{opacity:0;transform:translateX(100px)} to{opacity:1;transform:translateX(0)} }
+        .search-box { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+        .search-box .form-group { margin-bottom: 0; flex: 1; min-width: 200px; }
+        .filter-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-end; }
+        .filter-row .form-group { flex: 1; min-width: 130px; margin-bottom: 0; }
+        .filter-row .form-group label { font-size: 10px; margin-bottom: 2px; }
+        .filter-row .form-group input, .filter-row .form-group select { padding: 6px 8px; font-size: 12px; }
+        .badge-count { display: inline-block; background: var(--primary); color: #fff; border-radius: 20px; padding: 2px 8px; font-size: 11px; font-weight: 600; margin-left: 4px; }
+        .export-field-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 8px; }
+        .export-field-grid label { display: flex; align-items: center; gap: 4px; font-size: 0.85rem; }
+        .login-container { max-width: 400px; margin: 50px auto; background: white; border-radius: 24px; padding: 28px 22px; box-shadow: 0 15px 30px rgba(0,20,40,0.1); }
+        .error-msg { color: #d32; font-size: 0.85rem; margin-top: 6px; }
+        .login-divider { display: flex; align-items: center; margin: 14px 0; color: #999; font-size: 0.75rem; }
+        .login-divider::before, .login-divider::after { content: ''; flex: 1; border-top: 1px solid #e0e0e0; }
+        .login-divider span { padding: 0 10px; }
+        .custom-input { width: 100%; padding: 6px 8px; border: 1px solid #ccc; border-radius: 6px; font-size: 12px; margin-top: 4px; }
+        .custom-input:disabled { background: #f0f0f0; color: #999; }
+        .due-section-title { background: #fff3cd; color: #a50e0e; font-weight: bold; padding: 6px 10px; margin: 8px 0 4px; border-radius: 4px; font-size: 13px; }
+        .ellipsis-cell { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .bold-cell { font-weight: bold; }
+        .modal-actions .suppress-label { display: flex; align-items: center; gap: 6px; font-size: 13px; margin-right: auto; }
+        .hide-check { display: flex; align-items: center; gap: 5px; font-size: 13px; margin-left: 10px; white-space: nowrap; }
+        @media (max-width: 768px) {
+            .form-row { grid-template-columns: 1fr 1fr; } .btn { padding: 6px 10px; font-size: 11px; }
+            .modal { width: 95%; padding: 14px; max-height: 90vh; } .card { padding: 14px; }
+            .main-tab-btn { padding: 8px 12px; font-size: 12px; }
+        }
+        .today-bid { color: #d32; font-weight: bold; }
+        .expired { font-weight: bold; text-decoration: line-through; background-color: #f8d7da; color: #000; }
+        .expiring-soon { font-weight: bold; background-color: #fff3cd; color: #d32; }
+        /* 新增：查询结果标题行的按钮容器 */
+        .query-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-left: auto; }
+        .query-title-row { display: flex; align-items: center; justify-content: space-between; width: 100%; }
+    </style>
+    <script>
+        (function() {
+            document.addEventListener('contextmenu', (e) => e.preventDefault());
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'F12' || (e.ctrlKey && e.shiftKey && e.key === 'I') || (e.ctrlKey && e.key === 'U')) {
+                    e.preventDefault();
+                    return false;
+                }
+            });
+        })();
+    </script>
+</head>
+<body>
+    <div id="loginPanel" style="display:flex;justify-content:center;align-items:center;min-height:100vh;">
+        <div class="login-container">
+            <h2 style="text-align:center;color:#1e3a5f;margin-bottom:20px;">🔐 智档Pro · 用户登录</h2>
+            <div style="margin-bottom:14px;"><label>项目库码</label><input type="password" id="loginSuffix" placeholder="请联系管理员索要。" style="width:100%;margin-top:4px;padding:10px;border-radius:20px;border:1px solid #ccc;"></div>
+            <div style="margin-bottom:14px;"><label>用户名</label><input type="text" id="loginUser" placeholder="请输入用户名" style="width:100%;margin-top:4px;padding:10px;border-radius:20px;border:1px solid #ccc;" onkeyup="if(event.key==='Enter')performLogin()"></div>
+            <div style="margin-bottom:14px;"><label>密码</label><input type="password" id="loginPwd" placeholder="请输入密码" style="width:100%;margin-top:4px;padding:10px;border-radius:20px;border:1px solid #ccc;" onkeyup="if(event.key==='Enter')performLogin()"></div>
+            <div class="error-msg" id="loginError" style="display:none;"></div>
+            <button class="btn btn-primary" style="width:100%;" onclick="performLogin()" id="loginBtn">登录</button>
+            <div class="login-divider"><span>或</span></div>
+            <button class="btn btn-info" style="width:100%;" onclick="window.open('https://yemjjban-3he1-zhidangpro-sysm-95bba2.netlify.app/', '_blank')">📖 使用说明</button>
+            <p style="margin-top:12px;font-size:0.75rem;color:#6f8fae;text-align:center;">请联系管理员获取账号</p>
+        </div>
+    </div>
+
+    <div id="appPanel" style="display:none;">
+        <header class="app-header">
+            <div class="logo"><span class="icon">📁</span> 智档Pro · 综合管理</div>
+            <div class="header-actions">
+                <span id="currentUserDisplay" style="margin-right:12px;"></span>
+                <span class="sync-status" id="syncStatus"><span class="sync-dot" id="syncDot"></span><span id="syncText">本地模式</span></span>
+                <button class="btn btn-sm" onclick="logout()">退出登录</button>
+            </div>
+        </header>
+        <nav class="main-tab-nav" id="mainTabNav">
+            <button class="main-tab-btn active" data-main="panel-archive">📁 档案管理系统</button>
+            <button class="main-tab-btn" data-main="panel-personnel">👥 人员管理系统</button>
+            <button class="main-tab-btn" data-main="panel-registration">📋 报名管理系统</button>
+        </nav>
+
+        <!-- 档案管理系统 -->
+        <div class="system-panel active" id="panel-archive">
+            <div class="main-container">
+                <div class="card"><div class="card-title">🔍 模糊查找</div><div class="search-box"><div class="form-group" style="flex:3;min-width:250px;"><label>查找关键字（搜索范围：档案号、工程名称、甲方单位、工程地址、项目经理等）</label><input type="text" id="a_globalSearch" placeholder="输入关键字..."></div><button class="btn btn-primary" onclick="a_performGlobalSearch()">🔍 查找</button><button class="btn btn-outline btn-sm" onclick="a_clearGlobalSearch()">清除</button></div></div>
+                <div class="card"><div class="card-title">🔎 高级筛选 (实时生效)</div>
+                    <div class="filter-row" style="margin-bottom:8px;"><div class="form-group"><label>所属公司</label><select id="a_f_company"><option value="">全部</option><option>正大</option><option>世拓</option></select></div><div class="form-group"><label>工程类别</label><select id="a_f_engCategory"><option value="">全部</option><option>建筑</option><option>装修</option><option>市政</option><option>钢结构</option><option>水利</option><option>机电</option><option>防水防腐</option><option>消防</option><option>维修改造</option><option>环保</option><option>公路</option><option>其他</option></select></div><div class="form-group"><label>使用性质</label><select id="a_f_usage"><option value="">全部</option><option>公共</option><option>工业</option><option>商业</option><option>农业</option><option>住宅</option><option>其他</option></select></div><div class="form-group"><label>承包方式</label><select id="a_f_contractType"><option value="">全部</option><option>总承包</option><option>专业承包</option><option>劳务</option><option>甲供材</option><option>其他</option></select></div></div>
+                    <div class="filter-row" style="margin-bottom:8px;"><div class="form-group"><label>合同价格(元) &gt;</label><input type="number" id="a_f_contractPrice"></div><div class="form-group"><label>中标日期 &gt;</label><input type="date" id="a_f_bidDate"></div><div class="form-group"><label>竣工日期 &gt;</label><input type="date" id="a_f_completionDate"></div><div class="form-group"><label>签署日期</label><select id="a_f_signDateOp"><option value="gt">大于</option><option value="lt">小于</option></select><input type="date" id="a_f_signDate" style="margin-top:4px;"></div></div>
+                    <div class="filter-row" style="margin-bottom:8px;"><div class="form-group"><label>建筑面积(m²) &gt;</label><input type="number" id="a_f_buildingArea" step="0.01"></div><div class="form-group"><label>结构形式</label><select id="a_f_structure"><option value="">全部</option><option>框剪</option><option>框架</option><option>钢结构</option><option>剪力墙</option><option>砖混</option><option>其他</option></select></div><div class="form-group"><label>层数</label><input type="text" id="a_f_floors"></div><div class="form-group"><label>中标通知书</label><select id="a_f_bidNotice"><option value="">全部</option><option>有数据</option><option>无数据</option></select></div></div>
+                    <div class="filter-row" style="margin-bottom:8px;"><div class="form-group"><label>合同</label><select id="a_f_contract"><option value="">全部</option><option>有数据</option><option>无数据</option></select></div><div class="form-group"><label>合作协议</label><select id="a_f_cooperation"><option value="">全部</option><option>有数据</option><option>无数据</option></select></div><div class="form-group"><label>竣工文件</label><select id="a_f_completionDoc"><option value="">全部</option><option>有数据</option><option>无数据</option></select></div><div class="form-group"><label>结算文件</label><select id="a_f_settlementDoc"><option value="">全部</option><option>有数据</option><option>无数据</option></select></div></div>
+                    <div style="display:flex;gap:8px;"><button class="btn btn-outline btn-sm" onclick="a_clearAdvancedFilter()">清除筛选</button></div>
+                </div>
+                <div class="card">
+                    <div class="query-title-row">
+                        <div class="card-title" id="archiveQueryResultTitle" style="margin-bottom:0; cursor:pointer;">查询结果 <span class="badge-count" id="a_queryCount">0</span></div>
+                        <div class="query-actions">
+                            <button class="btn btn-outline btn-sm" id="a_btnImportExcel">📂 从EXCEL导入</button>
+                            <button class="btn btn-primary btn-sm" id="a_btnAddArchive">➕ 新增档案</button>
+                            <button class="btn btn-outline btn-sm" id="a_btnEditSelected">✏️ 编辑</button>
+                            <button class="btn btn-danger btn-sm" id="a_btnBatchDelete">🗑️ 批量删除</button>
+                            <button class="btn btn-warning btn-sm" id="a_btnBackupCloud">☁️ 备份到云端</button>
+                            <button class="btn btn-outline btn-sm" id="a_btnRestoreCloud">⬇️ 从云端恢复</button>
+                            <button class="btn btn-outline btn-sm" id="a_btnClearCloud">🗑️ 清除云端</button>
+                            <button class="btn btn-outline btn-sm" id="a_btnClearLocal">🗑️ 清理本地数据</button>
+                            <button class="btn btn-success btn-sm" id="a_btnExportAll">📥 导出全部</button>
+                            <button class="btn btn-success btn-sm" id="a_btnExportQuery">📥 导出查询结果</button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper" id="a_queryTableWrapper" style="max-height:45vh; margin-top:10px;">
+                        <table id="a_queryTable"></table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 人员管理系统 -->
+        <div class="system-panel" id="panel-personnel">
+            <div class="main-container">
+                <div class="card"><div class="card-title">🔍 快速查找</div><div class="search-box"><div class="form-group" style="flex:2;min-width:180px;"><label>姓名或身份证</label><input type="text" id="p_quickSearch" placeholder="输入姓名或身份证号..." oninput="p_performQuickSearch()"></div><button class="btn btn-outline btn-sm" onclick="p_clearQuickSearch()">清除</button></div></div>
+                <div class="card"><div class="card-title">🔎 高级筛选</div>
+                    <div class="filter-row" style="margin-bottom:8px;">
+                        <div class="form-group" style="display:flex;flex-direction:column;gap:4px;">
+                            <label>类别</label>
+                            <select id="p_f_category"><option value="">全部</option><option>注册人员</option><option>职称人员</option><option>八大员</option><option>技术工人</option><option>特殊工种</option><option>其他</option></select>
+                            <input type="text" id="p_f_category_custom" class="custom-input" disabled placeholder='选择"其他"后输入自定义类别' style="margin-top:2px;">
+                        </div>
+                        <div class="form-group" style="display:flex;flex-direction:column;gap:4px;">
+                            <label>岗位</label>
+                            <select id="p_f_position"><option value="">全部</option><option>建造师</option><option>工程师</option><option>安全员</option><option>质量员</option><option>施工员</option><option>资料员</option><option>劳务员</option><option>机械员</option><option>材料员</option><option>标准员</option><option>试验员</option><option>测量员</option><option>钢筋工</option><option>模板工</option><option>其他</option></select>
+                            <input type="text" id="p_f_position_custom" class="custom-input" disabled placeholder='选择"其他"后输入自定义岗位' style="margin-top:2px;">
+                        </div>
+                        <div class="form-group" style="display:flex;flex-direction:column;gap:4px;">
+                            <label>级别</label>
+                            <select id="p_f_level"><option value="">全部</option><option>一级</option><option>二级</option><option>A类</option><option>B类</option><option>C类</option><option>初级</option><option>中级</option><option>高级</option><option>其他</option></select>
+                            <input type="text" id="p_f_level_custom" class="custom-input" disabled placeholder='选择"其他"后输入自定义级别' style="margin-top:2px;">
+                        </div>
+                        <div class="form-group" style="display:flex;flex-direction:column;gap:4px;">
+                            <label>注册专业</label>
+                            <select id="p_f_major"><option value="">全部</option><option>建筑</option><option>市政</option><option>机电</option><option>水利</option><option>公路</option><option>其他</option></select>
+                            <input type="text" id="p_f_major_custom" class="custom-input" disabled placeholder='选择"其他"后输入自定义专业' style="margin-top:2px;">
+                        </div>
+                    </div>
+                    <div class="filter-row" style="margin-bottom:8px;">
+                        <div class="form-group" style="display:flex;flex-direction:column;gap:4px;">
+                            <label>所属公司</label>
+                            <select id="p_f_company"><option value="">全部</option><option>正大</option><option>世拓</option><option>其他</option></select>
+                            <input type="text" id="p_f_company_custom" class="custom-input" disabled placeholder='选择"其他"后输入自定义公司' style="margin-top:2px;">
+                        </div>
+                        <div class="form-group"><label>社保</label><select id="p_f_socialSecurity"><option value="">全部</option><option>有</option><option>无</option></select></div>
+                        <div class="form-group"><label>有效期</label><select id="p_f_validity"><option value="">全部</option><option value="expired">过期证书</option><option value="expiring">临期证书</option><option value="valid">有效证书</option></select></div>
+                    </div>
+                    <div style="display:flex;gap:8px;"><button class="btn btn-outline btn-sm" onclick="p_clearAdvancedFilter()">清除筛选</button></div>
+                </div>
+                <div class="card">
+                    <div class="query-title-row">
+                        <div class="card-title" id="personnelQueryResultTitle" style="margin-bottom:0; cursor:pointer;">查询结果 <span class="badge-count" id="p_queryCount">0</span></div>
+                        <div class="query-actions">
+                            <button class="btn btn-outline btn-sm" id="p_btnImportExcel">📂 从EXCEL导入</button>
+                            <button class="btn btn-primary btn-sm" id="p_btnAddPerson">➕ 新增人员</button>
+                            <button class="btn btn-outline btn-sm" id="p_btnEditSelected">✏️ 编辑</button>
+                            <button class="btn btn-danger btn-sm" id="p_btnBatchDelete">🗑️ 批量删除</button>
+                            <button class="btn btn-warning btn-sm" id="p_btnBackupCloud">☁️ 备份到云端</button>
+                            <button class="btn btn-outline btn-sm" id="p_btnRestoreCloud">⬇️ 从云端恢复</button>
+                            <button class="btn btn-outline btn-sm" id="p_btnClearCloud">🗑️ 清除云端</button>
+                            <button class="btn btn-outline btn-sm" id="p_btnClearLocal">🗑️ 清理本地数据</button>
+                            <button class="btn btn-success btn-sm" id="p_btnExportAll">📥 导出全部</button>
+                            <button class="btn btn-success btn-sm" id="p_btnExportQuery">📥 导出查询结果</button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper" id="p_queryTableWrapper" style="max-height:45vh; margin-top:10px;">
+                        <table id="p_queryTable"></table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 报名管理系统 -->
+        <div class="system-panel" id="panel-registration">
+            <div class="main-container">
+                <div class="card"><div class="card-title">🔍 快速查找</div><div class="search-box"><div class="form-group" style="flex:2;min-width:220px;"><label>工程名称/委托人/项目经理/资料/备注</label><input type="text" id="r_quickSearch" onkeyup="if(event.key==='Enter')r_performQuickSearch()"></div><button class="btn btn-primary btn-sm" onclick="r_performQuickSearch()">🔍 查找</button><button class="btn btn-outline btn-sm" onclick="r_clearQuickSearch()">清除</button></div></div>
+                <div class="card"><div class="card-title">🔎 高级筛选</div>
+                    <div class="filter-row" style="margin-bottom:8px;"><div class="form-group"><label>所属公司</label><select id="r_f_company"><option value="">全部</option><option>正大</option><option>世拓</option></select></div><div class="form-group"><label>是否已至开标日</label><select id="r_f_bidStatus"><option value="">全部</option><option>是</option><option>否</option></select></div><div class="form-group"><label>保证金</label><select id="r_f_deposit"><option value="">全部</option><option>有</option><option>无</option></select></div><div class="form-group"><label>开标方式</label><select id="r_f_bidMethod"><option value="">全部</option><option>线上</option><option>线下</option></select></div></div>
+                    <div style="display:flex;gap:8px;"><button class="btn btn-outline btn-sm" onclick="r_clearAdvancedFilter()">清除筛选</button></div>
+                </div>
+                <div class="card">
+                    <div class="query-title-row">
+                        <div class="card-title" id="registrationQueryResultTitle" style="margin-bottom:0; cursor:pointer;">查询结果 <span class="badge-count" id="r_queryCount">0</span>
+                            <label class="hide-check" style="margin-left:10px;"><input type="checkbox" id="r_hideCompletedQuery" checked> 隐藏已开标项目</label>
+                        </div>
+                        <div class="query-actions">
+                            <button class="btn btn-outline btn-sm" id="r_btnImportExcel">📂 从EXCEL导入</button>
+                            <button class="btn btn-primary btn-sm" id="r_btnAddProject">➕ 新增报名</button>
+                            <button class="btn btn-outline btn-sm" id="r_btnEdit">✏️ 编辑</button>
+                            <button class="btn btn-danger btn-sm" id="r_btnDelete">🗑️ 批量删除</button>
+                            <button class="btn btn-warning btn-sm" id="r_btnBackup">☁️ 备份到云端</button>
+                            <button class="btn btn-outline btn-sm" id="r_btnRestore">⬇️ 从云端恢复</button>
+                            <button class="btn btn-outline btn-sm" id="r_btnClearCloud">🗑️ 清除云端</button>
+                            <button class="btn btn-outline btn-sm" id="r_btnClearLocal">🗑️ 清理本地数据</button>
+                            <button class="btn btn-success btn-sm" id="r_btnExportAll">📥 导出全部</button>
+                            <button class="btn btn-success btn-sm" id="r_btnExportQuery">📥 导出查询结果</button>
+                        </div>
+                    </div>
+                    <div class="table-wrapper" id="r_queryTableWrapper" style="max-height:45vh; overflow-x: auto; -webkit-overflow-scrolling: touch; margin-top:10px;">
+                        <table id="r_queryTable"></table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- 通用模态框保持不变 -->
+    <div class="modal-overlay" id="passwordModal" style="display:none;"><div class="modal" style="max-width:400px;"><h3>🔒 身份验证</h3><div class="form-group"><label>请输入敏感信息密码</label><input type="password" id="passwordInput" onkeydown="if(event.key==='Enter')submitPassword()"></div><p id="passwordError" style="color:var(--danger);font-size:11px;display:none;">密码错误</p><div class="modal-actions"><button class="btn btn-outline btn-sm" onclick="closePasswordModal()">取消</button><button class="btn btn-primary btn-sm" onclick="submitPassword()">确认</button></div></div></div>
+    <div class="modal-overlay" id="editModal" style="display:none;"></div>
+    <div class="modal-overlay" id="exportFieldModal" style="display:none;"></div>
+    <div class="modal-overlay" id="dueModal" style="display:none;"><div class="modal" style="max-width:1000px;"><button class="modal-close" id="dueCloseBtn">×</button><h3>🔔 提醒</h3><div id="dueModalContent"></div><div class="modal-actions"><button class="btn btn-outline" id="dueCloseBtn2">关闭</button><button class="btn btn-primary" id="dueDownloadBtn">📥 下载提醒列表</button></div></div></div>
+    <div class="modal-overlay" id="archiveCheckModal" style="display:none;"><div class="modal" style="max-width:1100px;"><button class="modal-close" onclick="document.getElementById('archiveCheckModal').style.display='none'">×</button><h3>📋 档案完整性检查</h3><div id="archiveCheckContent"></div><div class="modal-actions"><button class="btn btn-outline" onclick="document.getElementById('archiveCheckModal').style.display='none'">关闭</button></div></div></div>
+    <div class="toast-container" id="toastContainer"></div>
+    <script>
+        (function() {
+            // 微加固：云Key混淆
+            const KEY_MASK_ARCHIVE = 'Zd#2024!';
+            const KEY_MASK_PERSONNEL = 'St@2024#';
+            const KEY_MASK_REG = 'BM_2024!';
+            function xorStr(s, key) { let res=''; for(let i=0;i<s.length;i++) res+=String.fromCharCode(s.charCodeAt(i)^key.charCodeAt(i%key.length)); return res; }
+            const _ARCHIVE_KEY_ENC = xorStr('DANGAN20020308ZDSTSJ', KEY_MASK_ARCHIVE);
+            const _PERSONNEL_KEY_ENC = xorStr('DANGAN20020308SYRYSK', KEY_MASK_PERSONNEL);
+            const _REG_KEY_ENC = xorStr('BMGLXT20020308ZDST', KEY_MASK_REG);
+            function getArchiveCloudKey() { return xorStr(_ARCHIVE_KEY_ENC, KEY_MASK_ARCHIVE); }
+            function getPersonnelCloudKey() { return xorStr(_PERSONNEL_KEY_ENC, KEY_MASK_PERSONNEL); }
+            function getRegCloudKey() { return xorStr(_REG_KEY_ENC, KEY_MASK_REG); }
+
+            const CLOUD_KEY_PREFIX = 'zhengda02_4shituo_15_';
+            const USER_PW_SALT = 'ZDST_USER_PW_SALT_2024_!@#';
+            const SENSITIVE_SALT = 'ZDST_SENSITIVE_SALT_2024_!@#';
+
+            function deriveLocalKey(sensitivePwd) { return CryptoJS.PBKDF2(sensitivePwd, 'ZDST_Local_Salt_2024_!@#', { keySize:256/32, iterations:50000, hasher:CryptoJS.algo.SHA256 }); }
+            function deriveLocalKeyOld(sensitivePwd) { return CryptoJS.PBKDF2(sensitivePwd, 'ZDST_Local_Salt_2024_!@#', { keySize:256/32, iterations:10000, hasher:CryptoJS.algo.SHA256 }); }
+            function getFixedIV() { return CryptoJS.enc.Utf8.parse('ZDST_IV_2024_!@#'); }
+            const iv = getFixedIV();
+
+            let lastBackupTime = { archive:0, personnel:0, registration:0 };
+            function canBackup(system) { const now = Date.now(); if(now - lastBackupTime[system] < 30000) { showToast('备份过于频繁，请30秒后再试','error'); return false; } lastBackupTime[system]=now; return true; }
+            function addLog(action, details) { const logs = JSON.parse(localStorage.getItem('operation_logs')||'[]'); logs.push({ timestamp: new Date().toISOString(), user: currentUser, action: action, details: details }); if(logs.length>500) logs.splice(0, logs.length-500); localStorage.setItem('operation_logs', JSON.stringify(logs)); }
+
+            let currentUser='', currentSensitivePwd='', isLoggedIn=false;
+            let currentProjectCode = '';
+            let permissions = { entry:false, backup:false, export:false, showSensitive:false, view:false, import:false, restore:false, clearCloud:false };
+            let passwordCallback=null, pendingExportCallback=null;
+            let activeSystem='archive';
+            let r_refreshTimer = null;
+            let autoSyncTimer = null;
+            let activeSubTab = { archive:'archive-query', personnel:'personnel-query', registration:'registration-query' };
+            let suppressAlerts = { archive:false, personnel:false, registration:false };
+
+            let a_allData=[], a_queryResults=[], a_globalSearchResults=[], a_activeSearchResults=null;
+            let a_hiddenVisible=false;
+            let a_editQueue=[], a_isProcessingQueue=false;
+            let a_dataTabClickCount=0, a_dataTabClickTimer=null;
+            const a_encryptFields = ['engName','partyA','engAddress','contractPrice','cooperation','partner','phone'];
+            const a_hiddenFields = ['cooperation','partner','phone'];
+            const a_dateFields = ['bidDate','startDate','completionDate','signDate'];
+            const a_numericFields = ['contractPrice','signCopies','buildingArea'];
+            const a_allFields = [ { key:'company', label:'所属公司' }, { key:'archiveNo', label:'档案号' }, { key:'engName', label:'工程名称' }, { key:'engCategory', label:'工程类别' }, { key:'usage', label:'使用性质' }, { key:'contractType', label:'承包方式' }, { key:'partyA', label:'甲方单位' }, { key:'engAddress', label:'工程地址' }, { key:'contractPrice', label:'合同价格' }, { key:'bidDate', label:'中标日期' }, { key:'startDate', label:'开工日期' }, { key:'completionDate', label:'竣工日期' }, { key:'totalDuration', label:'总工期' }, { key:'projectManager', label:'项目经理' }, { key:'signDate', label:'签署日期' }, { key:'signCopies', label:'签署份数' }, { key:'buildingArea', label:'建筑面积' }, { key:'structure', label:'结构形式' }, { key:'floors', label:'层数' }, { key:'bidDoc', label:'招标文件' }, { key:'tenderDoc', label:'投标文件' }, { key:'bidNotice', label:'中标通知书' }, { key:'contract', label:'合同' }, { key:'cooperation', label:'合作协议' }, { key:'completionDoc', label:'竣工文件' }, { key:'settlementDoc', label:'结算文件' }, { key:'legalDoc', label:'法律文书' }, { key:'constructionPermit', label:'施工许可证' }, { key:'approvalDoc', label:'立项文件' }, { key:'planningPermit', label:'规划许可证' }, { key:'reviewDoc', label:'审图合格文件' }, { key:'partner', label:'合作人' }, { key:'phone', label:'联系电话' }, { key:'remark', label:'备注说明' } ];
+
+            let p_allData=[], p_queryResults=[], p_activeSearchResults=null;
+            const p_allFields = [ { key:'seq', label:'序号' }, { key:'name', label:'姓名' }, { key:'idcard', label:'身份证' }, { key:'category', label:'类别' }, { key:'position', label:'岗位' }, { key:'regno', label:'注册号' }, { key:'major', label:'注册专业' }, { key:'validity', label:'有效期' }, { key:'level', label:'级别' }, { key:'issuer', label:'发证单位' }, { key:'phone', label:'联系电话' }, { key:'jishibanAccount', label:'冀时办账号' }, { key:'jishibanPassword', label:'冀时办密码' }, { key:'socialSecurity', label:'社保' }, { key:'company', label:'所属公司' }, { key:'remarks', label:'备注' } ];
+            let p_editQueue=[], p_isProcessingQueue=false;
+            let p_dataSortKey=null, p_dataSortAsc=true, p_querySortKey=null, p_querySortAsc=true;
+
+            let r_allData=[], r_queryResults=[], r_activeSearchResults=null;
+            let r_remarks2Visible=false;
+            let r_editQueue=[], r_isProcessingQueue=false;
+            let r_dataTabClickCount=0, r_dataTabClickTimer=null;
+            const r_sortState = { dataTable:{ field:'bidOpeningStatus', order:'desc' }, queryTable:{ field:'bidOpeningStatus', order:'desc' } };
+            const r_allFieldsExport = [ { key:'seq', label:'序号' }, { key:'projectName', label:'工程名称' }, { key:'client', label:'委托人' }, { key:'projectManager', label:'项目经理' }, { key:'materials', label:'资料' }, { key:'registrationDate', label:'报名日期' }, { key:'bidOpeningMethod', label:'开标方式' }, { key:'bidOpeningAddress', label:'开标地址' }, { key:'bidOpeningDate', label:'开标日期' }, { key:'deposit', label:'保证金' }, { key:'maxPrice', label:'最高限价(元)' }, { key:'announcementUrl', label:'公告地址' }, { key:'company', label:'所属公司' }, { key:'remarks', label:'备注' } ];
+
+            function showToast(msg, type='info') { const c=document.getElementById('toastContainer'); const t=document.createElement('div'); t.className='toast '+type; t.textContent=msg; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
+            function escapeHtml(str) { const d=document.createElement('div'); d.textContent=str||''; return d.innerHTML; }
+            function excelSerialToDate(serial) { if(typeof serial!=='number'||isNaN(serial)||serial<=0) return serial; const baseDate=new Date(1899,11,30); const resultDate=new Date(baseDate.getTime()+Math.round(serial)*86400000); return resultDate.getFullYear()+'-'+String(resultDate.getMonth()+1).padStart(2,'0')+'-'+String(resultDate.getDate()).padStart(2,'0'); }
+            function isExcelSerialNumber(val) { return typeof val==='number' && val>40000 && val<80000; }
+            function getNowString() { const n=new Date(); return n.getFullYear()+('0'+(n.getMonth()+1)).slice(-2)+('0'+n.getDate()).slice(-2)+'_'+('0'+n.getHours()).slice(-2)+('0'+n.getMinutes()).slice(-2)+('0'+n.getSeconds()).slice(-2); }
+            function formatDateTimeForDisplay(dtStr) { if(!dtStr) return ''; return dtStr.replace('T',' '); }
+            function updateSyncStatus(online, msg='') { const d=document.getElementById('syncDot'), t=document.getElementById('syncText'); if(online){ d.classList.remove('offline'); t.textContent=msg||'云端同步正常'; } else { d.classList.add('offline'); t.textContent=msg||'离线模式'; } }
+            async function cloudReadRaw(key) { try { const r=await fetch(`https://textdb.online/${key}`); if(!r.ok) return null; return await r.text(); } catch(e) { return null; } }
+            async function cloudUpdateRaw(key, rawString) { const url=`https://textdb.online/update/?key=${key}&value=${encodeURIComponent(rawString)}`; try { const r=await fetch(url,{method:'POST'}); if(r.ok){ const j=await r.json().catch(()=>null); if(j&&j.status===1) return {success:true}; } return {success:false}; } catch(e) { return {success:false}; } }
+            function verifySensitive(input) { if(!currentSensitivePwd) { alert('未配置敏感信息密码'); return false; } const hash=CryptoJS.SHA256(input+SENSITIVE_SALT).toString(); return hash===currentSensitivePwd; }
+
+            async function performLogin() {
+                const suffix=document.getElementById('loginSuffix').value.trim();
+                currentProjectCode = suffix;
+                const user=document.getElementById('loginUser').value.trim();
+                const pwd=document.getElementById('loginPwd').value.trim();
+                const err=document.getElementById('loginError');
+                if(!suffix||!user||!pwd) { err.textContent='请填写项目库码、用户名和密码'; err.style.display='block'; return; }
+                document.getElementById('loginBtn').disabled=true;
+                try {
+                    const usersKey=CLOUD_KEY_PREFIX+suffix+'_users';
+                    const raw=await cloudReadRaw(usersKey);
+                    if(!raw) { err.textContent='用户库不存在'; err.style.display='block'; return; }
+                    const users=JSON.parse(raw);
+                    const found=users.find(u=>u.user===user);
+                    if(!found) { err.textContent='用户名或密码错误'; err.style.display='block'; return; }
+                    const pwdHash=CryptoJS.SHA256(pwd+USER_PW_SALT).toString();
+                    if(found.pwd!==pwdHash) { err.textContent='用户名或密码错误'; err.style.display='block'; return; }
+                    currentUser=user;
+                    currentSensitivePwd=found.sensitivePwd||'';
+                    const perms=found.permissions||{};
+                    permissions.entry=perms.entryPermission==='1'; permissions.view=perms.viewPermission==='1'; permissions.import=perms.importPermission==='1'; permissions.export=perms.exportPermission==='1'; permissions.backup=perms.backupPermission==='1'; permissions.restore=perms.restorePermission==='1'; permissions.showSensitive=perms.showSensitivePermission==='1'; permissions.clearCloud=perms.clearCloudPermission==='1';
+                    document.getElementById('loginPanel').style.display='none';
+                    document.getElementById('appPanel').style.display='block';
+                    document.getElementById('currentUserDisplay').textContent='👤 '+currentUser;
+                    isLoggedIn=true;
+                    suppressAlerts = { archive:false, personnel:false, registration:false };
+                    applyAllPermissions();
+                    await initAllSystems();
+                    autoSyncTimer = setInterval(autoSyncCheck, 10 * 60 * 1000);
+                } catch(e) { err.textContent='登录服务异常'; err.style.display='block'; } finally { document.getElementById('loginBtn').disabled=false; document.getElementById('loginPwd').value=''; }
+            }
+
+            function logout() {
+                isLoggedIn=false; currentUser=''; currentSensitivePwd='';
+                document.getElementById('loginPanel').style.display='flex'; document.getElementById('appPanel').style.display='none';
+                a_allData=[]; a_queryResults=[]; a_globalSearchResults=[]; a_activeSearchResults=null;
+                p_allData=[]; p_queryResults=[]; p_activeSearchResults=null;
+                r_allData=[]; r_queryResults=[]; r_activeSearchResults=null;
+                suppressAlerts={ archive:false, personnel:false, registration:false };
+                document.body.classList.remove('no-copy');
+                if (r_refreshTimer) { clearInterval(r_refreshTimer); r_refreshTimer = null; }
+                if (autoSyncTimer) { clearInterval(autoSyncTimer); autoSyncTimer = null; }
+            }
+
+            function applyAllPermissions() {
+                const disableById=(id)=>{ const el=document.getElementById(id); if(el) el.disabled=true; };
+                if(!permissions.entry) { ['a_btnImportExcel','a_btnAddArchive','a_btnEditSelected','a_btnBatchDelete','p_btnImportExcel','p_btnAddPerson','p_btnEditSelected','p_btnBatchDelete','r_btnImportExcel','r_btnAddProject','r_btnEdit','r_btnDelete'].forEach(disableById); }
+                if(!permissions.import) { ['a_btnImportExcel','p_btnImportExcel','r_btnImportExcel'].forEach(disableById); }
+                if(!permissions.backup) { ['a_btnBackupCloud','p_btnBackupCloud','r_btnBackup'].forEach(disableById); }
+                if(!permissions.restore) { ['a_btnRestoreCloud','p_btnRestoreCloud','r_btnRestore'].forEach(disableById); }
+                if(!permissions.export) { ['a_btnExportAll','a_btnExportQuery','p_btnExportAll','p_btnExportQuery','r_btnExportAll','r_btnExportQuery'].forEach(disableById); }
+                if(!permissions.clearCloud) { ['a_btnClearCloud','p_btnClearCloud','r_btnClearCloud'].forEach(disableById); }
+                const onlyBackup=permissions.backup && !permissions.entry && !permissions.export && !permissions.showSensitive;
+                if(onlyBackup) { document.body.classList.add('no-copy'); } else { document.body.classList.remove('no-copy'); }
+            }
+
+            function showDueModal(html, module, downloadFn) {
+                const modal=document.getElementById('dueModal');
+                document.getElementById('dueModalContent').innerHTML=html;
+                const actionsDiv=modal.querySelector('.modal-actions');
+                let label=document.getElementById('suppressLabel');
+                if(!label) { label=document.createElement('label'); label.id='suppressLabel'; label.className='suppress-label'; label.innerHTML='<input type="checkbox" id="suppressAlertCheckbox"> 本次登录不再弹出'; actionsDiv.insertBefore(label, actionsDiv.firstChild); }
+                document.getElementById('suppressAlertCheckbox').checked=false;
+                document.getElementById('dueCloseBtn').onclick=function(){ if(document.getElementById('suppressAlertCheckbox').checked) suppressAlerts[module]=true; modal.style.display='none'; };
+                document.getElementById('dueCloseBtn2').onclick=function(){ if(document.getElementById('suppressAlertCheckbox').checked) suppressAlerts[module]=true; modal.style.display='none'; };
+                document.getElementById('dueDownloadBtn').onclick=function(){ if(document.getElementById('suppressAlertCheckbox').checked) suppressAlerts[module]=true; if(downloadFn) downloadFn(); };
+                modal.style.display='flex';
+            }
+
+            function encryptLocal(plainText, localKey) { return CryptoJS.AES.encrypt(plainText, localKey, { iv:iv, mode:CryptoJS.mode.CBC, padding:CryptoJS.pad.Pkcs7 }).toString(); }
+            function decryptLocal(cipherText, localKey) { try { const bytes=CryptoJS.AES.decrypt(cipherText, localKey, { iv:iv, mode:CryptoJS.mode.CBC, padding:CryptoJS.pad.Pkcs7 }); return bytes.toString(CryptoJS.enc.Utf8); } catch(e) { return ''; } }
+
+            function switchMainTab(systemId) {
+                activeSystem = systemId;
+                document.querySelectorAll('.system-panel').forEach(p => p.classList.remove('active'));
+                document.querySelectorAll('.main-tab-btn').forEach(b => b.classList.remove('active'));
+                document.getElementById('panel-' + systemId)?.classList.add('active');
+                document.querySelector(`[data-main="panel-${systemId}"]`)?.classList.add('active');
+                updateSyncStatus(false, '本地模式');
+                if (r_refreshTimer) { clearInterval(r_refreshTimer); r_refreshTimer = null; }
+                if (systemId === 'archive') { a_refreshQueryTable(); a_checkArchives(); }
+                else if (systemId === 'personnel') { p_refreshQueryTable(); p_checkDueDates(); }
+                else if (systemId === 'registration') {
+                    r_refreshQueryTable();
+                    r_checkDueBidOpenings();
+                    r_refreshTimer = setInterval(() => { r_refreshQueryTable(); }, 60000);
+                }
+            }
+
+            // ===================== 档案系统函数 =====================
+            function a_encryptData(data) {
+                try { return CryptoJS.AES.encrypt(JSON.stringify(data), a_getLocalKey(), { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }).toString(); } catch (e) { return null; }
+            }
+            function a_decryptData(cipherText, keyFn) {
+                const key = keyFn || a_getLocalKey();
+                try { const bytes = CryptoJS.AES.decrypt(cipherText, key, { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }); const decrypted = bytes.toString(CryptoJS.enc.Utf8); return decrypted ? JSON.parse(decrypted) : null; } catch (e) { return null; }
+            }
+            function a_getLocalKey() { return deriveLocalKey(currentSensitivePwd); }
+            function a_encryptField(val) { return encryptLocal(val || '', a_getLocalKey()); }
+            function a_decryptField(cipher, keyFn) { return decryptLocal(cipher, keyFn || a_getLocalKey()); }
+            function a_encryptForStorage(arr) { return arr.map(item => { const o = { ...item }; a_encryptFields.forEach(f => { if (o[f] !== undefined) o[f] = a_encryptField(o[f]); }); return o; }); }
+            function a_decryptFromStorage(arr, keyFn) {
+                const key = keyFn || a_getLocalKey();
+                return arr.map(item => { const o = { ...item }; a_encryptFields.forEach(f => { if (o[f] !== undefined) o[f] = a_decryptField(o[f], typeof key === 'function' ? key : () => key); }); return o; });
+            }
+            function a_saveLocal(data) { const encrypted = a_encryptData(data); if (encrypted) localStorage.setItem('DANGAN20020308ZDSTSJ', encrypted); }
+            function a_loadLocal() {
+                const raw = localStorage.getItem('DANGAN20020308ZDSTSJ'); if (!raw) return null;
+                let data = a_decryptData(raw); if (data && Array.isArray(data)) return data;
+                try {
+                    const parsed = JSON.parse(raw); if (Array.isArray(parsed)) { const decrypted = a_decryptFromStorage(parsed); if (decrypted && decrypted.length > 0) { a_saveLocal(decrypted); return decrypted; } }
+                } catch (e) {}
+                return null;
+            }
+            function a_getVisibleFields() { return a_allFields.filter(f => !a_hiddenFields.includes(f.key) || a_hiddenVisible); }
+
+            function a_sortData(dataArray, fieldKey, order) {
+                const isNumeric = a_numericFields.includes(fieldKey); const isDate = a_dateFields.includes(fieldKey);
+                return [...dataArray].sort((a, b) => {
+                    let valA = a[fieldKey] || '', valB = b[fieldKey] || '';
+                    if (isNumeric) { valA = parseFloat(valA) || 0; valB = parseFloat(valB) || 0; }
+                    else if (isDate) { valA = valA ? new Date(valA).getTime() : 0; valB = valB ? new Date(valB).getTime() : 0; if (isNaN(valA)) valA = 0; if (isNaN(valB)) valB = 0; }
+                    else { valA = valA.toString().toLowerCase(); valB = valB.toString().toLowerCase(); }
+                    if (valA < valB) return order === 'asc' ? -1 : 1;
+                    if (valA > valB) return order === 'asc' ? 1 : -1;
+                    return 0;
+                });
+            }
+
+            function a_buildTableHeader() {
+                const thead = document.createElement('thead');
+                let html = `<tr><th class="checkbox-cell"><input type="checkbox" id="a_querySelectAll" onchange="a_toggleSelectAllQuery(this)"></th>`;
+                a_getVisibleFields().forEach((f, idx) => { html += `<th onclick="a_handleHeaderClick(${idx})">${f.label} <span class="sort-arrow">⇅</span></th>`; });
+                html += '</tr>'; thead.innerHTML = html; return thead;
+            }
+
+            function a_buildTableRow(person, index) {
+                const tr = document.createElement('tr'); tr.setAttribute('data-index', index);
+                let html = `<td class="checkbox-cell"><input type="checkbox" class="a_row-checkbox-query" data-index="${index}" onclick="event.stopPropagation();"></td>`;
+                a_getVisibleFields().forEach(f => html += `<td>${escapeHtml(person[f.key] || '')}</td>`);
+                tr.innerHTML = html; return tr;
+            }
+
+            function a_refreshQueryTable(results) {
+                const resolved = results !== undefined ? results : (a_queryResults.length > 0 ? a_queryResults : (a_activeSearchResults || a_allData));
+                const table = document.getElementById('a_queryTable'); table.innerHTML = ''; table.appendChild(a_buildTableHeader());
+                const tbody = document.createElement('tbody'); tbody.id = 'a_queryTbody';
+                resolved.forEach((p, idx) => { const origIdx = a_allData.indexOf(p); const tr = a_buildTableRow(p, origIdx >= 0 ? origIdx : idx); tr.addEventListener('dblclick', () => { const ri = a_allData.indexOf(p); if (ri >= 0) a_handleDoubleClickRow(ri); }); tr.addEventListener('click', function(e) { if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') return; const cb = this.querySelector('.a_row-checkbox-query'); if (cb) cb.checked = !cb.checked; }); tbody.appendChild(tr); });
+                table.appendChild(tbody); document.getElementById('a_queryCount').textContent = resolved.length;
+            }
+
+            function a_updateSelectAll() { const cbs = document.querySelectorAll('#a_queryTbody .a_row-checkbox-query'); document.getElementById('a_querySelectAll').checked = cbs.length > 0 && Array.from(cbs).every(cb => cb.checked); }
+            function a_toggleSelectAllQuery(cb) { document.querySelectorAll('#a_queryTbody .a_row-checkbox-query').forEach(c => c.checked = cb.checked); }
+            function a_getSelectedIndices() { return Array.from(document.querySelectorAll('#a_queryTbody .a_row-checkbox-query:checked')).map(cb => parseInt(cb.getAttribute('data-index'))).filter(i => i >= 0 && i < a_allData.length); }
+
+            function a_handleHeaderClick(colIndex) {
+                const visibleFields = a_getVisibleFields(); if (colIndex >= visibleFields.length) return;
+                const fieldKey = visibleFields[colIndex].key;
+                const thead = document.querySelector('#a_queryTable thead');
+                const currentSortCol = thead.getAttribute('data-sort-column'); const currentSortOrder = thead.getAttribute('data-sort-order');
+                let newOrder = 'asc'; if (currentSortCol === fieldKey) newOrder = currentSortOrder === 'asc' ? 'desc' : 'asc';
+                thead.setAttribute('data-sort-column', fieldKey); thead.setAttribute('data-sort-order', newOrder);
+                const base = a_queryResults.length > 0 ? a_queryResults : (a_activeSearchResults || a_allData);
+                const sorted = a_sortData(base, fieldKey, newOrder);
+                if (a_queryResults.length > 0) a_queryResults = sorted;
+                else if (a_activeSearchResults) a_activeSearchResults = sorted;
+                else a_allData = sorted;
+                a_refreshQueryTable(sorted);
+            }
+
+                       function a_hasAdvancedFilter() { return ['a_f_company', 'a_f_engCategory', 'a_f_usage', 'a_f_contractType', 'a_f_contractPrice', 'a_f_bidDate', 'a_f_completionDate', 'a_f_signDate', 'a_f_buildingArea', 'a_f_structure', 'a_f_floors', 'a_f_bidNotice', 'a_f_contract', 'a_f_cooperation', 'a_f_completionDoc', 'a_f_settlementDoc'].some(id => document.getElementById(id)?.value !== ''); }
+
+            function a_performAdvancedFilter() {
+                const base = a_activeSearchResults || a_allData;
+                if (!a_hasAdvancedFilter()) { a_queryResults = []; a_refreshQueryTable(base); return; }
+                const getVal = (id) => document.getElementById(id)?.value || '';
+                const f = { company: getVal('a_f_company'), engCategory: getVal('a_f_engCategory'), usage: getVal('a_f_usage'), contractType: getVal('a_f_contractType'), contractPrice: parseFloat(getVal('a_f_contractPrice')), bidDate: getVal('a_f_bidDate'), completionDate: getVal('a_f_completionDate'), signDateOp: getVal('a_f_signDateOp'), signDate: getVal('a_f_signDate'), buildingArea: parseFloat(getVal('a_f_buildingArea')), structure: getVal('a_f_structure'), floors: getVal('a_f_floors').trim().toLowerCase(), bidNotice: getVal('a_f_bidNotice'), contract: getVal('a_f_contract'), cooperation: getVal('a_f_cooperation'), completionDoc: getVal('a_f_completionDoc'), settlementDoc: getVal('a_f_settlementDoc') };
+                a_queryResults = base.filter(p => {
+                    if (f.company && p.company !== f.company) return false; if (f.engCategory && p.engCategory !== f.engCategory) return false; if (f.usage && p.usage !== f.usage) return false; if (f.contractType && p.contractType !== f.contractType) return false;
+                    if (!isNaN(f.contractPrice) && f.contractPrice > 0) { const v = parseFloat(p.contractPrice); if (isNaN(v) || v <= f.contractPrice) return false; }
+                    if (f.bidDate && p.bidDate && p.bidDate < f.bidDate) return false; if (f.bidDate && !p.bidDate) return false; if (f.completionDate && p.completionDate && p.completionDate < f.completionDate) return false; if (f.completionDate && !p.completionDate) return false;
+                    if (f.signDate) { if (!p.signDate) return false; if (f.signDateOp === 'gt' && p.signDate <= f.signDate) return false; if (f.signDateOp === 'lt' && p.signDate >= f.signDate) return false; }
+                    if (!isNaN(f.buildingArea) && f.buildingArea > 0) { const v = parseFloat(p.buildingArea); if (isNaN(v) || v <= f.buildingArea) return false; }
+                    if (f.structure && p.structure !== f.structure) return false; if (f.floors && (!p.floors || !p.floors.toLowerCase().includes(f.floors))) return false;
+                    if (f.bidNotice === '有数据' && !p.bidNotice) return false; if (f.bidNotice === '无数据' && p.bidNotice) return false; if (f.contract === '有数据' && !p.contract) return false; if (f.contract === '无数据' && p.contract) return false;
+                    if (f.cooperation === '有数据' && !p.cooperation) return false; if (f.cooperation === '无数据' && p.cooperation) return false; if (f.completionDoc === '有数据' && !p.completionDoc) return false; if (f.completionDoc === '无数据' && p.completionDoc) return false;
+                    if (f.settlementDoc === '有数据' && !p.settlementDoc) return false; if (f.settlementDoc === '无数据' && p.settlementDoc) return false;
+                    return true;
+                });
+                a_refreshQueryTable(a_queryResults);
+            }
+
+            function a_clearAdvancedFilter() { ['a_f_company', 'a_f_engCategory', 'a_f_usage', 'a_f_contractType', 'a_f_contractPrice', 'a_f_bidDate', 'a_f_completionDate', 'a_f_signDate', 'a_f_buildingArea', 'a_f_structure', 'a_f_floors', 'a_f_bidNotice', 'a_f_contract', 'a_f_cooperation', 'a_f_completionDoc', 'a_f_settlementDoc'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); document.getElementById('a_f_signDateOp').value = 'gt'; a_queryResults = []; a_activeSearchResults = null; a_refreshQueryTable(a_allData); }
+            function a_clearGlobalSearch() { document.getElementById('a_globalSearch').value = ''; a_activeSearchResults = null; a_queryResults = []; a_refreshQueryTable(a_allData); }
+            function a_performGlobalSearch() { const kw = document.getElementById('a_globalSearch').value.trim().toLowerCase(); const base = a_activeSearchResults || a_allData; if (!kw) { a_activeSearchResults = null; a_queryResults = []; a_refreshQueryTable(a_allData); return; } a_activeSearchResults = base.filter(p => [p.archiveNo, p.engName, p.partyA, p.engAddress, p.projectManager, p.partner, p.phone, p.remark].some(f => f && f.toLowerCase().includes(kw))); a_queryResults = []; if (a_hasAdvancedFilter()) a_performAdvancedFilter(); else a_refreshQueryTable(a_activeSearchResults); }
+
+            function a_openEditModal(person, index) {
+                const modal = document.getElementById('editModal'); const isNew = index < 0; const showHidden = isNew || a_hiddenVisible;
+                let html = `<div class="modal"><button class="modal-close" onclick="closeEditModal()">×</button><h3>${isNew?'新增档案信息':'修改档案信息'}</h3><div class="form-row">`;
+                html += `<div class="form-group"><label>所属公司</label><select id="ae_company"><option value="">--请选择--</option><option>正大</option><option>世拓</option><option>其他</option></select></div>`;
+                html += `<div class="form-group"><label>档案号</label><input type="text" id="ae_archiveNo"></div>`;
+                html += `<div class="form-group"><label>工程名称 *</label><input type="text" id="ae_engName"></div>`;
+                html += `<div class="form-group"><label>工程类别</label><select id="ae_engCategory"><option>建筑</option><option>装修</option><option>市政</option><option>钢结构</option><option>水利</option><option>机电</option><option>防水防腐</option><option>消防</option><option>维修改造</option><option>环保</option><option>公路</option><option>其他</option></select></div>`;
+                html += `<div class="form-group"><label>使用性质</label><select id="ae_usage"><option>公共</option><option>工业</option><option>商业</option><option>农业</option><option>住宅</option><option>其他</option></select></div>`;
+                html += `<div class="form-group"><label>承包方式</label><select id="ae_contractType"><option>总承包</option><option>专业承包</option><option>劳务</option><option>甲供材</option><option>其他</option></select></div>`;
+                html += `<div class="form-group"><label>甲方单位</label><input type="text" id="ae_partyA"></div>`;
+                html += `<div class="form-group"><label>工程地址</label><input type="text" id="ae_engAddress"></div>`;
+                html += `<div class="form-group"><label>合同价格</label><input type="text" id="ae_contractPrice"></div>`;
+                html += `<div class="form-group"><label>中标日期</label><input type="date" id="ae_bidDate"></div>`;
+                html += `<div class="form-group"><label>开工日期</label><input type="date" id="ae_startDate"></div>`;
+                html += `<div class="form-group"><label>竣工日期</label><input type="date" id="ae_completionDate"></div>`;
+                html += `<div class="form-group"><label>总工期</label><input type="text" id="ae_totalDuration"></div>`;
+                html += `<div class="form-group"><label>项目经理</label><input type="text" id="ae_projectManager"></div>`;
+                html += `<div class="form-group"><label>签署日期</label><input type="date" id="ae_signDate"></div>`;
+                html += `<div class="form-group"><label>签署份数</label><input type="text" id="ae_signCopies"></div>`;
+                html += `<div class="form-group"><label>建筑面积</label><input type="text" id="ae_buildingArea"></div>`;
+                html += `<div class="form-group"><label>结构形式</label><select id="ae_structure"><option>框剪</option><option>框架</option><option>钢结构</option><option>剪力墙</option><option>砖混</option><option>其他</option></select></div>`;
+                html += `<div class="form-group"><label>层数</label><input type="text" id="ae_floors"></div>`;
+                html += `<div class="form-group"><label>招标文件</label><input type="text" id="ae_bidDoc"></div>`;
+                html += `<div class="form-group"><label>投标文件</label><input type="text" id="ae_tenderDoc"></div>`;
+                html += `<div class="form-group"><label>中标通知书</label><input type="text" id="ae_bidNotice"></div>`;
+                html += `<div class="form-group"><label>合同</label><input type="text" id="ae_contract"></div>`;
+                if (showHidden) html += `<div class="form-group"><label>合作协议</label><input type="text" id="ae_cooperation"></div>`;
+                html += `<div class="form-group"><label>竣工文件</label><input type="text" id="ae_completionDoc"></div>`;
+                html += `<div class="form-group"><label>结算文件</label><input type="text" id="ae_settlementDoc"></div>`;
+                html += `<div class="form-group"><label>法律文书</label><input type="text" id="ae_legalDoc"></div>`;
+                html += `<div class="form-group"><label>施工许可证</label><input type="text" id="ae_constructionPermit"></div>`;
+                html += `<div class="form-group"><label>立项文件</label><input type="text" id="ae_approvalDoc"></div>`;
+                html += `<div class="form-group"><label>规划许可证</label><input type="text" id="ae_planningPermit"></div>`;
+                html += `<div class="form-group"><label>审图合格文件</label><input type="text" id="ae_reviewDoc"></div>`;
+                if (showHidden) { html += `<div class="form-group"><label>合作人</label><input type="text" id="ae_partner"></div>`; html += `<div class="form-group"><label>联系电话</label><input type="text" id="ae_phone"></div>`; }
+                html += `<div class="form-group"><label>备注说明</label><input type="text" id="ae_remark"></div>`;
+                html += `</div><input type="hidden" id="ae_index" value="${index}"><div class="modal-actions"><button class="btn btn-outline" onclick="closeEditModal()">取消</button><button class="btn btn-primary" onclick="a_saveFromModal()">保存</button></div></div>`;
+                modal.innerHTML = html; modal.style.display = 'flex';
+                if (!isNew) {
+                    document.getElementById('ae_company').value = person.company || '';
+                    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+                    setVal('ae_archiveNo', person.archiveNo); setVal('ae_engName', person.engName); setVal('ae_partyA', person.partyA); setVal('ae_engAddress', person.engAddress); setVal('ae_contractPrice', person.contractPrice); setVal('ae_bidDate', person.bidDate); setVal('ae_startDate', person.startDate); setVal('ae_completionDate', person.completionDate); setVal('ae_totalDuration', person.totalDuration); setVal('ae_projectManager', person.projectManager); setVal('ae_signDate', person.signDate); setVal('ae_signCopies', person.signCopies); setVal('ae_buildingArea', person.buildingArea); setVal('ae_floors', person.floors); setVal('ae_bidDoc', person.bidDoc); setVal('ae_tenderDoc', person.tenderDoc); setVal('ae_bidNotice', person.bidNotice); setVal('ae_contract', person.contract); if (showHidden) setVal('ae_cooperation', person.cooperation); setVal('ae_completionDoc', person.completionDoc); setVal('ae_settlementDoc', person.settlementDoc); setVal('ae_legalDoc', person.legalDoc); setVal('ae_constructionPermit', person.constructionPermit); setVal('ae_approvalDoc', person.approvalDoc); setVal('ae_planningPermit', person.planningPermit); setVal('ae_reviewDoc', person.reviewDoc); if (showHidden) { setVal('ae_partner', person.partner); setVal('ae_phone', person.phone); } setVal('ae_remark', person.remark);
+                    const selVal = (id, val) => { const el = document.getElementById(id); if (el && val) { el.value = val; } };
+                    selVal('ae_engCategory', person.engCategory); selVal('ae_usage', person.usage); selVal('ae_contractType', person.contractType); selVal('ae_structure', person.structure);
+                }
+            }
+
+            function a_saveFromModal() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const index = parseInt(document.getElementById('ae_index').value); const showHidden = index < 0 || a_hiddenVisible; const getVal = (id) => document.getElementById(id)?.value || ''; const data = {}; a_allFields.forEach(f => { const elId = 'ae_' + f.key; const el = document.getElementById(elId); if (el) data[f.key] = el.value || ''; else if (f.key === 'cooperation') data[f.key] = showHidden ? (getVal('ae_cooperation') || '') : (a_allData[index]?.cooperation || ''); else if (f.key === 'partner') data[f.key] = showHidden ? (getVal('ae_partner') || '') : (a_allData[index]?.partner || ''); else if (f.key === 'phone') data[f.key] = showHidden ? (getVal('ae_phone') || '') : (a_allData[index]?.phone || ''); else data[f.key] = data[f.key] || ''; }); if (!data.engName.trim()) { showToast('工程名称不能为空', 'error'); return; } if (index >= 0 && index < a_allData.length) a_allData[index] = data; else a_allData.push(data); a_saveLocal(a_allData); showToast(index >= 0 ? '已保存' : '已添加', 'success'); a_globalSearchResults = []; a_queryResults = []; a_activeSearchResults = null; a_refreshQueryTable(); closeEditModal(); }
+            function a_openAddArchiveModal() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const obj = {}; a_allFields.forEach(f => obj[f.key] = ''); a_openEditModal(obj, -1); }
+            function a_processEditQueue() { if (a_editQueue.length > 0 && !a_isProcessingQueue) { a_isProcessingQueue = true; const ni = a_editQueue.shift(); if (ni >= 0 && ni < a_allData.length) a_openEditModal(a_allData[ni], ni); else a_processEditQueue(); } else if (a_editQueue.length === 0) a_isProcessingQueue = false; }
+            function a_handleEditSelected() { const indices = a_getSelectedIndices(); if (!indices.length) { showToast('请勾选数据行', 'error'); return; } if (!permissions.entry) { showToast('无录入权限', 'error'); return; } showToast('编辑已选择', 'info'); a_editQueue = [...indices]; a_isProcessingQueue = false; a_processEditQueue(); }
+            function a_handleDoubleClickRow(index) { if (index < 0 || index >= a_allData.length) return; if (!permissions.entry) { showToast('无录入权限', 'error'); return; } a_openEditModal(a_allData[index], index); }
+            async function a_handleBatchDelete() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const indices = a_getSelectedIndices(); if (!indices.length) { showToast('请勾选', 'error'); return; } showPasswordModal(async () => { if (confirm(`删除 ${indices.length} 条？`)) { indices.sort((a, b) => b - a).forEach(i => a_allData.splice(i, 1)); a_saveLocal(a_allData); a_globalSearchResults = []; a_queryResults = []; a_activeSearchResults = null; a_refreshQueryTable(); showToast('已删除', 'success'); } }); }
+
+            function a_importFromExcel() {
+                if (!permissions.import) { showToast('无导入权限', 'error'); return; }
+                const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx,.xls';
+                input.onchange = function(e) {
+                    const file = e.target.files[0]; if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = function(evt) {
+                        const data = new Uint8Array(evt.target.result);
+                        const wb = XLSX.read(data, { type: 'array' });
+                        const sheet = wb.Sheets[wb.SheetNames[0]];
+                        const json = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                        if (json.length < 2) { showToast('Excel格式错误'); return; }
+                        const rows = json.slice(1).filter(r => r.some(c => c !== '' && c !== null));
+                        const imported = rows.map(row => {
+                            const obj = {};
+                            a_allFields.forEach((f, idx) => {
+                                let val = row[idx];
+                                if (a_dateFields.includes(f.key) && typeof val === 'number' && val > 40000 && val < 80000) val = excelSerialToDate(val);
+                                obj[f.key] = String(val ?? '');
+                            });
+                            return obj;
+                        });
+                        if (imported.length === 0) { showToast('无有效数据'); return; }
+                        let added = 0, updated = 0, unchanged = 0;
+                        imported.forEach(imp => {
+                            const archiveNo = imp.archiveNo.trim();
+                            if (!archiveNo) { a_allData.push(imp); added++; return; }
+                            const existIdx = a_allData.findIndex(item => item.archiveNo.trim() === archiveNo);
+                            if (existIdx === -1) { a_allData.push(imp); added++; }
+                            else {
+                                const existing = a_allData[existIdx];
+                                let diff = false;
+                                for (let key of Object.keys(imp)) { if (imp[key] !== existing[key]) { diff = true; break; } }
+                                if (diff) { a_allData[existIdx] = imp; updated++; } else unchanged++;
+                            }
+                        });
+                        a_saveLocal(a_allData);
+                        a_globalSearchResults = []; a_queryResults = []; a_activeSearchResults = null;
+                        a_refreshQueryTable();
+                        showToast(`导入完成：新增${added}条，更新${updated}条，无变化${unchanged}条`, 'success');
+                    };
+                    reader.readAsArrayBuffer(file);
+                };
+                input.click();
+            }
+
+            async function a_handleBackupToCloud() {
+                if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
+                const key = prompt('请输入本次备份的随机加密密钥（恢复时需要提供）：');
+                if (!key) return;
+                let success = false;
+                const payload = JSON.stringify(a_allData);
+                const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
+                const batches = [];
+                let startIdx = 0;
+                while (startIdx < encPayload.length) { batches.push(encPayload.slice(startIdx, startIdx + 6000)); startIdx += 6000; }
+                try {
+                    for (let i = 0; i < batches.length; i++) { const res = await cloudUpdateRaw(getArchiveCloudKey() + '_batch' + (i+1), batches[i]); if (!res.success) throw new Error('分片写入失败'); }
+                    await cloudUpdateRaw(getArchiveCloudKey(), JSON.stringify({ batches: batches.length }));
+                    showToast('云端备份成功', 'success'); success = true;
+                } catch (e) { showToast('云端备份失败', 'error'); }
+                const statusText = success ? '备份成功' : '备份失败';
+                const fileName = `档案管理系统_${statusText}_${getNowString()}.xlsx`;
+                const fields = a_hiddenVisible ? a_allFields.map(f => f.key) : a_allFields.filter(f => !a_hiddenFields.includes(f.key)).map(f => f.key);
+                a_exportWithFields(a_allData, fileName, fields);
+            }
+
+            async function a_handleRestoreFromCloud() {
+                if (!permissions.restore) { showToast('无恢复权限', 'error'); return; }
+                const key = prompt('请输入备份时使用的随机加密密钥：'); if (!key) return;
+                showPasswordModal(async () => {
+                    try {
+                        const metaRaw = await cloudReadRaw(getArchiveCloudKey()); if (!metaRaw) { showToast('云端无数据', 'info'); return; }
+                        const meta = JSON.parse(metaRaw); let fullEnc = '';
+                        for (let i = 1; i <= meta.batches; i++) { const part = await cloudReadRaw(getArchiveCloudKey() + '_batch' + i); if (part) fullEnc += part; }
+                        const decPayload = CryptoJS.AES.decrypt(fullEnc, key).toString(CryptoJS.enc.Utf8);
+                        if (!decPayload) { showToast('解密密钥错误', 'error'); return; }
+                        const cloudData = JSON.parse(decPayload);
+                        if (JSON.stringify(a_allData) === JSON.stringify(cloudData)) { showToast('数据一致', 'info'); return; }
+                        if (confirm(`云端${cloudData.length}条，本地${a_allData.length}条，覆盖？`)) { a_allData = cloudData; a_saveLocal(a_allData); a_activeSearchResults = null; a_refreshQueryTable(); showToast('已恢复', 'success'); }
+                    } catch (e) { showToast('恢复失败，密钥错误或数据格式异常', 'error'); }
+                });
+            }
+
+            async function a_clearCloud() { if (!permissions.clearCloud) { showToast('无清除权限', 'error'); return; } if (confirm('确定要彻底清除档案云端数据吗？')) { await cloudUpdateRaw(getArchiveCloudKey(), ''); showToast('云端档案数据已清除', 'info'); } }
+            function a_getExportFields() { if (a_hiddenVisible) return a_allFields; else return a_allFields.filter(f => !a_hiddenFields.includes(f.key)); }
+            function a_exportWithFields(dataArray, fileName, fields) { if (!dataArray.length) { showToast('无数据', 'error'); return; } const header = fields.map(k => a_allFields.find(f => f.key === k)?.label || k); const exportData = dataArray.map(p => fields.map(k => p[k] || '')); const ws = XLSX.utils.aoa_to_sheet([header, ...exportData]); ws['!cols'] = header.map(() => ({ wch: 15 })); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '档案'); XLSX.writeFile(wb, fileName); showToast('已导出', 'success'); }
+            function a_exportAllData() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(a_getExportFields(), (fields) => a_exportWithFields(a_allData, '正大世拓档案备份_' + getNowString() + '.xlsx', fields)); }
+            function a_exportQueryResults() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(a_getExportFields(), (fields) => { const data = a_queryResults.length > 0 ? a_queryResults : (a_activeSearchResults || a_allData); a_exportWithFields(data, '查询结果_' + getNowString() + '.xlsx', fields); }); }
+            function a_toggleHiddenFields() { if (!permissions.showSensitive) { showToast('无显示敏感信息权限', 'error'); return; } if (!a_hiddenVisible) { showPasswordModal(() => { a_hiddenVisible = true; a_refreshQueryTable(); showToast('敏感信息已显示', 'info'); }); } else { a_hiddenVisible = false; a_refreshQueryTable(); showToast('敏感信息已隐藏', 'info'); } }
+
+            // ===================== 人员系统函数 =====================
+            function p_getLocalKey() { return deriveLocalKey(currentSensitivePwd); }
+            function p_encryptData(data) { return CryptoJS.AES.encrypt(JSON.stringify(data), p_getLocalKey(), { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }).toString(); }
+            function p_decryptData(cipherText, keyFn) { const key = keyFn || p_getLocalKey(); try { const bytes = CryptoJS.AES.decrypt(cipherText, key, { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }); const decrypted = bytes.toString(CryptoJS.enc.Utf8); return decrypted ? JSON.parse(decrypted) : null; } catch (e) { return null; } }
+            function p_saveLocal(data) { localStorage.setItem('DANGAN20020308SYRYSK', p_encryptData(data)); }
+            function p_loadLocal() { const raw = localStorage.getItem('DANGAN20020308SYRYSK'); if (!raw) return null; const decrypted = p_decryptData(raw); if (decrypted) return decrypted; try { const parsed = JSON.parse(raw); if (Array.isArray(parsed)) { p_saveLocal(parsed); return parsed; } } catch (e) {} return null; }
+            function p_getDisplayValue(type, value, customValue) { if (value === '其他' && customValue) return customValue; return value || ''; }
+            function p_getSortValue(obj, key) { if (key === 'seq') { const n = parseInt(obj.seq); return isNaN(n) ? -1 : n; } if (key === 'validity') { if (!obj.validity) return -8640000000000000; const d = new Date(obj.validity); return isNaN(d.getTime()) ? -8640000000000000 : d.getTime(); } if (key === 'regno') { const n = parseFloat(obj[key]); return isNaN(n) ? '' : n; } return (obj[key] || '').toString().toLowerCase(); }
+            function p_sortData(data, sortKey, asc) { if (!sortKey) return data; return [...data].sort((a, b) => { const valA = p_getSortValue(a, sortKey), valB = p_getSortValue(b, sortKey); if (typeof valA === 'number' && typeof valB === 'number') return asc ? valA - valB : valB - valA; return asc ? String(valA).localeCompare(String(valB), 'zh-CN') : String(valB).localeCompare(String(valA), 'zh-CN'); }); }
+
+            function p_buildTableHeader() {
+                const thead = document.createElement('thead');
+                let html = `<tr><th class="checkbox-cell"><input type="checkbox" id="p_querySelectAll" onchange="p_toggleSelectAllQuery(this)"></th>`;
+                p_allFields.forEach(f => { html += `<th data-sort-key="${f.key}" onclick="p_handleSortClick('${f.key}')">${f.label} <span class="sort-arrow">⇅</span></th>`; });
+                html += '</tr>'; thead.innerHTML = html; return thead;
+            }
+
+            function p_buildTableRow(person, index) {
+                const tr = document.createElement('tr'); tr.setAttribute('data-index', index);
+                let html = `<td class="checkbox-cell"><input type="checkbox" class="p_row-checkbox-query" data-index="${index}" onclick="event.stopPropagation();"></td>`;
+                html += `<td>${person.seq||''}</td><td>${escapeHtml(person.name||'')}</td><td>${escapeHtml(person.idcard||'')}</td>`;
+                html += `<td>${p_getDisplayValue('category',person.category,person.categoryOther)}</td><td>${p_getDisplayValue('position',person.position,person.positionOther)}</td>`;
+                html += `<td>${person.regno||''}</td><td>${p_getDisplayValue('major',person.major,person.majorOther)}</td>`;
+                let expireClass = '';
+                if (person.validity) { const today = new Date(); const expDate = new Date(person.validity); if (!isNaN(expDate)) { const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24)); if (diffDays < 0) { expireClass = 'expired'; } else if (diffDays <= 50) { expireClass = 'expiring-soon'; } } }
+                html += `<td class="${expireClass}">${person.validity||''}</td>`;
+                html += `<td>${p_getDisplayValue('level',person.level,person.levelOther)}</td>`;
+                html += `<td>${person.issuer||''}</td><td>${person.phone||''}</td><td>${person.jishibanAccount||''}</td><td>${person.jishibanPassword||''}</td>`;
+                html += `<td>${person.socialSecurity||''}</td><td>${p_getDisplayValue('company',person.company,person.companyOther)}</td><td>${person.remarks||''}</td>`;
+                tr.innerHTML = html; return tr;
+            }
+
+            function p_refreshQueryTable(results) {
+                let resolved = results !== undefined ? results : (p_queryResults.length > 0 ? p_queryResults : (p_activeSearchResults || p_allData));
+                resolved = p_sortData(resolved, p_querySortKey, p_querySortAsc);
+                const table = document.getElementById('p_queryTable'); table.innerHTML = ''; table.appendChild(p_buildTableHeader());
+                const tbody = document.createElement('tbody'); tbody.id = 'p_queryTbody';
+                resolved.forEach((p, idx) => { const orig = p_allData.indexOf(p); const tr = p_buildTableRow(p, orig >= 0 ? orig : idx); tr.addEventListener('dblclick', () => { const ri = p_allData.indexOf(p); if (ri >= 0) p_handleDoubleClickRow(ri); }); tr.addEventListener('click', function(e) { if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') return; const cb = this.querySelector('.p_row-checkbox-query'); if (cb) cb.checked = !cb.checked; }); tbody.appendChild(tr); });
+                table.appendChild(tbody); document.getElementById('p_queryCount').textContent = resolved.length; document.getElementById('p_querySelectAll').checked = false;
+            }
+
+            function p_updateSelectAll() { const cbs = document.querySelectorAll('#p_queryTbody .p_row-checkbox-query'); document.getElementById('p_querySelectAll').checked = cbs.length > 0 && Array.from(cbs).every(cb => cb.checked); }
+            function p_toggleSelectAllQuery(cb) { document.querySelectorAll('#p_queryTbody .p_row-checkbox-query').forEach(c => c.checked = cb.checked); }
+            function p_getSelectedIndices() { return Array.from(document.querySelectorAll('#p_queryTbody .p_row-checkbox-query:checked')).map(cb => parseInt(cb.dataset.index)).filter(i => i >= 0); }
+            function p_handleSortClick(key) { if (p_querySortKey === key) p_querySortAsc = !p_querySortAsc; else { p_querySortKey = key; p_querySortAsc = true; } p_refreshQueryTable(); }
+
+            function p_hasAdvancedFilter() { const selectIds = ['p_f_category', 'p_f_position', 'p_f_level', 'p_f_major', 'p_f_company', 'p_f_socialSecurity', 'p_f_validity']; const customIds = ['p_f_category_custom', 'p_f_position_custom', 'p_f_level_custom', 'p_f_major_custom', 'p_f_company_custom']; return selectIds.some(id => document.getElementById(id)?.value !== '') || customIds.some(id => { const el = document.getElementById(id); return el && !el.disabled && el.value.trim() !== ''; }); }
+
+            function p_performAdvancedFilter() {
+                const base = p_activeSearchResults || p_allData;
+                if (!p_hasAdvancedFilter()) { p_queryResults = []; p_refreshQueryTable(base); return; }
+                const getVal = (id) => document.getElementById(id)?.value || '';
+                const getCustomVal = (selectId, customId) => { const selectEl = document.getElementById(selectId); const customEl = document.getElementById(customId); if (selectEl && selectEl.value === '其他' && customEl && !customEl.disabled) { return customEl.value.trim(); } return selectEl ? selectEl.value : ''; };
+                const f = { category: getCustomVal('p_f_category', 'p_f_category_custom'), position: getCustomVal('p_f_position', 'p_f_position_custom'), level: getCustomVal('p_f_level', 'p_f_level_custom'), major: getCustomVal('p_f_major', 'p_f_major_custom'), company: getCustomVal('p_f_company', 'p_f_company_custom'), socialSecurity: getVal('p_f_socialSecurity'), validity: getVal('p_f_validity') };
+                const now = new Date();
+                p_queryResults = base.filter(p => {
+                    if (f.category) { const displayVal = p_getDisplayValue('category', p.category, p.categoryOther).toLowerCase(); if (displayVal.indexOf(f.category.toLowerCase()) === -1) return false; }
+                    if (f.position) { const displayVal = p_getDisplayValue('position', p.position, p.positionOther).toLowerCase(); if (displayVal.indexOf(f.position.toLowerCase()) === -1) return false; }
+                    if (f.level) { const displayVal = p_getDisplayValue('level', p.level, p.levelOther).toLowerCase(); if (displayVal.indexOf(f.level.toLowerCase()) === -1) return false; }
+                    if (f.major) { const displayVal = p_getDisplayValue('major', p.major, p.majorOther).toLowerCase(); if (displayVal.indexOf(f.major.toLowerCase()) === -1) return false; }
+                    if (f.company) { const displayVal = p_getDisplayValue('company', p.company, p.companyOther).toLowerCase(); if (displayVal.indexOf(f.company.toLowerCase()) === -1) return false; }
+                    if (f.socialSecurity && p.socialSecurity !== f.socialSecurity) return false;
+                    if (f.validity) { if (!p.validity) return false; const expDate = new Date(p.validity); if (isNaN(expDate.getTime())) return false; const diffDays = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24)); if (f.validity === 'expired') { if (diffDays >= 0) return false; } else if (f.validity === 'expiring') { if (diffDays < 0 || diffDays >= 50) return false; } else if (f.validity === 'valid') { if (diffDays < 0) return false; } }
+                    return true;
+                });
+                p_refreshQueryTable(p_queryResults);
+            }
+
+            function p_clearAdvancedFilter() { ['p_f_category', 'p_f_position', 'p_f_level', 'p_f_major', 'p_f_company', 'p_f_socialSecurity', 'p_f_validity'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); ['p_f_category_custom', 'p_f_position_custom', 'p_f_level_custom', 'p_f_major_custom', 'p_f_company_custom'].forEach(id => { const el = document.getElementById(id); if (el) { el.value = ''; el.disabled = true; } }); p_queryResults = []; p_activeSearchResults = null; p_refreshQueryTable(p_allData); }
+            function p_clearQuickSearch() { document.getElementById('p_quickSearch').value = ''; p_activeSearchResults = null; p_queryResults = []; p_refreshQueryTable(p_allData); }
+            function p_performQuickSearch() { const kw = document.getElementById('p_quickSearch').value.trim().toLowerCase(); const base = p_activeSearchResults || p_allData; if (!kw) { p_activeSearchResults = null; p_queryResults = []; p_refreshQueryTable(p_allData); return; } p_activeSearchResults = base.filter(p => (p.name && p.name.includes(kw)) || (p.idcard && p.idcard.includes(kw))); p_queryResults = []; if (p_hasAdvancedFilter()) p_performAdvancedFilter(); else p_refreshQueryTable(p_activeSearchResults); }
+
+            function p_setCustomInputVal(selectId, customInputId, value, customVal) { const select = document.getElementById(selectId), input = document.getElementById(customInputId); if (!select || !input) return; if (value === '其他' && customVal) { select.value = '其他'; input.disabled = false; input.value = customVal; } else { if (select.querySelector(`option[value="${value}"]`)) select.value = value; else { select.value = '其他'; input.disabled = false; input.value = value; } if (select.value !== '其他') { input.disabled = true; input.value = ''; } } }
+            function p_getCustomInputVal(selectId, customInputId) { const select = document.getElementById(selectId), input = document.getElementById(customInputId); if (select && input && select.value === '其他') return input.value.trim(); return ''; }
+
+            function p_openEditModal(person, index) {
+                const modal = document.getElementById('editModal'); modal.innerHTML = '';
+                let html = `<div class="modal" style="max-width:800px;"><button class="modal-close" onclick="closeEditModal()">×</button><h3 id="editModalTitle">${index>=0?'修改人员信息':'新增人员信息'}</h3><div class="form-row">`;
+                html += `<div class="form-group"><label>序号</label><input type="text" id="pe_seq"></div>`;
+                html += `<div class="form-group"><label>姓名 *</label><input type="text" id="pe_name"></div>`;
+                html += `<div class="form-group"><label>身份证</label><input type="text" id="pe_idcard"></div>`;
+                html += `<div class="form-group"><label>类别</label><select id="pe_category"><option>注册人员</option><option>职称人员</option><option>八大员</option><option>技术工人</option><option>特殊工种</option><option>其他</option></select><input type="text" id="pe_category_custom" class="custom-input" disabled placeholder="自定义类别"></div>`;
+                html += `<div class="form-group"><label>岗位</label><select id="pe_position"><option>建造师</option><option>工程师</option><option>安全员</option><option>质量员</option><option>施工员</option><option>资料员</option><option>劳务员</option><option>机械员</option><option>材料员</option><option>标准员</option><option>试验员</option><option>测量员</option><option>钢筋工</option><option>模板工</option><option>其他</option></select><input type="text" id="pe_position_custom" class="custom-input" disabled placeholder="自定义岗位"></div>`;
+                html += `<div class="form-group"><label>注册号</label><input type="text" id="pe_regno"></div>`;
+                html += `<div class="form-group"><label>注册专业</label><select id="pe_major"><option>建筑</option><option>市政</option><option>机电</option><option>水利</option><option>公路</option><option>其他</option></select><input type="text" id="pe_major_custom" class="custom-input" disabled placeholder="自定义专业"></div>`;
+                html += `<div class="form-group"><label>有效期</label><input type="date" id="pe_validity"></div>`;
+                html += `<div class="form-group"><label>级别</label><select id="pe_level"><option>一级</option><option>二级</option><option>A类</option><option>B类</option><option>C类</option><option>初级</option><option>中级</option><option>高级</option><option>其他</option></select><input type="text" id="pe_level_custom" class="custom-input" disabled placeholder="自定义级别"></div>`;
+                html += `<div class="form-group"><label>发证单位</label><input type="text" id="pe_issuer"></div>`;
+                html += `<div class="form-group"><label>联系电话</label><input type="text" id="pe_phone"></div>`;
+                html += `<div class="form-group"><label>冀时办账号</label><input type="text" id="pe_jishibanAccount"></div>`;
+                html += `<div class="form-group"><label>冀时办密码</label><input type="text" id="pe_jishibanPassword"></div>`;
+                html += `<div class="form-group"><label>社保</label><select id="pe_socialSecurity"><option>有</option><option>无</option></select></div>`;
+                html += `<div class="form-group"><label>所属公司</label><select id="pe_company"><option value="">--请选择--</option><option>正大</option><option>世拓</option><option>其他</option></select><input type="text" id="pe_company_custom" class="custom-input" disabled placeholder="自定义公司"></div>`;
+                html += `<div class="form-group"><label>备注</label><input type="text" id="pe_remarks"></div>`;
+                html += `</div><input type="hidden" id="pe_index" value="${index}"><div class="modal-actions"><button class="btn btn-outline" onclick="closeEditModal()">取消</button><button class="btn btn-primary" onclick="p_saveFromModal()">保存</button></div></div>`;
+                modal.innerHTML = html; modal.style.display = 'flex';
+                const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+                setVal('pe_seq', person.seq || ''); setVal('pe_name', person.name || ''); setVal('pe_idcard', person.idcard || '');
+                p_setCustomInputVal('pe_category', 'pe_category_custom', person.category, person.categoryOther);
+                p_setCustomInputVal('pe_position', 'pe_position_custom', person.position, person.positionOther);
+                p_setCustomInputVal('pe_major', 'pe_major_custom', person.major, person.majorOther);
+                p_setCustomInputVal('pe_level', 'pe_level_custom', person.level, person.levelOther);
+                p_setCustomInputVal('pe_company', 'pe_company_custom', person.company, person.companyOther);
+                setVal('pe_regno', person.regno); setVal('pe_validity', person.validity); setVal('pe_issuer', person.issuer);
+                setVal('pe_phone', person.phone); setVal('pe_jishibanAccount', person.jishibanAccount); setVal('pe_jishibanPassword', person.jishibanPassword);
+                setVal('pe_socialSecurity', person.socialSecurity || '有'); setVal('pe_remarks', person.remarks);
+                const addSelectHandler = (selectId, customInputId) => { const select = document.getElementById(selectId); const input = document.getElementById(customInputId); if (!select || !input) return; select.addEventListener('change', () => { if (select.value === '其他') { input.disabled = false; } else { input.disabled = true; input.value = ''; } }); };
+                addSelectHandler('pe_category', 'pe_category_custom'); addSelectHandler('pe_position', 'pe_position_custom'); addSelectHandler('pe_major', 'pe_major_custom'); addSelectHandler('pe_level', 'pe_level_custom'); addSelectHandler('pe_company', 'pe_company_custom');
+            }
+
+            function p_saveFromModal() { const index = parseInt(document.getElementById('pe_index').value); const person = { seq: document.getElementById('pe_seq').value, name: document.getElementById('pe_name').value, idcard: document.getElementById('pe_idcard').value, category: document.getElementById('pe_category').value, position: document.getElementById('pe_position').value, regno: document.getElementById('pe_regno').value, major: document.getElementById('pe_major').value, validity: document.getElementById('pe_validity').value, level: document.getElementById('pe_level').value, issuer: document.getElementById('pe_issuer').value, phone: document.getElementById('pe_phone').value, jishibanAccount: document.getElementById('pe_jishibanAccount').value, jishibanPassword: document.getElementById('pe_jishibanPassword').value, socialSecurity: document.getElementById('pe_socialSecurity').value, company: document.getElementById('pe_company').value, remarks: document.getElementById('pe_remarks').value, categoryOther: p_getCustomInputVal('pe_category', 'pe_category_custom'), positionOther: p_getCustomInputVal('pe_position', 'pe_position_custom'), majorOther: p_getCustomInputVal('pe_major', 'pe_major_custom'), levelOther: p_getCustomInputVal('pe_level', 'pe_level_custom'), companyOther: p_getCustomInputVal('pe_company', 'pe_company_custom') }; if (!person.name.trim()) { showToast('姓名不能为空', 'error'); return; } if (index >= 0 && index < p_allData.length) p_allData[index] = person; else { if (!person.seq) person.seq = String(Math.max(...p_allData.map(d => parseInt(d.seq) || 0), 0) + 1); p_allData.push(person); } p_saveLocal(p_allData); showToast(index >= 0 ? '已更新' : '已添加', 'success'); p_activeSearchResults = null; p_refreshQueryTable(); closeEditModal(); }
+            function p_openAddPersonModal() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const nextSeq = String(Math.max(...p_allData.map(d => parseInt(d.seq) || 0), 0) + 1); p_openEditModal({ seq: nextSeq, name: '', idcard: '', category: '注册人员', position: '建造师', regno: '', major: '建筑', validity: '', level: '二级', issuer: '', phone: '', jishibanAccount: '', jishibanPassword: '', socialSecurity: '有', company: '正大', remarks: '', categoryOther: '', positionOther: '', majorOther: '', levelOther: '', companyOther: '' }, -1); }
+            function p_processEditQueue() { if (p_editQueue.length > 0 && !p_isProcessingQueue) { p_isProcessingQueue = true; const ni = p_editQueue.shift(); if (ni >= 0 && ni < p_allData.length) p_openEditModal(p_allData[ni], ni); else p_processEditQueue(); } else if (p_editQueue.length === 0) p_isProcessingQueue = false; }
+            function p_handleEditSelected() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const indices = p_getSelectedIndices(); if (!indices.length) { showToast('请勾选', 'error'); return; } showToast('编辑已选择', 'info'); p_editQueue = [...indices]; p_isProcessingQueue = false; p_processEditQueue(); }
+            function p_handleDoubleClickRow(index) { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } if (index < 0 || index >= p_allData.length) return; p_openEditModal(p_allData[index], index); }
+            function p_handleBatchDelete() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const indices = p_getSelectedIndices(); if (!indices.length) { showToast('请勾选', 'error'); return; } showPasswordModal(async () => { if (confirm(`确定删除 ${indices.length} 条？`)) { indices.sort((a, b) => b - a).forEach(i => p_allData.splice(i, 1)); p_saveLocal(p_allData); p_activeSearchResults = null; p_refreshQueryTable(); showToast('已删除', 'success'); } }); }
+
+            function p_importFromExcel() {
+                if (!permissions.import) { showToast('无导入权限', 'error'); return; }
+                const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx,.xls';
+                input.onchange = function(e) {
+                    const file = e.target.files[0]; if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = function(evt) {
+                        const data = new Uint8Array(evt.target.result);
+                        const wb = XLSX.read(data, { type: 'array' });
+                        const sheet = wb.Sheets[wb.SheetNames[0]];
+                        const json = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                        if (json.length < 2) { showToast('Excel格式错误'); return; }
+                        const rows = json.slice(1).filter(r => r.some(c => c !== '' && c !== null));
+                        const imported = rows.map(row => { const v = row[7]; let vs = ''; if (typeof v === 'number' && isExcelSerialNumber(v)) vs = excelSerialToDate(v); else if (v) vs = String(v); return { seq: String(row[0] || ''), name: String(row[1] || ''), idcard: String(row[2] || ''), category: String(row[3] || ''), position: String(row[4] || ''), regno: String(row[5] || ''), major: String(row[6] || ''), validity: vs, level: String(row[8] || ''), issuer: String(row[9] || ''), phone: String(row[10] || ''), jishibanAccount: String(row[11] || ''), jishibanPassword: String(row[12] || ''), socialSecurity: String(row[13] || ''), company: String(row[14] || ''), remarks: String(row[15] || ''), categoryOther: '', positionOther: '', majorOther: '', levelOther: '', companyOther: '' }; });
+                        if (!imported.length) { showToast('无有效数据'); return; }
+                        const seqMap = new Map(p_allData.map((item, idx) => [item.seq, idx]));
+                        let updateCount = 0, addCount = 0;
+                        const newData = [...p_allData];
+                        imported.forEach(imp => { const seq = imp.seq; if (seqMap.has(seq)) { newData[seqMap.get(seq)] = imp; updateCount++; } else { newData.push(imp); addCount++; } });
+                        if (confirm(`将新增 ${addCount} 条，更新 ${updateCount} 条，是否继续？`)) { p_allData = newData; p_saveLocal(p_allData); p_activeSearchResults = null; p_refreshQueryTable(); showToast(`导入成功：新增${addCount}条，更新${updateCount}条`, 'success'); }
+                    };
+                    reader.readAsArrayBuffer(file);
+                };
+                input.click();
+            }
+
+            async function p_handleBackupToCloud() {
+                if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
+                const key = prompt('请输入本次备份的随机加密密钥（恢复时需要提供）：'); if (!key) return;
+                let success = false;
+                const cloudArray = p_allData.map(item => ({ "序号": parseInt(item.seq) || 0, "姓名": item.name, "身份证": item.idcard, "类别": p_getDisplayValue('category', item.category, item.categoryOther), "岗位": p_getDisplayValue('position', item.position, item.positionOther), "注册号": item.regno, "注册专业": p_getDisplayValue('major', item.major, item.majorOther), "有效期": item.validity ? (() => { const d = new Date(item.validity); return Math.round((d.getTime() - new Date(1899, 11, 30).getTime()) / 86400000); })() : "", "级别": p_getDisplayValue('level', item.level, item.levelOther), "发证单位": item.issuer, "联系电话": item.phone, "冀时办账号": item.jishibanAccount, "冀时办密码": item.jishibanPassword, "社保": item.socialSecurity, "所属公司": p_getDisplayValue('company', item.company, item.companyOther), "备注": item.remarks, "类别自定义": "", "岗位自定义": "", "注册专业自定义": "", "级别自定义": "", "所属公司自定义": "" }));
+                const payload = JSON.stringify(cloudArray);
+                const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
+                const batches = []; let startIdx = 0; while (startIdx < encPayload.length) { batches.push(encPayload.slice(startIdx, startIdx + 6000)); startIdx += 6000; }
+                try { for (let i = 0; i < batches.length; i++) { const res = await cloudUpdateRaw(getPersonnelCloudKey() + '_batch' + (i+1), batches[i]); if (!res.success) throw new Error('分片写入失败'); } await cloudUpdateRaw(getPersonnelCloudKey(), JSON.stringify({ batches: batches.length })); showToast('云端备份成功', 'success'); success = true; } catch (e) { showToast('云端备份失败', 'error'); }
+                const statusText = success ? '备份成功' : '备份失败';
+                const fileName = `人员管理系统_${statusText}_${getNowString()}.xlsx`;
+                const fields = p_allFields.map(f => f.key);
+                p_exportWithFields(p_allData, fileName, fields);
+            }
+
+            async function p_handleRestoreFromCloud() { if (!permissions.restore) { showToast('无恢复权限', 'error'); return; } const key = prompt('请输入备份时使用的随机加密密钥：'); if (!key) return; showPasswordModal(async () => { try { const metaRaw = await cloudReadRaw(getPersonnelCloudKey()); if (!metaRaw) { showToast('云端无数据', 'info'); return; } const meta = JSON.parse(metaRaw); let fullEnc = ''; for (let i = 1; i <= meta.batches; i++) { const part = await cloudReadRaw(getPersonnelCloudKey() + '_batch' + i); if (part) fullEnc += part; } const decPayload = CryptoJS.AES.decrypt(fullEnc, key).toString(CryptoJS.enc.Utf8); if (!decPayload) { showToast('解密密钥错误', 'error'); return; } const cloudArray = JSON.parse(decPayload); const cloudData = cloudArray.map(item => ({ seq: String(item["序号"] || ""), name: item["姓名"] || "", idcard: item["身份证"] || "", category: item["类别"] || "", position: item["岗位"] || "", regno: item["注册号"] || "", major: item["注册专业"] || "", validity: item["有效期"] ? excelSerialToDate(parseInt(item["有效期"])) : "", level: item["级别"] || "", issuer: item["发证单位"] || "", phone: item["联系电话"] || "", jishibanAccount: item["冀时办账号"] || "", jishibanPassword: item["冀时办密码"] || "", socialSecurity: item["社保"] || "", company: item["所属公司"] || "", remarks: item["备注"] || "", categoryOther: item["类别自定义"] || "", positionOther: item["岗位自定义"] || "", majorOther: item["注册专业自定义"] || "", levelOther: item["级别自定义"] || "", companyOther: item["所属公司自定义"] || "" })); if (JSON.stringify(p_allData) === JSON.stringify(cloudData)) { showToast('数据一致', 'info'); return; } if (confirm(`云端${cloudData.length}条，本地${p_allData.length}条，覆盖？`)) { p_allData = cloudData; p_saveLocal(p_allData); p_activeSearchResults = null; p_refreshQueryTable(); showToast('已恢复', 'success'); } } catch (e) { showToast('恢复失败，密钥错误或数据格式异常', 'error'); } }); }
+            async function p_clearCloud() { if (!permissions.clearCloud) { showToast('无清除权限', 'error'); return; } if (confirm('确定要彻底清除人员云端数据吗？')) { await cloudUpdateRaw(getPersonnelCloudKey(), ''); showToast('云端人员数据已清除', 'info'); } }
+            function p_exportWithFields(dataArray, fileName, fields) { if (!dataArray.length) { showToast('无数据', 'error'); return; } const header = fields.map(k => p_allFields.find(f => f.key === k)?.label || k); const exportData = dataArray.map(p => fields.map(k => { if (k === 'category' || k === 'position' || k === 'major' || k === 'level' || k === 'company') { return p_getDisplayValue(k, p[k], p[k + 'Other']) || ''; } return p[k] || ''; })); const ws = XLSX.utils.aoa_to_sheet([header, ...exportData]); ws['!cols'] = header.map(() => ({ wch: 15 })); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '人员数据'); XLSX.writeFile(wb, fileName); showToast('已导出', 'success'); }
+            function p_exportAllData() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(p_allFields, (fields) => p_exportWithFields(p_allData, '人员数据汇总表.xlsx', fields)); }
+            function p_exportQueryResults() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(p_allFields, (fields) => { const data = p_queryResults.length > 0 ? p_queryResults : (p_activeSearchResults || p_allData); p_exportWithFields(data, '查询结果导出.xlsx', fields); }); }
+
+            function p_checkDueDates() {
+                if (suppressAlerts.personnel) return;
+                const now = new Date();
+                const expiredList = [], warningList = [];
+                p_allData.forEach(p => { if (!p.validity) return; const date = new Date(p.validity); if (isNaN(date.getTime())) return; const diff = Math.ceil((date - now) / (1000 * 60 * 60 * 24)); if (diff < 0) { expiredList.push(p); } else if (diff >= 0 && diff < 50) { warningList.push(p); } });
+                if (expiredList.length === 0 && warningList.length === 0) return;
+                let html = '';
+                if (expiredList.length > 0) { html += '<div class="due-section-title">📋 已过期人员表 (' + expiredList.length + '条)</div><div class="table-wrapper"><table><thead><tr><th>序号</th><th>姓名</th><th>身份证</th><th>类别</th><th>岗位</th><th>级别</th><th>注册专业</th><th>有效期</th><th>冀时办账号</th><th>冀时办密码</th><th>所属公司</th></tr></thead><tbody>'; html += expiredList.map(p => `<tr><td>${p.seq}</td><td>${p.name}</td><td>${p.idcard}</td><td>${p_getDisplayValue('category',p.category,p.categoryOther)}</td><td>${p_getDisplayValue('position',p.position,p.positionOther)}</td><td>${p_getDisplayValue('level',p.level,p.levelOther)}</td><td>${p_getDisplayValue('major',p.major,p.majorOther)}</td><td>${p.validity}</td><td>${p.jishibanAccount}</td><td>${p.jishibanPassword}</td><td>${p_getDisplayValue('company',p.company,p.companyOther)}</td></tr>`).join(''); html += '</tbody></table></div>'; }
+                if (warningList.length > 0) { html += '<div class="due-section-title">📋 需续期人员表 (' + warningList.length + '条)</div><div class="table-wrapper"><table><thead><tr><th>序号</th><th>姓名</th><th>身份证</th><th>类别</th><th>岗位</th><th>级别</th><th>注册专业</th><th>有效期</th><th>冀时办账号</th><th>冀时办密码</th><th>所属公司</th></tr></thead><tbody>'; html += warningList.map(p => `<tr><td>${p.seq}</td><td>${p.name}</td><td>${p.idcard}</td><td>${p_getDisplayValue('category',p.category,p.categoryOther)}</td><td>${p_getDisplayValue('position',p.position,p.positionOther)}</td><td>${p_getDisplayValue('level',p.level,p.levelOther)}</td><td>${p_getDisplayValue('major',p.major,p.majorOther)}</td><td>${p.validity}</td><td>${p.jishibanAccount}</td><td>${p.jishibanPassword}</td><td>${p_getDisplayValue('company',p.company,p.companyOther)}</td></tr>`).join(''); html += '</tbody></table></div>'; }
+                const downloadFn = () => { const allDue = [...expiredList, ...warningList]; const expData = allDue.map(p => ({ "序号": p.seq, "姓名": p.name, "身份证": p.idcard, "类别": p_getDisplayValue('category',p.category,p.categoryOther), "岗位": p_getDisplayValue('position',p.position,p.positionOther), "级别": p_getDisplayValue('level',p.level,p.levelOther), "注册专业": p_getDisplayValue('major',p.major,p.majorOther), "有效期": p.validity, "冀时办账号": p.jishibanAccount, "冀时办密码": p.jishibanPassword, "所属公司": p_getDisplayValue('company',p.company,p.companyOther) })); const ws = XLSX.utils.json_to_sheet(expData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '人员提醒'); XLSX.writeFile(wb, `人员提醒_${new Date().toISOString().slice(0,10)}.xlsx`); showToast('提醒列表已下载', 'success'); };
+                showDueModal(html, 'personnel', downloadFn);
+            }
+
+            // ===================== 报名系统函数 =====================
+            function r_getLocalKey() { return deriveLocalKey(currentSensitivePwd); }
+            function r_encryptData(plainObj) { try { return CryptoJS.AES.encrypt(JSON.stringify(plainObj), r_getLocalKey(), { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }).toString(); } catch (e) { return null; } }
+            function r_decryptData(cipherText, keyFn) {
+                const key = keyFn || r_getLocalKey();
+                try { const bytes = CryptoJS.AES.decrypt(cipherText, key, { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }); const decrypted = bytes.toString(CryptoJS.enc.Utf8); return decrypted ? JSON.parse(decrypted) : null; } catch (e) { return null; }
+            }
+            function r_saveLocal(data) { const encrypted = r_encryptData(data); if (encrypted) localStorage.setItem('BMGLXT20020308ZDST', encrypted); }
+            function r_loadLocal() { const raw = localStorage.getItem('BMGLXT20020308ZDST'); if (!raw) return null; const decrypted = r_decryptData(raw); if (decrypted) return decrypted; try { const parsed = JSON.parse(raw); if (Array.isArray(parsed)) { r_saveLocal(parsed); return parsed; } } catch (e) {} return null; }
+
+            function r_getBidOpeningStatus(person) {
+                if (person.remarks && person.remarks.includes('不投了')) return '已取消投标';
+                if (!person.bidOpeningDate) return '';
+                const now = new Date();
+                const bidDate = new Date(person.bidOpeningDate);
+                if (isNaN(bidDate.getTime())) return '';
+                const diffMs = bidDate.getTime() - now.getTime();
+                if (diffMs < 0) {
+                    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    const bidDayStart = new Date(bidDate.getFullYear(), bidDate.getMonth(), bidDate.getDate());
+                    if (todayStart.getTime() === bidDayStart.getTime()) {
+                        const overMs = Math.abs(diffMs);
+                        const overHours = Math.floor(overMs / (1000 * 60 * 60));
+                        const overMinutes = Math.floor((overMs % (1000 * 60 * 60)) / (1000 * 60));
+                        return `今日开标，已超过规定开标${overHours}时${overMinutes}分`;
+                    }
+                    return '已经开标';
+                } else {
+                    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    const bidDayStart = new Date(bidDate.getFullYear(), bidDate.getMonth(), bidDate.getDate());
+                    if (todayStart.getTime() === bidDayStart.getTime()) {
+                        const remainHours = Math.floor(diffMs / (1000 * 60 * 60));
+                        const remainMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+                        return `今日开标，还有${remainHours}时${remainMinutes}分`;
+                    }
+                    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                    return '距开标还有' + diffDays + '天';
+                }
+            }
+
+            function r_getCompanyPrefix(company) { return company === '正大' ? 'ZD' : company === '世拓' ? 'ST' : ''; }
+            function r_getNextSeq(company) { const prefix = r_getCompanyPrefix(company), cy = new Date().getFullYear(); let maxNum = 0; r_allData.forEach(item => { if (item.company === company) { const parts = String(item.seq).split('-'); if (parts.length === 3 && parts[0] === prefix && parseInt(parts[1]) === cy) { const n = parseInt(parts[2]); if (n > maxNum) maxNum = n; } } }); return `${prefix}-${cy}-${maxNum+1}`; }
+            function r_sortDataArray(data, field, order) {
+                const sorted = [...data];
+                sorted.sort((a, b) => {
+                    let valA, valB;
+                    if (field === 'bidOpeningStatus') { valA = r_getBidOpeningStatus(a); valB = r_getBidOpeningStatus(b); }
+                    else if (field === 'bidOpeningDate' || field === 'registrationDate') { valA = a[field] || ''; valB = b[field] || ''; valA = valA ? new Date(valA).getTime() : 0; valB = valB ? new Date(valB).getTime() : 0; }
+                    else if (field === 'seq') { const pa = String(a.seq).split('-'); const pb = String(b.seq).split('-'); valA = pa.length === 3 ? parseInt(pa[2]) || 0 : String(a.seq); valB = pb.length === 3 ? parseInt(pb[2]) || 0 : String(b.seq); }
+                    else if (field === 'maxPrice' || field === 'deposit') { valA = parseFloat(String(a[field]).replace(/[^0-9.]/g, '')) || 0; valB = parseFloat(String(b[field]).replace(/[^0-9.]/g, '')) || 0; }
+                    else { valA = (a[field] || '').toString().toLowerCase(); valB = (b[field] || '').toString().toLowerCase(); }
+                    if (valA < valB) return order === 'asc' ? -1 : 1;
+                    if (valA > valB) return order === 'asc' ? 1 : -1;
+                    return 0;
+                });
+                return sorted;
+            }
+
+            function r_buildTableHeader() {
+                const thead = document.createElement('thead');
+                let html = `<tr><th class="checkbox-cell"><input type="checkbox" id="r_querySelectAll" onchange="r_toggleSelectAllQuery(this)"></th><th data-sort="seq">序号<span class="sort-arrow"></span></th><th data-sort="projectName">工程名称<span class="sort-arrow"></span></th><th data-sort="bidOpeningDate">开标日期<span class="sort-arrow"></span></th><th data-sort="bidOpeningStatus">是否已至开标日<span class="sort-arrow"></span></th><th data-sort="client">委托人<span class="sort-arrow"></span></th><th data-sort="projectManager">项目经理<span class="sort-arrow"></span></th><th data-sort="materials">资料<span class="sort-arrow"></span></th><th data-sort="registrationDate">报名日期<span class="sort-arrow"></span></th><th data-sort="bidOpeningMethod">开标方式<span class="sort-arrow"></span></th><th data-sort="bidOpeningAddress">开标地址<span class="sort-arrow"></span></th><th data-sort="deposit">保证金<span class="sort-arrow"></span></th><th data-sort="maxPrice">最高限价(元)<span class="sort-arrow"></span></th><th data-sort="announcementUrl">公告地址<span class="sort-arrow"></span></th><th data-sort="company">所属公司<span class="sort-arrow"></span></th><th data-sort="remarks">备注<span class="sort-arrow"></span></th>`;
+                if (r_remarks2Visible) html += `<th data-sort="remarks2">备注2<span class="sort-arrow"></span></th>`;
+                html += '</tr>'; thead.innerHTML = html; return thead;
+            }
+
+            function r_buildTableRow(person, index) {
+                const tr = document.createElement('tr'); tr.setAttribute('data-index', index);
+                let html = `<td class="checkbox-cell"><input type="checkbox" class="r_row-checkbox-query" data-index="${index}" onclick="event.stopPropagation();"></td>
+                    <td>${person.seq||''}</td>
+                    <td class="ellipsis-cell">${escapeHtml(person.projectName||'')}</td>
+                    <td>${formatDateTimeForDisplay(person.bidOpeningDate||'')}</td>`;
+                let statusText = r_getBidOpeningStatus(person);
+                let statusClass = 'bold-cell';
+                if (statusText.includes('今日开标')) statusClass += ' today-bid';
+                html += `<td class="${statusClass}">${statusText}</td>`;
+                html += `<td class="ellipsis-cell">${escapeHtml(person.client||'')}</td>
+                    <td>${escapeHtml(person.projectManager||'')}</td>
+                    <td>${escapeHtml(person.materials||'')}</td>
+                    <td>${person.registrationDate||''}</td>
+                    <td>${person.bidOpeningMethod||''}</td>
+                    <td class="ellipsis-cell">${escapeHtml(person.bidOpeningAddress||'')}</td>
+                    <td>${person.deposit||''}</td>
+                    <td>${person.maxPrice||''}</td>
+                    <td class="ellipsis-cell">${escapeHtml(person.announcementUrl||'')}</td>
+                    <td>${person.company||''}</td>
+                    <td>${escapeHtml(person.remarks||'')}</td>`;
+                if (r_remarks2Visible) html += `<td>${escapeHtml(person.remarks2||'')}</td>`;
+                tr.innerHTML = html; return tr;
+            }
+
+            function r_updateSortArrows(state) {
+                const table = document.getElementById('r_queryTable');
+                if (!table) return;
+                const headers = table.querySelectorAll('th[data-sort]');
+                headers.forEach(th => {
+                    const field = th.getAttribute('data-sort');
+                    const arrow = th.querySelector('.sort-arrow');
+                    if (arrow) arrow.textContent = (field === state.field) ? (state.order === 'asc' ? '▲' : '▼') : '';
+                });
+            }
+
+            function r_shouldHide(person) { const status = r_getBidOpeningStatus(person); return status === '已经开标' || status === '已取消投标'; }
+
+            function r_refreshQueryTable(results) {
+                const state = r_sortState.queryTable;
+                let base = results !== undefined ? results : (r_queryResults.length > 0 ? r_queryResults : (r_activeSearchResults || r_allData));
+                if (document.getElementById('r_hideCompletedQuery')?.checked) base = base.filter(p => !r_shouldHide(p));
+                if (state.field) base = r_sortDataArray(base, state.field, state.order);
+                const table = document.getElementById('r_queryTable'); table.innerHTML = ''; table.appendChild(r_buildTableHeader());
+                const tbody = document.createElement('tbody'); tbody.id = 'r_queryTbody';
+                base.forEach((p, idx) => {
+                    const orig = r_allData.indexOf(p);
+                    const tr = r_buildTableRow(p, orig >= 0 ? orig : idx);
+                    tr.addEventListener('dblclick', () => { const ri = r_allData.indexOf(p); if (ri >= 0) { if (permissions.entry) r_handleDoubleClickRow(ri); else showToast('无录入权限', 'error'); } });
+                    tr.addEventListener('click', function(e) { if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') return; const cb = this.querySelector('.r_row-checkbox-query'); if (cb) cb.checked = !cb.checked; });
+                    tbody.appendChild(tr);
+                });
+                table.appendChild(tbody);
+                document.getElementById('r_queryCount').textContent = base.length;
+                document.getElementById('r_querySelectAll').checked = false;
+                r_updateSortArrows(state);
+                const thead = table.querySelector('thead');
+                if (thead) {
+                    thead.addEventListener('click', function(e) {
+                        const th = e.target.closest('th[data-sort]');
+                        if (!th) return;
+                        const field = th.getAttribute('data-sort');
+                        const currentState = r_sortState.queryTable;
+                        if (currentState.field === field) currentState.order = currentState.order === 'asc' ? 'desc' : 'asc';
+                        else { currentState.field = field; currentState.order = 'asc'; }
+                        r_refreshQueryTable();
+                    });
+                }
+            }
+
+            function r_updateSelectAll() { const cbs = document.querySelectorAll('#r_queryTbody .r_row-checkbox-query'); document.getElementById('r_querySelectAll').checked = cbs.length > 0 && Array.from(cbs).every(cb => cb.checked); }
+            function r_toggleSelectAllQuery(cb) { document.querySelectorAll('#r_queryTbody .r_row-checkbox-query').forEach(c => c.checked = cb.checked); }
+            function r_getSelectedIndices() { return Array.from(document.querySelectorAll('#r_queryTbody .r_row-checkbox-query:checked')).map(cb => parseInt(cb.dataset.index)).filter(i => i >= 0); }
+
+            function r_openEditModal(person, index) {
+                const modal = document.getElementById('editModal');
+                const showR2 = (index < 0 && permissions.showSensitive) || (r_remarks2Visible && permissions.showSensitive);
+                let html = `<div class="modal" style="max-width:850px;"><button class="modal-close" onclick="closeEditModal()">×</button><h3 id="editModalTitle">${index>=0?'修改报名信息':'新增报名信息'}</h3><div class="form-row">`;
+                html += `<div class="form-group"><label>所属公司</label><select id="re_company"><option value="">--请选择--</option><option>正大</option><option>世拓</option></select></div>`;
+                html += `<div class="form-group"><label>序号</label><input type="text" id="re_seq"></div>`;
+                html += `<div class="form-group"><label>工程名称 *</label><input type="text" id="re_projectName"></div>`;
+                html += `<div class="form-group"><label>委托人</label><input type="text" id="re_client"></div>`;
+                html += `<div class="form-group"><label>项目经理</label><input type="text" id="re_projectManager"></div>`;
+                html += `<div class="form-group"><label>资料</label><input type="text" id="re_materials"></div>`;
+                html += `<div class="form-group"><label>报名日期</label><input type="date" id="re_registrationDate"></div>`;
+                html += `<div class="form-group"><label>开标方式</label><select id="re_bidOpeningMethod"><option>线上</option><option>线下</option></select></div>`;
+                html += `<div class="form-group"><label>开标地址</label><input type="text" id="re_bidOpeningAddress"></div>`;
+                html += `<div class="form-group"><label>开标日期</label><input type="datetime-local" id="re_bidOpeningDate"></div>`;
+                html += `<div class="form-group"><label>保证金</label><input type="text" id="re_deposit"></div>`;
+                html += `<div class="form-group"><label>最高限价(元)</label><input type="text" id="re_maxPrice"></div>`;
+                html += `<div class="form-group"><label>公告地址</label><input type="text" id="re_announcementUrl"></div>`;
+                html += `<div class="form-group"><label>备注</label><input type="text" id="re_remarks"></div>`;
+                if (showR2) html += `<div class="form-group"><label>备注2</label><input type="text" id="re_remarks2"></div>`;
+                html += `</div><input type="hidden" id="re_index" value="${index}"><div class="modal-actions"><button class="btn btn-outline" onclick="closeEditModal()">取消</button><button class="btn btn-primary" onclick="r_saveFromModal()">保存</button></div></div>`;
+                modal.innerHTML = html; modal.style.display = 'flex';
+                const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+                setVal('re_company', person.company || ''); setVal('re_seq', person.seq || ''); setVal('re_projectName', person.projectName || ''); setVal('re_client', person.client || ''); setVal('re_projectManager', person.projectManager || ''); setVal('re_materials', person.materials || ''); setVal('re_registrationDate', person.registrationDate || ''); setVal('re_bidOpeningMethod', person.bidOpeningMethod || '线上'); setVal('re_bidOpeningAddress', person.bidOpeningAddress || ''); setVal('re_bidOpeningDate', person.bidOpeningDate || ''); setVal('re_deposit', person.deposit || ''); setVal('re_maxPrice', person.maxPrice || ''); setVal('re_announcementUrl', person.announcementUrl || ''); setVal('re_remarks', person.remarks || ''); if (showR2) setVal('re_remarks2', person.remarks2 || '');
+            }
+
+            function r_saveFromModal() { const index = parseInt(document.getElementById('re_index').value); const person = { seq: document.getElementById('re_seq').value, projectName: document.getElementById('re_projectName').value, client: document.getElementById('re_client').value, projectManager: document.getElementById('re_projectManager').value, materials: document.getElementById('re_materials').value, registrationDate: document.getElementById('re_registrationDate').value, bidOpeningMethod: document.getElementById('re_bidOpeningMethod').value, bidOpeningAddress: document.getElementById('re_bidOpeningAddress').value, bidOpeningDate: document.getElementById('re_bidOpeningDate').value, deposit: document.getElementById('re_deposit').value, maxPrice: document.getElementById('re_maxPrice').value, announcementUrl: document.getElementById('re_announcementUrl').value, company: document.getElementById('re_company').value, remarks: document.getElementById('re_remarks').value, remarks2: document.getElementById('re_remarks2')?.value || '' }; if (!person.projectName.trim()) { showToast('工程名称不能为空', 'error'); return; } if (index >= 0 && index < r_allData.length) r_allData[index] = person; else r_allData.push(person); r_saveLocal(r_allData); showToast(index >= 0 ? '已更新' : '已添加', 'success'); r_activeSearchResults = null; r_refreshQueryTable(); closeEditModal(); }
+            function r_openAddProjectModal() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const nextSeq = r_getNextSeq('正大'); r_openEditModal({ seq: nextSeq, projectName: '', client: '', projectManager: '', materials: '', registrationDate: '', bidOpeningMethod: '线上', bidOpeningAddress: '', bidOpeningDate: '', deposit: '', maxPrice: '', announcementUrl: '', company: '', remarks: '', remarks2: '' }, -1); }
+            function r_processEditQueue() { if (r_editQueue.length > 0 && !r_isProcessingQueue) { r_isProcessingQueue = true; const ni = r_editQueue.shift(); if (ni >= 0 && ni < r_allData.length) r_openEditModal(r_allData[ni], ni); else r_processEditQueue(); } else if (r_editQueue.length === 0) r_isProcessingQueue = false; }
+            function r_handleEditSelected() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const indices = r_getSelectedIndices(); if (!indices.length) { showToast('请勾选', 'error'); return; } showToast('编辑已选择', 'info'); r_editQueue = [...indices]; r_isProcessingQueue = false; r_processEditQueue(); }
+            function r_handleDoubleClickRow(index) { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } if (index < 0 || index >= r_allData.length) return; r_openEditModal(r_allData[index], index); }
+            function r_handleBatchDelete() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const indices = r_getSelectedIndices(); if (!indices.length) { showToast('请勾选', 'error'); return; } showPasswordModal(async () => { if (confirm(`确定删除 ${indices.length} 条？`)) { indices.sort((a, b) => b - a).forEach(i => r_allData.splice(i, 1)); r_saveLocal(r_allData); r_activeSearchResults = null; r_refreshQueryTable(); showToast('已删除', 'success'); } }); }
+            function r_hasAdvancedFilter() { return ['r_f_company', 'r_f_bidStatus', 'r_f_deposit', 'r_f_bidMethod'].some(id => document.getElementById(id)?.value !== ''); }
+            function r_performAdvancedFilter() { const base = r_activeSearchResults || r_allData; if (!r_hasAdvancedFilter()) { r_queryResults = []; r_refreshQueryTable(base); return; } const getVal = (id) => document.getElementById(id)?.value || ''; const fCompany = getVal('r_f_company'), fBidStatus = getVal('r_f_bidStatus'), fDeposit = getVal('r_f_deposit'), fBidMethod = getVal('r_f_bidMethod'); const now = new Date(); r_queryResults = base.filter(p => { if (fCompany && p.company !== fCompany) return false; if (fBidStatus) { if (!p.bidOpeningDate) return false; const bidDate = new Date(p.bidOpeningDate); if (isNaN(bidDate.getTime())) return false; const hasReached = bidDate.getTime() <= now.getTime(); if (fBidStatus === '是' && !hasReached) return false; if (fBidStatus === '否' && hasReached) return false; } if (fDeposit) { const hasDeposit = p.deposit && p.deposit.trim() !== '' && p.deposit.trim() !== '无'; if (fDeposit === '有' && !hasDeposit) return false; if (fDeposit === '无' && hasDeposit) return false; } if (fBidMethod && p.bidOpeningMethod !== fBidMethod) return false; return true; }); r_refreshQueryTable(r_queryResults); }
+            function r_clearAdvancedFilter() { ['r_f_company', 'r_f_bidStatus', 'r_f_deposit', 'r_f_bidMethod'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); r_queryResults = []; r_activeSearchResults = null; r_refreshQueryTable(r_allData); }
+            function r_clearQuickSearch() { document.getElementById('r_quickSearch').value = ''; r_activeSearchResults = null; r_queryResults = []; r_refreshQueryTable(r_allData); }
+            function r_onHideQueryChange() { if (r_activeSearchResults || r_hasAdvancedFilter()) { r_performQuickSearch(); } else { r_refreshQueryTable(); } }
+            function r_performQuickSearch() { const kw = document.getElementById('r_quickSearch').value.trim().toLowerCase(); const base = r_activeSearchResults || r_allData; if (!kw) { r_activeSearchResults = null; r_queryResults = []; r_refreshQueryTable(r_allData); return; } r_activeSearchResults = base.filter(p => (p.projectName && p.projectName.toLowerCase().includes(kw)) || (p.client && p.client.toLowerCase().includes(kw)) || (p.projectManager && p.projectManager.toLowerCase().includes(kw)) || (p.materials && p.materials.toLowerCase().includes(kw)) || (p.remarks && p.remarks.toLowerCase().includes(kw))); r_queryResults = []; if (r_hasAdvancedFilter()) r_performAdvancedFilter(); else r_refreshQueryTable(r_activeSearchResults); }
+
+            function r_importFromExcel() {
+                if (!permissions.import) { showToast('无导入权限', 'error'); return; }
+                const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx,.xls';
+                input.onchange = function(e) {
+                    const file = e.target.files[0]; if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = function(evt) {
+                        const data = new Uint8Array(evt.target.result);
+                        const wb = XLSX.read(data, { type: 'array' });
+                        const sheet = wb.Sheets[wb.SheetNames[0]];
+                        const json = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                        if (json.length < 2) { showToast('Excel格式错误'); return; }
+                        const rows = json.slice(1).filter(r => r.some(c => c !== '' && c !== null));
+                        const imported = rows.map(row => {
+                            const regDateRaw = row[5]; let regDateStr = ''; if (typeof regDateRaw === 'number' && isExcelSerialNumber(regDateRaw)) regDateStr = excelSerialToDate(regDateRaw); else if (regDateRaw) regDateStr = String(regDateRaw);
+                            const bidDateRaw = row[8]; let bidDateStr = ''; if (typeof bidDateRaw === 'number' && isExcelSerialNumber(bidDateRaw)) { const d = excelSerialToDate(bidDateRaw); bidDateStr = d + 'T00:00'; } else if (bidDateRaw) bidDateStr = String(bidDateRaw);
+                            const remarks2 = (row.length > 14 && row[14] !== undefined && row[14] !== null) ? String(row[14]) : '';
+                            return { seq: String(row[0] || ''), projectName: String(row[1] || ''), client: String(row[2] || ''), projectManager: String(row[3] || ''), materials: String(row[4] || ''), registrationDate: regDateStr, bidOpeningMethod: String(row[6] || ''), bidOpeningAddress: String(row[7] || ''), bidOpeningDate: bidDateStr, deposit: String(row[9] || ''), maxPrice: String(row[10] || ''), announcementUrl: String(row[11] || ''), company: String(row[12] || ''), remarks: String(row[13] || ''), remarks2: remarks2 };
+                        });
+                        if (!imported.length) { showToast('无有效数据'); return; }
+                        let updatedCount = 0, addedCount = 0;
+                        const newData = [...r_allData];
+                        imported.forEach(imp => { const existingIndex = newData.findIndex(d => d.seq === imp.seq); if (existingIndex >= 0) { if (JSON.stringify({ ...newData[existingIndex], remarks2: undefined }) !== JSON.stringify({ ...imp, remarks2: undefined })) { newData[existingIndex] = { ...imp, remarks2: newData[existingIndex].remarks2 }; updatedCount++; } } else { newData.push(imp); addedCount++; } });
+                        if (updatedCount === 0 && addedCount === 0) { showToast('导入数据与现有数据一致，无需更新', 'info'); return; }
+                        if (confirm(`即将更新 ${updatedCount} 条，新增 ${addedCount} 条。确定继续？`)) { r_allData = newData; r_saveLocal(r_allData); r_activeSearchResults = null; r_refreshQueryTable(); showToast(`导入完成：更新${updatedCount}条，新增${addedCount}条`, 'success'); }
+                    };
+                    reader.readAsArrayBuffer(file);
+                };
+                input.click();
+            }
+
+            async function r_handleBackupToCloud() {
+                if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
+                const key = prompt('请输入本次备份的随机加密密钥（恢复时需要提供）：'); if (!key) return;
+                let success = false;
+                const cloudArray = r_allData.map(item => ({ "序号": item.seq, "工程名称": item.projectName, "委托人": item.client, "项目经理": item.projectManager, "资料": item.materials, "报名日期": item.registrationDate, "开标方式": item.bidOpeningMethod, "开标地址": item.bidOpeningAddress, "开标日期": item.bidOpeningDate, "保证金": item.deposit, "最高限价": item.maxPrice, "公告地址": item.announcementUrl, "所属公司": item.company, "备注": item.remarks, "备注2": item.remarks2 || '' }));
+                const payload = JSON.stringify(cloudArray);
+                const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
+                const batches = []; let startIdx = 0; while (startIdx < encPayload.length) { batches.push(encPayload.slice(startIdx, startIdx + 6000)); startIdx += 6000; }
+                try { for (let i = 0; i < batches.length; i++) { const res = await cloudUpdateRaw(getRegCloudKey() + '_batch' + (i+1), batches[i]); if (!res.success) throw new Error('分片写入失败'); } await cloudUpdateRaw(getRegCloudKey(), JSON.stringify({ batches: batches.length })); showToast('云端备份成功', 'success'); success = true; } catch (e) { showToast('云端备份失败', 'error'); }
+                const statusText = success ? '备份成功' : '备份失败';
+                const fileName = `报名管理系统_${statusText}_${getNowString()}.xlsx`;
+                const fields = (r_remarks2Visible && permissions.showSensitive) ? [...r_allFieldsExport.map(f => f.key), 'remarks2'] : r_allFieldsExport.map(f => f.key);
+                r_exportWithFields(r_allData, fileName, fields);
+            }
+
+            async function r_handleRestoreFromCloud() { if (!permissions.restore) { showToast('无恢复权限', 'error'); return; } const key = prompt('请输入备份时使用的随机加密密钥：'); if (!key) return; showPasswordModal(async () => { try { const metaRaw = await cloudReadRaw(getRegCloudKey()); if (!metaRaw) { showToast('云端无数据', 'info'); return; } const meta = JSON.parse(metaRaw); let fullEnc = ''; for (let i = 1; i <= meta.batches; i++) { const part = await cloudReadRaw(getRegCloudKey() + '_batch' + i); if (part) fullEnc += part; } const decPayload = CryptoJS.AES.decrypt(fullEnc, key).toString(CryptoJS.enc.Utf8); if (!decPayload) { showToast('解密密钥错误', 'error'); return; } const cloudArray = JSON.parse(decPayload); const cloudData = cloudArray.map(item => ({ seq: String(item["序号"] || ""), projectName: item["工程名称"] || "", client: item["委托人"] || "", projectManager: item["项目经理"] || "", materials: item["资料"] || "", registrationDate: item["报名日期"] || "", bidOpeningMethod: item["开标方式"] || "", bidOpeningAddress: item["开标地址"] || "", bidOpeningDate: item["开标日期"] || "", deposit: item["保证金"] || "", maxPrice: item["最高限价"] || "", announcementUrl: item["公告地址"] || "", company: item["所属公司"] || "", remarks: item["备注"] || "", remarks2: item["备注2"] || "" })); if (JSON.stringify(r_allData) === JSON.stringify(cloudData)) { showToast('数据一致', 'info'); return; } if (confirm(`云端${cloudData.length}条，本地${r_allData.length}条，覆盖？`)) { r_allData = cloudData; r_saveLocal(r_allData); r_activeSearchResults = null; r_refreshQueryTable(); showToast('已恢复', 'success'); } } catch (e) { showToast('恢复失败，密钥错误或数据格式异常', 'error'); } }); }
+            async function r_clearCloud() { if (!permissions.clearCloud) { showToast('无清除权限', 'error'); return; } if (confirm('确定要彻底清除报名云端数据吗？')) { await cloudUpdateRaw(getRegCloudKey(), ''); showToast('云端报名数据已清除', 'info'); } }
+            function r_getExportFields() { if (r_remarks2Visible && permissions.showSensitive) { return [...r_allFieldsExport, { key: 'remarks2', label: '备注2' }]; } else { return r_allFieldsExport; } }
+            function r_exportWithFields(dataArray, fileName, fields) { if (!dataArray.length) { showToast('无数据', 'error'); return; } const finalFields = fields.filter(k => k !== 'bidOpeningStatus'); const exportData = dataArray.map(p => { const row = {}; finalFields.forEach(k => { if (k === 'bidOpeningDate') { row[k] = formatDateTimeForDisplay(p.bidOpeningDate); } else if (k === 'remarks2') { row[k] = p.remarks2 || ''; } else { row[k] = p[k] || ''; } }); return row; }); const header = finalFields.map(k => { if (k === 'remarks2') return '备注2'; const found = r_allFieldsExport.find(f => f.key === k); return found ? found.label : k; }); const ws = XLSX.utils.json_to_sheet(exportData, { header: finalFields }); XLSX.utils.sheet_add_aoa(ws, [header], { origin: 'A1' }); ws['!cols'] = header.map(() => ({ wch: 16 })); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '报名数据'); XLSX.writeFile(wb, fileName); showToast('已导出', 'success'); }
+            function r_exportAllData() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(r_getExportFields(), (fields) => r_exportWithFields(r_allData, '工程报名备份' + getNowString() + '.xlsx', fields)); }
+            function r_exportQueryResults() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(r_getExportFields(), (fields) => { const data = r_queryResults.length > 0 ? r_queryResults : (r_activeSearchResults || r_allData); r_exportWithFields(data, '报名查询结果' + getNowString() + '.xlsx', fields); }); }
+
+            function r_checkDueBidOpenings() {
+                if (suppressAlerts.registration) return;
+                const now = new Date();
+                const list3to7 = [], list0to3 = [], todayBidNames = [];
+                r_allData.forEach(p => {
+                    if (p.remarks && p.remarks.includes('不投了')) return;
+                    if (!p.bidOpeningDate) return;
+                    const bidDate = new Date(p.bidOpeningDate);
+                    if (isNaN(bidDate.getTime())) return;
+                    const diffMs = bidDate.getTime() - now.getTime();
+                    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+                    if (diffMs < 0) return;
+                    if (diffDays === 0) { const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()); const bidDayStart = new Date(bidDate.getFullYear(), bidDate.getMonth(), bidDate.getDate()); if (todayStart.getTime() === bidDayStart.getTime() && now.getTime() < bidDate.getTime()) todayBidNames.push(p.projectName); }
+                    else if (diffDays > 0 && diffDays <= 3) list0to3.push(p);
+                    else if (diffDays > 3 && diffDays <= 7) list3to7.push(p);
+                });
+                if (todayBidNames.length > 0) showToast('今日开标：' + todayBidNames.join('、'), 'warning');
+                let html = '';
+                if (list3to7.length > 0) { html += '<div class="due-section-title">📋 是否已安排做书（开标日期在4‑7天内）</div><div class="table-wrapper"><table><thead><tr><th>序号</th><th>工程名称</th><th>委托人</th><th>项目经理</th><th>开标方式</th><th>开标日期</th><th>备注</th></tr></thead><tbody>'; html += list3to7.map(p => `<tr><td>${p.seq}</td><td>${p.projectName}</td><td>${p.client}</td><td>${p.projectManager}</td><td>${p.bidOpeningMethod}</td><td>${formatDateTimeForDisplay(p.bidOpeningDate)}</td><td>${p.remarks}</td></tr>`).join(''); html += '</tbody></table></div>'; }
+                if (list0to3.length > 0) { html += '<div class="due-section-title">📋 查看保证金交纳‑查看有无澄清（开标日期在1‑3天内）</div><div class="table-wrapper"><table><thead><tr><th>序号</th><th>工程名称</th><th>委托人</th><th>项目经理</th><th>开标方式</th><th>开标日期</th><th>保证金</th><th>备注</th></tr></thead><tbody>'; html += list0to3.map(p => `<tr><td>${p.seq}</td><td>${p.projectName}</td><td>${p.client}</td><td>${p.projectManager}</td><td>${p.bidOpeningMethod}</td><td>${formatDateTimeForDisplay(p.bidOpeningDate)}</td><td>${p.deposit}</td><td>${p.remarks}</td></tr>`).join(''); html += '</tbody></table></div>'; }
+                if (html) {
+                    const downloadFn = () => { const allDue = [...list3to7, ...list0to3]; const expData = allDue.map(p => ({ "序号": p.seq, "工程名称": p.projectName, "委托人": p.client, "项目经理": p.projectManager, "开标方式": p.bidOpeningMethod, "开标地址": p.bidOpeningAddress, "开标日期": formatDateTimeForDisplay(p.bidOpeningDate), "保证金": p.deposit, "最高限价(元)": p.maxPrice, "所属公司": p.company, "备注": p.remarks })); const ws = XLSX.utils.json_to_sheet(expData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '开标提醒'); XLSX.writeFile(wb, `开标提醒_${new Date().toISOString().slice(0,10)}.xlsx`); showToast('提醒列表已下载', 'success'); };
+                    showDueModal(html, 'registration', downloadFn);
+                }
+            }
+            function r_toggleRemarks2Visibility() { if (!permissions.showSensitive) { showToast('无显示敏感信息权限', 'error'); return; } if (!r_remarks2Visible) { showPasswordModal(() => { r_remarks2Visible = true; r_refreshQueryTable(); showToast('备注2已显示', 'info'); }); } else { r_remarks2Visible = false; r_refreshQueryTable(); showToast('备注2已隐藏', 'info'); } }
+
+            // ============ 数据迁移 ============
+            function migrateArchive() {
+                const raw = localStorage.getItem('DANGAN20020308ZDSTSJ'); if (!raw) return;
+                let parsed; try { parsed = JSON.parse(raw); } catch(e) { return; }
+                let data = null; try { data = a_decryptFromStorage(parsed); } catch(e) {}
+                if (data) return;
+                const oldKey = deriveLocalKeyOld(currentSensitivePwd);
+                try { data = a_decryptFromStorage(parsed, () => oldKey); if (data && data.length) { a_saveLocal(data); console.log('档案数据已迁移'); } } catch(e) {}
+            }
+            function migratePersonnel() {
+                const raw = localStorage.getItem('DANGAN20020308SYRYSK'); if (!raw) return;
+                let data = null; try { data = p_decryptData(raw); } catch(e) {}
+                if (data) return;
+                const oldKey = deriveLocalKeyOld(currentSensitivePwd);
+                try { data = p_decryptData(raw, () => oldKey); if (data && data.length) { p_saveLocal(data); console.log('人员数据已迁移'); } } catch(e) {}
+            }
+            function migrateRegistration() {
+                const raw = localStorage.getItem('BMGLXT20020308ZDST'); if (!raw) return;
+                let data = null; try { data = r_decryptData(raw); } catch(e) {}
+                if (data) return;
+                const oldKey = deriveLocalKeyOld(currentSensitivePwd);
+                try { data = r_decryptData(raw, () => oldKey); if (data && data.length) { r_saveLocal(data); console.log('报名数据已迁移'); } } catch(e) {}
+            }
+
+            function a_checkArchives() {
+                if (suppressAlerts.archive) return;
+                if (!a_allData.length) return;
+                const noContract = a_allData.filter(p => !p.contract);
+                const noCooperation = a_allData.filter(p => !p.cooperation);
+                const now = new Date();
+                const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                const noCompletionDoc = a_allData.filter(p => { if (!p.completionDate) return false; if (p.completionDoc) return false; const compDate = new Date(p.completionDate); return compDate <= thirtyDaysAgo; });
+                if (!noContract.length && !noCooperation.length && !noCompletionDoc.length) return;
+                let html = '';
+                if (noContract.length > 0) { html += '<div class="due-section-title">📋 无合同档案 (' + noContract.length + '条)</div><div class="table-wrapper"><table><thead><tr><th>所属公司</th><th>档案号</th><th>工程名称</th><th>甲方单位</th><th>签署日期</th><th>签署份数</th></tr></thead><tbody>'; html += noContract.map(p => `<tr><td>${p.company||''}</td><td>${p.archiveNo||''}</td><td>${p.engName||''}</td><td>${p.partyA||''}</td><td>${p.signDate||''}</td><td>${p.signCopies||''}</td></tr>`).join(''); html += '</tbody></table></div>'; }
+                if (noCooperation.length > 0) { html += '<div class="due-section-title">📋 无合作协议档案 (' + noCooperation.length + '条)</div><div class="table-wrapper"><table><thead><tr><th>所属公司</th><th>档案号</th><th>工程名称</th><th>甲方单位</th><th>签署日期</th><th>签署份数</th></tr></thead><tbody>'; html += noCooperation.map(p => `<tr><td>${p.company||''}</td><td>${p.archiveNo||''}</td><td>${p.engName||''}</td><td>${p.partyA||''}</td><td>${p.signDate||''}</td><td>${p.signCopies||''}</td></tr>`).join(''); html += '</tbody></table></div>'; }
+                if (noCompletionDoc.length > 0) { html += '<div class="due-section-title">📋 无竣工资料档案 (' + noCompletionDoc.length + '条)</div><div class="table-wrapper"><table><thead><tr><th>档案号</th><th>工程名称</th><th>甲方单位</th><th>开工日期</th><th>竣工日期</th></tr></thead><tbody>'; html += noCompletionDoc.map(p => `<tr><td>${p.archiveNo||''}</td><td>${p.engName||''}</td><td>${p.partyA||''}</td><td>${p.startDate||''}</td><td>${p.completionDate||''}</td></tr>`).join(''); html += '</tbody></table></div>'; }
+                const downloadFn = () => {
+                    const wb = XLSX.utils.book_new();
+                    if (noContract.length > 0) { const ws = XLSX.utils.json_to_sheet(noContract.map(p => ({ "所属公司": p.company, "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA, "签署日期": p.signDate, "签署份数": p.signCopies, "合作人": p.partner, "联系电话": p.phone }))); XLSX.utils.book_append_sheet(wb, ws, '无合同档案'); }
+                    if (noCooperation.length > 0) { const ws = XLSX.utils.json_to_sheet(noCooperation.map(p => ({ "所属公司": p.company, "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA, "签署日期": p.signDate, "签署份数": p.signCopies, "合作人": p.partner, "联系电话": p.phone }))); XLSX.utils.book_append_sheet(wb, ws, '无合作协议档案'); }
+                    if (noCompletionDoc.length > 0) { const ws = XLSX.utils.json_to_sheet(noCompletionDoc.map(p => ({ "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA, "开工日期": p.startDate, "竣工日期": p.completionDate }))); XLSX.utils.book_append_sheet(wb, ws, '无竣工资料档案'); }
+                    const fileName = `档案完整性检查_${getNowString()}.xlsx`;
+                    XLSX.writeFile(wb, fileName); showToast('提醒列表已下载', 'success');
+                };
+                showDueModal(html, 'archive', downloadFn);
+            }
+
+            // 通用导出列选择框
+            function openExportFieldModal(fieldsDef, cb) { if (!permissions.export) { showToast('无导出权限', 'error'); return; } const modal = document.getElementById('exportFieldModal'); modal.innerHTML = `<div class="modal" style="max-width:650px;"><h3>📋 自定义导出列</h3><p style="margin-bottom:12px;">勾选需要导出的字段</p><div class="export-field-grid" id="exportFieldCheckboxes"></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeExportFieldModal()">取消</button><button class="btn btn-primary" onclick="confirmExport()">确认导出</button></div></div>`; modal.style.display = 'flex'; const container = document.getElementById('exportFieldCheckboxes'); container.innerHTML = ''; fieldsDef.forEach(f => { const label = document.createElement('label'); label.innerHTML = `<input type="checkbox" value="${f.key}" checked> ${f.label}`; container.appendChild(label); }); pendingExportCallback = cb; }
+            function closeExportFieldModal() { document.getElementById('exportFieldModal').style.display = 'none'; pendingExportCallback = null; }
+            function confirmExport() { const cbs = document.querySelectorAll('#exportFieldCheckboxes input:checked'); const fields = Array.from(cbs).map(cb => cb.value); if (!fields.length) { showToast('至少选一个', 'error'); return; } const cb = pendingExportCallback; closeExportFieldModal(); if (cb) cb(fields); }
+            function closeEditModal() { document.getElementById('editModal').style.display = 'none'; if (activeSystem === 'archive') a_processEditQueue(); else if (activeSystem === 'personnel') p_processEditQueue(); else if (activeSystem === 'registration') r_processEditQueue(); }
+
+            // ========== 云端数据获取与冲突解决 ==========
+            async function fetchCloudData(cloudKey, projectCode, mapFn) {
+                try {
+                    const metaRaw = await cloudReadRaw(cloudKey); if (!metaRaw) return null;
+                    const meta = JSON.parse(metaRaw); let fullEnc = '';
+                    for (let i = 1; i <= meta.batches; i++) { const part = await cloudReadRaw(cloudKey + '_batch' + i); if (part) fullEnc += part; }
+                    const decPayload = CryptoJS.AES.decrypt(fullEnc, projectCode).toString(CryptoJS.enc.Utf8);
+                    if (!decPayload) return null;
+                    const rawData = JSON.parse(decPayload);
+                    return mapFn ? mapFn(rawData) : rawData;
+                } catch (e) { return null; }
+            }
+
+            async function fetchArchiveCloudData(projectCode) { return fetchCloudData(getArchiveCloudKey(), projectCode, null); }
+            async function fetchPersonnelCloudData(projectCode) {
+                return fetchCloudData(getPersonnelCloudKey(), projectCode, (raw) => raw.map(item => ({
+                    seq: String(item["序号"] || ""), name: item["姓名"] || "", idcard: item["身份证"] || "", category: item["类别"] || "", position: item["岗位"] || "", regno: item["注册号"] || "", major: item["注册专业"] || "", validity: item["有效期"] ? excelSerialToDate(parseInt(item["有效期"])) : "", level: item["级别"] || "", issuer: item["发证单位"] || "", phone: item["联系电话"] || "", jishibanAccount: item["冀时办账号"] || "", jishibanPassword: item["冀时办密码"] || "", socialSecurity: item["社保"] || "", company: item["所属公司"] || "", remarks: item["备注"] || "", categoryOther: item["类别自定义"] || "", positionOther: item["岗位自定义"] || "", majorOther: item["注册专业自定义"] || "", levelOther: item["级别自定义"] || "", companyOther: item["所属公司自定义"] || ""
+                })));
+            }
+            async function fetchRegistrationCloudData(projectCode) {
+                return fetchCloudData(getRegCloudKey(), projectCode, (raw) => raw.map(item => ({
+                    seq: String(item["序号"] || ""), projectName: item["工程名称"] || "", client: item["委托人"] || "", projectManager: item["项目经理"] || "", materials: item["资料"] || "", registrationDate: item["报名日期"] || "", bidOpeningMethod: item["开标方式"] || "", bidOpeningAddress: item["开标地址"] || "", bidOpeningDate: item["开标日期"] || "", deposit: item["保证金"] || "", maxPrice: item["最高限价"] || "", announcementUrl: item["公告地址"] || "", company: item["所属公司"] || "", remarks: item["备注"] || "", remarks2: item["备注2"] || ""
+                })));
+            }
+
+            async function promptUpdateFromCloud(cloudData, localData, systemName) {
+                const localStr = JSON.stringify(localData); const remoteStr = JSON.stringify(cloudData);
+                if (localStr === remoteStr) return false;
+                let diffHtml = '<div class="table-wrapper"><table><thead><tr><th>序号</th><th>字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
+                const len = Math.max(localData.length, cloudData.length);
+                for (let i = 0; i < len; i++) {
+                    const localItem = localData[i] || {}; const remoteItem = cloudData[i] || {};
+                    const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
+                    for (let key of allKeys) { const localVal = localItem[key] ?? ''; const remoteVal = remoteItem[key] ?? ''; if (localVal != remoteVal) { diffHtml += `<tr><td>${i+1}</td><td>${key}</td><td>${escapeHtml(String(remoteVal))}</td><td>${escapeHtml(String(localVal))}</td></tr>`; } }
+                }
+                diffHtml += '</tbody></table></div>';
+                const countMsg = `云端${systemName}数据${cloudData.length}条，本地${localData.length}条。`;
+                return new Promise((resolve) => {
+                    const overlay = document.createElement('div'); overlay.className = 'modal-overlay'; overlay.style.display = 'flex';
+                    overlay.innerHTML = `<div class="modal" style="max-width:900px;"><h3>数据差异提醒 - ${systemName}</h3><p>${countMsg}</p>${diffHtml}<div class="modal-actions"><button class="btn btn-outline" id="diffIgnoreBtn">忽略，保留本地</button><button class="btn btn-primary" id="diffUpdateBtn">更新为云端数据</button></div></div>`;
+                    document.body.appendChild(overlay);
+                    overlay.querySelector('#diffIgnoreBtn').onclick = () => { document.body.removeChild(overlay); resolve(false); };
+                    overlay.querySelector('#diffUpdateBtn').onclick = () => { document.body.removeChild(overlay); resolve(true); };
+                });
+            }
+
+            async function autoSyncCheck() {
+                if (!isLoggedIn || !currentProjectCode) return;
+                const a_remote = await fetchArchiveCloudData(currentProjectCode);
+                if (a_remote) { const needUpdate = await promptUpdateFromCloud(a_remote, a_allData, '档案'); if (needUpdate) { a_allData = a_remote; a_saveLocal(a_allData); a_refreshQueryTable(); showToast('档案数据已更新为云端版本', 'success'); } }
+                const p_remote = await fetchPersonnelCloudData(currentProjectCode);
+                if (p_remote) { const needUpdate = await promptUpdateFromCloud(p_remote, p_allData, '人员'); if (needUpdate) { p_allData = p_remote; p_saveLocal(p_allData); p_refreshQueryTable(); showToast('人员数据已更新为云端版本', 'success'); } }
+                const r_remote = await fetchRegistrationCloudData(currentProjectCode);
+                if (r_remote) { const needUpdate = await promptUpdateFromCloud(r_remote, r_allData, '报名'); if (needUpdate) { r_allData = r_remote; r_saveLocal(r_allData); r_refreshQueryTable(); showToast('报名数据已更新为云端版本', 'success'); } }
+            }
+
+            async function resolveDataConflict(localData, remoteData, systemName) {
+                if (!remoteData) { showToast(`无法获取云端数据，将加载本地${systemName}数据`, 'info'); return localData; }
+                if (localData.length !== remoteData.length) { const useRemote = remoteData.length > localData.length; showToast(`本地${systemName}数据${localData.length}条，云端${remoteData.length}条。将自动加载${useRemote?'云端':'本地'}数据。`, 'info'); return useRemote ? remoteData : localData; }
+                const localStr = JSON.stringify(localData); const remoteStr = JSON.stringify(remoteData);
+                if (localStr === remoteStr) { showToast(`${systemName}数据完全一致，加载本地数据`, 'info'); return localData; }
+                return new Promise((resolve) => {
+                    let diffHtml = '<div class="table-wrapper"><table><thead><tr><th>序号</th><th>字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
+                    const len = localData.length;
+                    for (let i = 0; i < len; i++) { const localItem = localData[i]; const remoteItem = remoteData[i]; const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]); for (let key of allKeys) { const localVal = localItem[key] ?? ''; const remoteVal = remoteItem[key] ?? ''; if (localVal != remoteVal) { diffHtml += `<tr><td>${i+1}</td><td>${key}</td><td>${escapeHtml(String(remoteVal))}</td><td>${escapeHtml(String(localVal))}</td></tr>`; } } }
+                    diffHtml += '</tbody></table></div>';
+                    const overlay = document.createElement('div'); overlay.className = 'modal-overlay'; overlay.style.display = 'flex';
+                    overlay.innerHTML = `<div class="modal" style="max-width:900px;"><h3>数据差异对比 - ${systemName}</h3>${diffHtml}<div class="modal-actions"><button class="btn btn-outline" id="diffChooseLocalBtn">加载本地数据</button><button class="btn btn-primary" id="diffChooseRemoteBtn">加载云端数据</button></div></div>`;
+                    document.body.appendChild(overlay);
+                    overlay.querySelector('#diffChooseLocalBtn').addEventListener('click', () => { document.body.removeChild(overlay); showToast(`已选择加载本地${systemName}数据`, 'info'); resolve(localData); });
+                    overlay.querySelector('#diffChooseRemoteBtn').addEventListener('click', () => { document.body.removeChild(overlay); showToast(`已选择加载云端${systemName}数据`, 'info'); resolve(remoteData); });
+                });
+            }
+
+            async function initAllSystems() {
+                let a_local = a_loadLocal(); if (!a_local || !a_local.length) { migrateArchive(); a_local = a_loadLocal(); }
+                if (a_local && a_local.length > 0) { const sample = a_local[0]; const hasEmptyField = a_encryptFields.some(f => sample[f] === '' && localStorage.getItem('DANGAN20020308ZDSTSJ')?.includes('U2FsdGVkX1')); if (hasEmptyField) { const oldKey = deriveLocalKey(currentSensitivePwd); try { const raw = localStorage.getItem('DANGAN20020308ZDSTSJ'); if (raw) { const parsed = JSON.parse(raw); const recovered = a_decryptFromStorage(parsed, () => oldKey); if (recovered && recovered.length > 0 && recovered[0].engName) { a_local = recovered; showToast('已迁移至新加密方式', 'info'); } } } catch (e) {} } }
+                if (!a_local) a_local = [];
+                const a_remote = await fetchArchiveCloudData(currentProjectCode);
+                const a_final = await resolveDataConflict(a_local, a_remote, '档案');
+                a_allData = a_final; a_saveLocal(a_allData); a_activeSearchResults = null; a_refreshQueryTable();
+
+                let p_local = p_loadLocal(); if (!p_local || !p_local.length) { migratePersonnel(); p_local = p_loadLocal(); }
+                if (!p_local) p_local = [];
+                const p_remote = await fetchPersonnelCloudData(currentProjectCode);
+                const p_final = await resolveDataConflict(p_local, p_remote, '人员');
+                p_allData = p_final; p_saveLocal(p_allData); p_activeSearchResults = null; p_refreshQueryTable();
+
+                let r_local = r_loadLocal(); if (!r_local || !r_local.length) { migrateRegistration(); r_local = r_loadLocal(); }
+                if (!r_local) r_local = [];
+                const r_remote = await fetchRegistrationCloudData(currentProjectCode);
+                const r_final = await resolveDataConflict(r_local, r_remote, '报名');
+                r_allData = r_final; r_saveLocal(r_allData); r_activeSearchResults = null; r_refreshQueryTable();
+
+                updateSyncStatus(false, '本地模式');
+                setTimeout(() => a_checkArchives(), 500);
+            }
+
+            // 事件绑定区域
+            document.getElementById('mainTabNav').addEventListener('click', function(e) { const btn = e.target.closest('.main-tab-btn'); if (!btn) return; const systemId = btn.getAttribute('data-main')?.replace('panel-', ''); if (systemId) switchMainTab(systemId); });
+
+            // 档案系统：三击查询结果标题切换隐藏信息
+            document.getElementById('archiveQueryResultTitle').addEventListener('click', function(e) {
+                if (!isLoggedIn || activeSystem !== 'archive') return;
+                if (permissions.showSensitive) { clearTimeout(a_dataTabClickTimer); a_dataTabClickCount++; if (a_dataTabClickCount === 3) { a_dataTabClickCount = 0; a_toggleHiddenFields(); } else { a_dataTabClickTimer = setTimeout(() => { a_dataTabClickCount = 0; }, 1000); } }
+            });
+            // 报名系统：三击查询结果标题切换备注2可见性
+            document.getElementById('registrationQueryResultTitle').addEventListener('click', function(e) {
+                if (!isLoggedIn || activeSystem !== 'registration') return;
+                if (permissions.showSensitive) { clearTimeout(r_dataTabClickTimer); r_dataTabClickCount++; if (r_dataTabClickCount === 3) { r_dataTabClickCount = 0; r_toggleRemarks2Visibility(); } else { r_dataTabClickTimer = setTimeout(() => { r_dataTabClickCount = 0; }, 1000); } }
+            });
+
+            const archiveFilterIds = ['a_f_company', 'a_f_engCategory', 'a_f_usage', 'a_f_contractType', 'a_f_contractPrice', 'a_f_bidDate', 'a_f_completionDate', 'a_f_signDate', 'a_f_buildingArea', 'a_f_structure', 'a_f_floors', 'a_f_bidNotice', 'a_f_contract', 'a_f_cooperation', 'a_f_completionDoc', 'a_f_settlementDoc', 'a_f_signDateOp'];
+            archiveFilterIds.forEach(id => { const el = document.getElementById(id); if (el) { el.addEventListener('input', a_performAdvancedFilter); el.addEventListener('change', a_performAdvancedFilter); } });
+
+            ['p_f_category', 'p_f_position', 'p_f_level', 'p_f_major', 'p_f_company', 'p_f_socialSecurity', 'p_f_validity'].forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('change', p_performAdvancedFilter); });
+            ['p_f_category_custom', 'p_f_position_custom', 'p_f_level_custom', 'p_f_major_custom', 'p_f_company_custom'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('input', p_performAdvancedFilter);
+                    const selectId = id.replace('_custom', '');
+                    const selectEl = document.getElementById(selectId);
+                    if (selectEl) { selectEl.addEventListener('change', function() { if (this.value === '其他') { el.disabled = false; } else { el.disabled = true; el.value = ''; } p_performAdvancedFilter(); }); }
+                }
+            });
+            ['r_f_company', 'r_f_bidStatus', 'r_f_deposit', 'r_f_bidMethod'].forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('change', r_performAdvancedFilter); });
+
+            document.getElementById('passwordModal').addEventListener('click', e => { if (e.target === e.currentTarget) closePasswordModal(); });
+            document.getElementById('editModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeEditModal(); });
+            document.getElementById('exportFieldModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeExportFieldModal(); });
+            document.addEventListener('keydown', function(e) { if (e.ctrlKey && e.shiftKey && e.key === 'M') { e.preventDefault(); if (!isLoggedIn) return; if (activeSystem === 'archive') a_toggleHiddenFields(); else if (activeSystem === 'registration') r_toggleRemarks2Visibility(); } });
+
+            window.performLogin = performLogin; window.logout = logout; window.closePasswordModal = closePasswordModal;
+            window.submitPassword = submitPassword; window.closeEditModal = closeEditModal; window.closeExportFieldModal = closeExportFieldModal;
+            window.confirmExport = confirmExport;
+            window.a_handleHeaderClick = a_handleHeaderClick; window.a_toggleSelectAllQuery = a_toggleSelectAllQuery; window.a_updateSelectAll = a_updateSelectAll;
+            window.a_performGlobalSearch = a_performGlobalSearch; window.a_clearGlobalSearch = a_clearGlobalSearch; window.a_clearAdvancedFilter = a_clearAdvancedFilter; window.a_saveFromModal = a_saveFromModal;
+            window.p_handleSortClick = p_handleSortClick; window.p_toggleSelectAllQuery = p_toggleSelectAllQuery; window.p_updateSelectAll = p_updateSelectAll;
+            window.p_performQuickSearch = p_performQuickSearch; window.p_clearQuickSearch = p_clearQuickSearch; window.p_clearAdvancedFilter = p_clearAdvancedFilter; window.p_performAdvancedFilter = p_performAdvancedFilter;
+            window.r_toggleSelectAllQuery = r_toggleSelectAllQuery; window.r_updateSelectAll = r_updateSelectAll;
+            window.r_performQuickSearch = r_performQuickSearch; window.r_clearQuickSearch = r_clearQuickSearch; window.r_clearAdvancedFilter = r_clearAdvancedFilter; window.r_performAdvancedFilter = r_performAdvancedFilter; window.r_saveFromModal = r_saveFromModal;
+            window.p_saveFromModal = p_saveFromModal;
+
+            document.getElementById('a_btnImportExcel')?.addEventListener('click', a_importFromExcel);
+            document.getElementById('a_btnAddArchive')?.addEventListener('click', a_openAddArchiveModal);
+            document.getElementById('a_btnEditSelected')?.addEventListener('click', a_handleEditSelected);
+            document.getElementById('a_btnBatchDelete')?.addEventListener('click', a_handleBatchDelete);
+            document.getElementById('a_btnBackupCloud')?.addEventListener('click', a_handleBackupToCloud);
+            document.getElementById('a_btnRestoreCloud')?.addEventListener('click', a_handleRestoreFromCloud);
+            document.getElementById('a_btnClearCloud')?.addEventListener('click', a_clearCloud);
+            document.getElementById('a_btnExportAll')?.addEventListener('click', a_exportAllData);
+            document.getElementById('a_btnClearLocal')?.addEventListener('click', () => { if (confirm('确定要清除档案本地数据吗？此操作不可恢复！')) { localStorage.removeItem('DANGAN20020308ZDSTSJ'); a_allData = []; a_activeSearchResults = null; a_refreshQueryTable(); showToast('本地档案数据已清除', 'info'); } });
+            document.getElementById('p_btnClearLocal')?.addEventListener('click', () => { if (confirm('确定要清除人员本地数据吗？此操作不可恢复！')) { localStorage.removeItem('DANGAN20020308SYRYSK'); p_allData = []; p_activeSearchResults = null; p_refreshQueryTable(); showToast('本地人员数据已清除', 'info'); } });
+            document.getElementById('r_btnClearLocal')?.addEventListener('click', () => { if (confirm('确定要清除报名本地数据吗？此操作不可恢复！')) { localStorage.removeItem('BMGLXT20020308ZDST'); r_allData = []; r_activeSearchResults = null; r_refreshQueryTable(); showToast('本地报名数据已清除', 'info'); } });
+            document.getElementById('a_btnExportQuery')?.addEventListener('click', a_exportQueryResults);
+            document.getElementById('p_btnImportExcel')?.addEventListener('click', p_importFromExcel);
+            document.getElementById('p_btnAddPerson')?.addEventListener('click', p_openAddPersonModal);
+            document.getElementById('p_btnEditSelected')?.addEventListener('click', p_handleEditSelected);
+            document.getElementById('p_btnBatchDelete')?.addEventListener('click', p_handleBatchDelete);
+            document.getElementById('p_btnBackupCloud')?.addEventListener('click', p_handleBackupToCloud);
+            document.getElementById('p_btnRestoreCloud')?.addEventListener('click', p_handleRestoreFromCloud);
+            document.getElementById('p_btnClearCloud')?.addEventListener('click', p_clearCloud);
+            document.getElementById('p_btnExportAll')?.addEventListener('click', p_exportAllData);
+            document.getElementById('p_btnExportQuery')?.addEventListener('click', p_exportQueryResults);
+            document.getElementById('r_btnImportExcel')?.addEventListener('click', r_importFromExcel);
+            document.getElementById('r_btnAddProject')?.addEventListener('click', r_openAddProjectModal);
+            document.getElementById('r_btnEdit')?.addEventListener('click', r_handleEditSelected);
+            document.getElementById('r_btnDelete')?.addEventListener('click', r_handleBatchDelete);
+            document.getElementById('r_btnBackup')?.addEventListener('click', r_handleBackupToCloud);
+            document.getElementById('r_btnRestore')?.addEventListener('click', r_handleRestoreFromCloud);
+            document.getElementById('r_btnClearCloud')?.addEventListener('click', r_clearCloud);
+            document.getElementById('r_btnExportAll')?.addEventListener('click', r_exportAllData);
+            document.getElementById('r_btnExportQuery')?.addEventListener('click', r_exportQueryResults);
+
+            document.getElementById('r_hideCompletedQuery')?.addEventListener('change', r_onHideQueryChange);
+
+            function showPasswordModal(cb) { passwordCallback = cb; document.getElementById('passwordModal').style.display = 'flex'; document.getElementById('passwordInput').value = ''; document.getElementById('passwordError').style.display = 'none'; }
+            function closePasswordModal() { document.getElementById('passwordModal').style.display = 'none'; passwordCallback = null; }
+            function submitPassword() { if (verifySensitive(document.getElementById('passwordInput').value)) { document.getElementById('passwordModal').style.display = 'none'; const cb = passwordCallback; passwordCallback = null; if (cb) cb(); } else { document.getElementById('passwordError').style.display = 'block'; } }
+        })();
+    </script>
+</body>
+</html>
+        
