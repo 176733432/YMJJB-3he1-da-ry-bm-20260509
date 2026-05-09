@@ -357,7 +357,17 @@
 
             function showToast(msg, type='info') { const c=document.getElementById('toastContainer'); const t=document.createElement('div'); t.className='toast '+type; t.textContent=msg; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
             function escapeHtml(str) { const d=document.createElement('div'); d.textContent=str||''; return d.innerHTML; }
-            function excelSerialToDate(serial) { if(typeof serial!=='number'||isNaN(serial)||serial<=0) return serial; const baseDate=new Date(1899,11,30); const resultDate=new Date(baseDate.getTime()+Math.round(serial)*86400000); return resultDate.getFullYear()+'-'+String(resultDate.getMonth()+1).padStart(2,'0')+'-'+String(resultDate.getDate()).padStart(2,'0'); }
+function excelSerialToDate(serial) {
+    if (typeof serial !== 'number' || isNaN(serial) || serial <= 0) return serial;
+    // 基于 UTC 的转换，25569 是 1900-01-01 到 1970-01-01 的天数差
+    const utcDays = Math.floor(serial) - 25569;
+    const utcMs = utcDays * 86400 * 1000;
+    const date = new Date(utcMs);
+    // 使用 UTC 方法提取年月日，避免时区干扰
+    return date.getUTCFullYear() + '-' +
+           String(date.getUTCMonth() + 1).padStart(2, '0') + '-' +
+           String(date.getUTCDate()).padStart(2, '0');
+}
             function isExcelSerialNumber(val) { return typeof val==='number' && val>40000 && val<80000; }
             function getNowString() { const n=new Date(); return n.getFullYear()+('0'+(n.getMonth()+1)).slice(-2)+('0'+n.getDate()).slice(-2)+'_'+('0'+n.getHours()).slice(-2)+('0'+n.getMinutes()).slice(-2)+('0'+n.getSeconds()).slice(-2); }
             function formatDateTimeForDisplay(dtStr) { if(!dtStr) return ''; return dtStr.replace('T',' '); }
