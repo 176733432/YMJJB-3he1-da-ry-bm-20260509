@@ -164,7 +164,7 @@
         <!-- 档案管理系统 -->
         <div class="system-panel active" id="panel-archive">
             <div class="main-container">
-                <div class="card"><div class="card-title">🔍 模糊查找</div><div class="search-box"><div class="form-group" style="flex:3;min-width:250px;"><label>查找关键字（搜索范围：档案号、工程名称、甲方单位、工程地址、项目经理等）</label><input type="text" id="a_globalSearch" placeholder="输入关键字..."></div><button class="btn btn-primary" onclick="a_performGlobalSearch()">🔍 查找</button><button class="btn btn-outline btn-sm" onclick="a_clearGlobalSearch()">清除</button></div></div>
+                <div class="card"><div class="card-title">🔍 模糊查找</div><div class="search-box"><div class="form-group" style="flex:3;min-width:250px;"><label>查找关键字（搜索范围：档案号、工程名称、甲方单位、工程地址、项目经理等）</label><input type="text" id="a_globalSearch" placeholder="输入关键字..." oninput="a_performGlobalSearch()"></div><button class="btn btn-outline btn-sm" onclick="a_clearGlobalSearch()">清除</button></div></div>
                 <div class="card"><div class="card-title">🔎 高级筛选 (实时生效)</div>
                     <div class="filter-row" style="margin-bottom:8px;"><div class="form-group"><label>所属公司</label><select id="a_f_company"><option value="">全部</option><option>正大</option><option>世拓</option></select></div><div class="form-group"><label>工程类别</label><select id="a_f_engCategory"><option value="">全部</option><option>建筑</option><option>装修</option><option>市政</option><option>钢结构</option><option>水利</option><option>机电</option><option>防水防腐</option><option>消防</option><option>维修改造</option><option>环保</option><option>公路</option><option>其他</option></select></div><div class="form-group"><label>使用性质</label><select id="a_f_usage"><option value="">全部</option><option>公共</option><option>工业</option><option>商业</option><option>农业</option><option>住宅</option><option>其他</option></select></div><div class="form-group"><label>承包方式</label><select id="a_f_contractType"><option value="">全部</option><option>总承包</option><option>专业承包</option><option>劳务</option><option>甲供材</option><option>其他</option></select></div></div>
                     <div class="filter-row" style="margin-bottom:8px;"><div class="form-group"><label>合同价格(元) &gt;</label><input type="number" id="a_f_contractPrice"></div><div class="form-group"><label>中标日期 &gt;</label><input type="date" id="a_f_bidDate"></div><div class="form-group"><label>竣工日期 &gt;</label><input type="date" id="a_f_completionDate"></div><div class="form-group"><label>签署日期</label><select id="a_f_signDateOp"><option value="gt">大于</option><option value="lt">小于</option></select><input type="date" id="a_f_signDate" style="margin-top:4px;"></div></div>
@@ -259,7 +259,7 @@
         <!-- 报名管理系统 -->
         <div class="system-panel" id="panel-registration">
             <div class="main-container">
-                <div class="card"><div class="card-title">🔍 快速查找</div><div class="search-box"><div class="form-group" style="flex:2;min-width:220px;"><label>工程名称/委托人/项目经理/资料/备注</label><input type="text" id="r_quickSearch" onkeyup="if(event.key==='Enter')r_performQuickSearch()"></div><button class="btn btn-primary btn-sm" onclick="r_performQuickSearch()">🔍 查找</button><button class="btn btn-outline btn-sm" onclick="r_clearQuickSearch()">清除</button></div></div>
+                <div class="card"><div class="card-title">🔍 快速查找</div><div class="search-box"><div class="form-group" style="flex:2;min-width:220px;"><label>工程名称/委托人/项目经理/资料/备注</label><input type="text" id="r_quickSearch" placeholder="输入关键字..." oninput="r_performQuickSearch()"></div><button class="btn btn-outline btn-sm" onclick="r_clearQuickSearch()">清除</button></div></div>
                 <div class="card"><div class="card-title">🔎 高级筛选</div>
                     <div class="filter-row" style="margin-bottom:8px;"><div class="form-group"><label>所属公司</label><select id="r_f_company"><option value="">全部</option><option>正大</option><option>世拓</option></select></div><div class="form-group"><label>是否已至开标日</label><select id="r_f_bidStatus"><option value="">全部</option><option>是</option><option>否</option></select></div><div class="form-group"><label>保证金</label><select id="r_f_deposit"><option value="">全部</option><option>有</option><option>无</option></select></div><div class="form-group"><label>开标方式</label><select id="r_f_bidMethod"><option value="">全部</option><option>线上</option><option>线下</option></select></div></div>
                     <div style="display:flex;gap:8px;"><button class="btn btn-outline btn-sm" onclick="r_clearAdvancedFilter()">清除筛选</button></div>
@@ -570,7 +570,25 @@ function excelSerialToDate(serial) {
 
             function a_clearAdvancedFilter() { ['a_f_company', 'a_f_engCategory', 'a_f_usage', 'a_f_contractType', 'a_f_contractPrice', 'a_f_bidDate', 'a_f_completionDate', 'a_f_signDate', 'a_f_buildingArea', 'a_f_structure', 'a_f_floors', 'a_f_bidNotice', 'a_f_contract', 'a_f_cooperation', 'a_f_completionDoc', 'a_f_settlementDoc'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); document.getElementById('a_f_signDateOp').value = 'gt'; a_queryResults = []; a_activeSearchResults = null; a_refreshQueryTable(a_allData); }
             function a_clearGlobalSearch() { document.getElementById('a_globalSearch').value = ''; a_activeSearchResults = null; a_queryResults = []; a_refreshQueryTable(a_allData); }
-            function a_performGlobalSearch() { const kw = document.getElementById('a_globalSearch').value.trim().toLowerCase(); const base = a_activeSearchResults || a_allData; if (!kw) { a_activeSearchResults = null; a_queryResults = []; a_refreshQueryTable(a_allData); return; } a_activeSearchResults = base.filter(p => [p.archiveNo, p.engName, p.partyA, p.engAddress, p.projectManager, p.partner, p.phone, p.remark].some(f => f && f.toLowerCase().includes(kw))); a_queryResults = []; if (a_hasAdvancedFilter()) a_performAdvancedFilter(); else a_refreshQueryTable(a_activeSearchResults); }
+            function a_performGlobalSearch() {
+    const kw = document.getElementById('a_globalSearch').value.trim().toLowerCase();
+    if (!kw) {
+        a_activeSearchResults = null;
+        a_queryResults = [];
+        a_refreshQueryTable(a_allData);
+        return;
+    }
+    a_activeSearchResults = a_allData.filter(p =>
+        [p.archiveNo, p.engName, p.partyA, p.engAddress, p.projectManager, p.partner, p.phone, p.remark]
+        .some(f => f && f.toLowerCase().includes(kw))
+    );
+    a_queryResults = [];
+    if (a_hasAdvancedFilter()) {
+        a_performAdvancedFilter();
+    } else {
+        a_refreshQueryTable(a_activeSearchResults);
+    }
+}
 
             function a_openEditModal(person, index) {
                 const modal = document.getElementById('editModal'); const isNew = index < 0; const showHidden = isNew || a_hiddenVisible;
@@ -787,8 +805,24 @@ function excelSerialToDate(serial) {
 
             function p_clearAdvancedFilter() { ['p_f_category', 'p_f_position', 'p_f_level', 'p_f_major', 'p_f_company', 'p_f_socialSecurity', 'p_f_validity'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); ['p_f_category_custom', 'p_f_position_custom', 'p_f_level_custom', 'p_f_major_custom', 'p_f_company_custom'].forEach(id => { const el = document.getElementById(id); if (el) { el.value = ''; el.disabled = true; } }); p_queryResults = []; p_activeSearchResults = null; p_refreshQueryTable(p_allData); }
             function p_clearQuickSearch() { document.getElementById('p_quickSearch').value = ''; p_activeSearchResults = null; p_queryResults = []; p_refreshQueryTable(p_allData); }
-            function p_performQuickSearch() { const kw = document.getElementById('p_quickSearch').value.trim().toLowerCase(); const base = p_activeSearchResults || p_allData; if (!kw) { p_activeSearchResults = null; p_queryResults = []; p_refreshQueryTable(p_allData); return; } p_activeSearchResults = base.filter(p => (p.name && p.name.includes(kw)) || (p.idcard && p.idcard.includes(kw))); p_queryResults = []; if (p_hasAdvancedFilter()) p_performAdvancedFilter(); else p_refreshQueryTable(p_activeSearchResults); }
-
+            function p_performQuickSearch() {
+    const kw = document.getElementById('p_quickSearch').value.trim().toLowerCase();
+    if (!kw) {
+        p_activeSearchResults = null;
+        p_queryResults = [];
+        p_refreshQueryTable(p_allData);
+        return;
+    }
+    p_activeSearchResults = p_allData.filter(p =>
+        (p.name && p.name.includes(kw)) || (p.idcard && p.idcard.includes(kw))
+    );
+    p_queryResults = [];
+    if (p_hasAdvancedFilter()) {
+        p_performAdvancedFilter();
+    } else {
+        p_refreshQueryTable(p_activeSearchResults);
+    }
+}
             function p_setCustomInputVal(selectId, customInputId, value, customVal) { const select = document.getElementById(selectId), input = document.getElementById(customInputId); if (!select || !input) return; if (value === '其他' && customVal) { select.value = '其他'; input.disabled = false; input.value = customVal; } else { if (select.querySelector(`option[value="${value}"]`)) select.value = value; else { select.value = '其他'; input.disabled = false; input.value = value; } if (select.value !== '其他') { input.disabled = true; input.value = ''; } } }
             function p_getCustomInputVal(selectId, customInputId) { const select = document.getElementById(selectId), input = document.getElementById(customInputId); if (select && input && select.value === '其他') return input.value.trim(); return ''; }
 
@@ -1069,8 +1103,28 @@ function excelSerialToDate(serial) {
             function r_clearAdvancedFilter() { ['r_f_company', 'r_f_bidStatus', 'r_f_deposit', 'r_f_bidMethod'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); r_queryResults = []; r_activeSearchResults = null; r_refreshQueryTable(r_allData); }
             function r_clearQuickSearch() { document.getElementById('r_quickSearch').value = ''; r_activeSearchResults = null; r_queryResults = []; r_refreshQueryTable(r_allData); }
             function r_onHideQueryChange() { if (r_activeSearchResults || r_hasAdvancedFilter()) { r_performQuickSearch(); } else { r_refreshQueryTable(); } }
-            function r_performQuickSearch() { const kw = document.getElementById('r_quickSearch').value.trim().toLowerCase(); const base = r_activeSearchResults || r_allData; if (!kw) { r_activeSearchResults = null; r_queryResults = []; r_refreshQueryTable(r_allData); return; } r_activeSearchResults = base.filter(p => (p.projectName && p.projectName.toLowerCase().includes(kw)) || (p.client && p.client.toLowerCase().includes(kw)) || (p.projectManager && p.projectManager.toLowerCase().includes(kw)) || (p.materials && p.materials.toLowerCase().includes(kw)) || (p.remarks && p.remarks.toLowerCase().includes(kw))); r_queryResults = []; if (r_hasAdvancedFilter()) r_performAdvancedFilter(); else r_refreshQueryTable(r_activeSearchResults); }
-
+            function r_performQuickSearch() {
+    const kw = document.getElementById('r_quickSearch').value.trim().toLowerCase();
+    if (!kw) {
+        r_activeSearchResults = null;
+        r_queryResults = [];
+        r_refreshQueryTable(r_allData);
+        return;
+    }
+    r_activeSearchResults = r_allData.filter(p =>
+        (p.projectName && p.projectName.toLowerCase().includes(kw)) ||
+        (p.client && p.client.toLowerCase().includes(kw)) ||
+        (p.projectManager && p.projectManager.toLowerCase().includes(kw)) ||
+        (p.materials && p.materials.toLowerCase().includes(kw)) ||
+        (p.remarks && p.remarks.toLowerCase().includes(kw))
+    );
+    r_queryResults = [];
+    if (r_hasAdvancedFilter()) {
+        r_performAdvancedFilter();
+    } else {
+        r_refreshQueryTable(r_activeSearchResults);
+    }
+}
             function r_importFromExcel() {
                 if (!permissions.import) { showToast('无导入权限', 'error'); return; }
                 const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx,.xls';
