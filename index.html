@@ -1462,9 +1462,10 @@ function p_importFromExcel() {
             });
             ['r_f_company', 'r_f_bidStatus', 'r_f_deposit', 'r_f_bidMethod'].forEach(id => { const el = document.getElementById(id); if (el) el.addEventListener('change', r_performAdvancedFilter); });
 
-            document.getElementById('passwordModal').addEventListener('click', e => { if (e.target === e.currentTarget) closePasswordModal(); });
-            document.getElementById('editModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeEditModal(); });
-            document.getElementById('exportFieldModal').addEventListener('click', e => { if (e.target === e.currentTarget) closeExportFieldModal(); });
+            
+// 模态框不再通过点击背景关闭，仅响应“取消”或“×”按钮
+// （原 background-click-to-close 逻辑已移除）
+
             document.addEventListener('keydown', function(e) { if (e.ctrlKey && e.shiftKey && e.key === 'M') { e.preventDefault(); if (!isLoggedIn) return; if (activeSystem === 'archive') a_toggleHiddenFields(); else if (activeSystem === 'registration') r_toggleRemarks2Visibility(); } });
 
             window.performLogin = performLogin; window.logout = logout; window.closePasswordModal = closePasswordModal;
