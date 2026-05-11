@@ -866,33 +866,109 @@ function excelSerialToDate(serial) {
             function p_processEditQueue() { if (p_editQueue.length > 0 && !p_isProcessingQueue) { p_isProcessingQueue = true; const ni = p_editQueue.shift(); if (ni >= 0 && ni < p_allData.length) p_openEditModal(p_allData[ni], ni); else p_processEditQueue(); } else if (p_editQueue.length === 0) p_isProcessingQueue = false; }
             function p_handleEditSelected() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const indices = p_getSelectedIndices(); if (!indices.length) { showToast('请勾选', 'error'); return; } showToast('编辑已选择', 'info'); p_editQueue = [...indices]; p_isProcessingQueue = false; p_processEditQueue(); }
             function p_handleDoubleClickRow(index) { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } if (index < 0 || index >= p_allData.length) return; p_openEditModal(p_allData[index], index); }
-            function p_handleBatchDelete() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const indices = p_getSelectedIndices(); if (!indices.length) { showToast('请勾选', 'error'); return; } showPasswordModal(async () => { if (confirm(`确定删除 ${indices.length} 条？`)) { indices.sort((a, b) => b - a).forEach(i => p_allData.splice(i, 1)); p_saveLocal(p_allData); p_activeSearchResults = null; p_refreshQueryTable(); showToast('已删除', 'success'); } }); }
+            // 自动补位序号：按当前数组顺序重新生成连续的数字序号（1,2,3,...）
+function p_reassignSeq() {
+    p_allData.forEach((item, idx) => {
+        item.seq = String(idx + 1);
+    });
+}
 
-            function p_importFromExcel() {
-                if (!permissions.import) { showToast('无导入权限', 'error'); return; }
-                const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx,.xls';
-                input.onchange = function(e) {
-                    const file = e.target.files[0]; if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = function(evt) {
-                        const data = new Uint8Array(evt.target.result);
-                        const wb = XLSX.read(data, { type: 'array' });
-                        const sheet = wb.Sheets[wb.SheetNames[0]];
-                        const json = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-                        if (json.length < 2) { showToast('Excel格式错误'); return; }
-                        const rows = json.slice(1).filter(r => r.some(c => c !== '' && c !== null));
-                        const imported = rows.map(row => { const v = row[7]; let vs = ''; if (typeof v === 'number' && isExcelSerialNumber(v)) vs = excelSerialToDate(v); else if (v) vs = String(v); return { seq: String(row[0] || ''), name: String(row[1] || ''), idcard: String(row[2] || ''), category: String(row[3] || ''), position: String(row[4] || ''), regno: String(row[5] || ''), major: String(row[6] || ''), validity: vs, level: String(row[8] || ''), issuer: String(row[9] || ''), phone: String(row[10] || ''), jishibanAccount: String(row[11] || ''), jishibanPassword: String(row[12] || ''), socialSecurity: String(row[13] || ''), company: String(row[14] || ''), remarks: String(row[15] || ''), categoryOther: '', positionOther: '', majorOther: '', levelOther: '', companyOther: '' }; });
-                        if (!imported.length) { showToast('无有效数据'); return; }
-                        const seqMap = new Map(p_allData.map((item, idx) => [item.seq, idx]));
-                        let updateCount = 0, addCount = 0;
-                        const newData = [...p_allData];
-                        imported.forEach(imp => { const seq = imp.seq; if (seqMap.has(seq)) { newData[seqMap.get(seq)] = imp; updateCount++; } else { newData.push(imp); addCount++; } });
-                        if (confirm(`将新增 ${addCount} 条，更新 ${updateCount} 条，是否继续？`)) { p_allData = newData; p_saveLocal(p_allData); p_activeSearchResults = null; p_refreshQueryTable(); showToast(`导入成功：新增${addCount}条，更新${updateCount}条`, 'success'); }
-                    };
-                    reader.readAsArrayBuffer(file);
+function p_handleBatchDelete() {
+    if (!permissions.entry) { showToast('无录入权限', 'error'); return; }
+    const indices = p_getSelectedIndices();
+    if (!indices.length) { showToast('请勾选', 'error'); return; }
+    showPasswordModal(async () => {
+        if (confirm(`确定删除 ${indices.length} 条？`)) {
+            indices.sort((a, b) => b - a).forEach(i => p_allData.splice(i, 1));
+            p_reassignSeq();           // 重新生成连续序号
+            p_saveLocal(p_allData);
+            p_activeSearchResults = null;
+            p_refreshQueryTable();
+            showToast('已删除', 'success');
+        }
+    });
+}
+            
+function p_importFromExcel() {
+    if (!permissions.import) { showToast('无导入权限', 'error'); return; }
+    const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx,.xls';
+    input.onchange = function(e) {
+        const file = e.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            const data = new Uint8Array(evt.target.result);
+            const wb = XLSX.read(data, { type: 'array' });
+            const sheet = wb.Sheets[wb.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+            if (json.length < 2) { showToast('Excel格式错误'); return; }
+            const rows = json.slice(1).filter(r => r.some(c => c !== '' && c !== null));
+            const imported = rows.map(row => {
+                const v = row[7]; let vs = '';
+                if (typeof v === 'number' && isExcelSerialNumber(v)) vs = excelSerialToDate(v);
+                else if (v) vs = String(v);
+                return {
+                    seq: String(row[0] || ''),
+                    name: String(row[1] || ''),
+                    idcard: String(row[2] || ''),
+                    category: String(row[3] || ''),
+                    position: String(row[4] || ''),
+                    regno: String(row[5] || ''),
+                    major: String(row[6] || ''),
+                    validity: vs,
+                    level: String(row[8] || ''),
+                    issuer: String(row[9] || ''),
+                    phone: String(row[10] || ''),
+                    jishibanAccount: String(row[11] || ''),
+                    jishibanPassword: String(row[12] || ''),
+                    socialSecurity: String(row[13] || ''),
+                    company: String(row[14] || ''),
+                    remarks: String(row[15] || ''),
+                    categoryOther: '', positionOther: '', majorOther: '', levelOther: '', companyOther: ''
                 };
-                input.click();
+            });
+            if (!imported.length) { showToast('无有效数据'); return; }
+
+            // 构建身份证+注册号的索引
+            const matchMap = new Map();
+            p_allData.forEach((item, idx) => {
+                const key = (item.idcard || '').trim() + '|||' + (item.regno || '').trim();
+                if (key !== '|||') matchMap.set(key, idx);
+            });
+
+            const newData = [...p_allData];
+            let updateCount = 0, addCount = 0;
+
+            imported.forEach(imp => {
+                const key = (imp.idcard || '').trim() + '|||' + (imp.regno || '').trim();
+                if (key !== '|||' && matchMap.has(key)) {
+                    const idx = matchMap.get(key);
+                    // 更新现有记录（序号可能调整，但这里保留新序号或原序号？导入数据可能自带序号，这里使用导入的序号，后续可统一补位）
+                    newData[idx] = imp;
+                    updateCount++;
+                } else {
+                    newData.push(imp);
+                    addCount++;
+                }
+            });
+
+            if (updateCount === 0 && addCount === 0) {
+                showToast('导入数据与现有数据无差异', 'info');
+                return;
             }
+            if (confirm(`即将更新 ${updateCount} 条，新增 ${addCount} 条。确定继续？`)) {
+                p_allData = newData;
+                // 导入后重新生成连续序号
+                p_reassignSeq();
+                p_saveLocal(p_allData);
+                p_activeSearchResults = null;
+                p_refreshQueryTable();
+                showToast(`导入完成：更新${updateCount}条，新增${addCount}条`, 'success');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    };
+    input.click();
+}
 
             async function p_handleBackupToCloud() {
                 if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
