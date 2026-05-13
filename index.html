@@ -1335,6 +1335,13 @@ function p_importFromExcel() {
             function confirmExport() { const cbs = document.querySelectorAll('#exportFieldCheckboxes input:checked'); const fields = Array.from(cbs).map(cb => cb.value); if (!fields.length) { showToast('至少选一个', 'error'); return; } const cb = pendingExportCallback; closeExportFieldModal(); if (cb) cb(fields); }
             function closeEditModal() { document.getElementById('editModal').style.display = 'none'; if (activeSystem === 'archive') a_processEditQueue(); else if (activeSystem === 'personnel') p_processEditQueue(); else if (activeSystem === 'registration') r_processEditQueue(); }
 
+// 根据系统名称返回用于排序的唯一标识字段数组
+function getSortKeysForSystem(systemName) {
+    if (systemName === '档案') return ['archiveNo'];
+    if (systemName === '人员') return ['regno', 'idcard']; // 先按注册号，再按身份证
+    if (systemName === '报名') return ['seq'];
+    return [];
+}
             // ========== 云端数据获取与冲突解决 ==========
             async function fetchCloudData(cloudKey, projectCode, mapFn) {
                 try {
@@ -1361,26 +1368,52 @@ function p_importFromExcel() {
             }
 
             async function promptUpdateFromCloud(cloudData, localData, systemName) {
-                const localStr = JSON.stringify(localData); const remoteStr = JSON.stringify(cloudData);
-                if (localStr === remoteStr) return false;
-                let diffHtml = '<div class="table-wrapper"><table><thead><tr><th>序号</th><th>字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
-                const len = Math.max(localData.length, cloudData.length);
-                for (let i = 0; i < len; i++) {
-                    const localItem = localData[i] || {}; const remoteItem = cloudData[i] || {};
-                    const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
-                    for (let key of allKeys) { const localVal = localItem[key] ?? ''; const remoteVal = remoteItem[key] ?? ''; if (localVal != remoteVal) { diffHtml += `<tr><td>${i+1}</td><td>${key}</td><td>${escapeHtml(String(remoteVal))}</td><td>${escapeHtml(String(localVal))}</td></tr>`; } }
-                }
-                diffHtml += '</tbody></table></div>';
-                const countMsg = `云端${systemName}数据${cloudData.length}条，本地${localData.length}条。`;
-                return new Promise((resolve) => {
-                    const overlay = document.createElement('div'); overlay.className = 'modal-overlay'; overlay.style.display = 'flex';
-                    overlay.innerHTML = `<div class="modal" style="max-width:900px;"><h3>数据差异提醒 - ${systemName}</h3><p>${countMsg}</p>${diffHtml}<div class="modal-actions"><button class="btn btn-outline" id="diffIgnoreBtn">忽略，保留本地</button><button class="btn btn-primary" id="diffUpdateBtn">更新为云端数据</button></div></div>`;
-                    document.body.appendChild(overlay);
-                    overlay.querySelector('#diffIgnoreBtn').onclick = () => { document.body.removeChild(overlay); resolve(false); };
-                    overlay.querySelector('#diffUpdateBtn').onclick = () => { document.body.removeChild(overlay); resolve(true); };
-                });
+    // 获取排序键并对两份数据排序
+    const sortKeys = getSortKeysForSystem(systemName);
+    if (sortKeys.length > 0) {
+        const sortFn = (a, b) => {
+            for (let key of sortKeys) {
+                const valA = (a[key] || '').toString();
+                const valB = (b[key] || '').toString();
+                if (valA < valB) return -1;
+                if (valA > valB) return 1;
             }
+            return 0;
+        };
+        localData = [...localData].sort(sortFn);
+        cloudData = [...cloudData].sort(sortFn);
+    }
 
+    const localStr = JSON.stringify(localData);
+    const remoteStr = JSON.stringify(cloudData);
+    if (localStr === remoteStr) return false; // 内容完全一致，无需更新
+
+    // 构建差异表格（基于排序后的数据）
+    let diffHtml = '<div class="table-wrapper"><table><thead><tr><th>序号</th><th>字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
+    const len = Math.max(localData.length, cloudData.length);
+    for (let i = 0; i < len; i++) {
+        const localItem = localData[i] || {};
+        const remoteItem = cloudData[i] || {};
+        const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
+        for (let key of allKeys) {
+            const localVal = localItem[key] ?? '';
+            const remoteVal = remoteItem[key] ?? '';
+            if (localVal != remoteVal) {
+                diffHtml += `<tr><td>${i + 1}</td><td>${key}</td><td>${escapeHtml(String(remoteVal))}</td><td>${escapeHtml(String(localVal))}</td></tr>`;
+            }
+        }
+    }
+    diffHtml += '</tbody></table></div>';
+
+    const countMsg = `云端${systemName}数据${cloudData.length}条，本地${localData.length}条。`;
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div'); overlay.className = 'modal-overlay'; overlay.style.display = 'flex';
+        overlay.innerHTML = `<div class="modal" style="max-width:900px;"><h3>数据差异提醒 - ${systemName}</h3><p>${countMsg}</p>${diffHtml}<div class="modal-actions"><button class="btn btn-outline" id="diffIgnoreBtn">忽略，保留本地</button><button class="btn btn-primary" id="diffUpdateBtn">更新为云端数据</button></div></div>`;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#diffIgnoreBtn').onclick = () => { document.body.removeChild(overlay); resolve(false); };
+        overlay.querySelector('#diffUpdateBtn').onclick = () => { document.body.removeChild(overlay); resolve(true); };
+    });
+}
             async function autoSyncCheck() {
                 if (!isLoggedIn || !currentProjectCode) return;
                 const a_remote = await fetchArchiveCloudData(currentProjectCode);
