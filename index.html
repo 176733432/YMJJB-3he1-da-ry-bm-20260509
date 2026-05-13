@@ -198,7 +198,7 @@
         <!-- 人员管理系统 -->
         <div class="system-panel" id="panel-personnel">
             <div class="main-container">
-                <div class="card"><div class="card-title">🔍 快速查找</div><div class="search-box"><div class="form-group" style="flex:2;min-width:180px;"><label>姓名或身份证</label><input type="text" id="p_quickSearch" placeholder="输入姓名或身份证号..." oninput="p_performQuickSearch()"></div><button class="btn btn-outline btn-sm" onclick="p_clearQuickSearch()">清除</button></div></div>
+                <div class="card"><div class="card-title">🔍 快速查找</div><div class="search-box"><div class="form-group" style="flex:2;min-width:180px;"><label>查找关键字（搜索范围：姓名、身份证、备注）</label><input type="text" id="p_quickSearch" placeholder="输入姓名或身份证号..." oninput="p_performQuickSearch()"></div><button class="btn btn-outline btn-sm" onclick="p_clearQuickSearch()">清除</button></div></div>
                 <div class="card"><div class="card-title">🔎 高级筛选</div>
                     <div class="filter-row" style="margin-bottom:8px;">
                         <div class="form-group" style="display:flex;flex-direction:column;gap:4px;">
@@ -259,7 +259,7 @@
         <!-- 报名管理系统 -->
         <div class="system-panel" id="panel-registration">
             <div class="main-container">
-                <div class="card"><div class="card-title">🔍 快速查找</div><div class="search-box"><div class="form-group" style="flex:2;min-width:220px;"><label>工程名称/委托人/项目经理/资料/备注</label><input type="text" id="r_quickSearch" placeholder="输入关键字..." oninput="r_performQuickSearch()"></div><button class="btn btn-outline btn-sm" onclick="r_clearQuickSearch()">清除</button></div></div>
+                <div class="card"><div class="card-title">🔍 快速查找</div><div class="search-box"><div class="form-group" style="flex:2;min-width:220px;"><label>查找关键字(搜索范围：工程名称/委托人/项目经理/资料/备注)</label><input type="text" id="r_quickSearch" placeholder="输入关键字..." oninput="r_performQuickSearch()"></div><button class="btn btn-outline btn-sm" onclick="r_clearQuickSearch()">清除</button></div></div>
                 <div class="card"><div class="card-title">🔎 高级筛选</div>
                     <div class="filter-row" style="margin-bottom:8px;"><div class="form-group"><label>所属公司</label><select id="r_f_company"><option value="">全部</option><option>正大</option><option>世拓</option></select></div><div class="form-group"><label>是否已至开标日</label><select id="r_f_bidStatus"><option value="">全部</option><option>是</option><option>否</option></select></div><div class="form-group"><label>保证金</label><select id="r_f_deposit"><option value="">全部</option><option>有</option><option>无</option></select></div><div class="form-group"><label>开标方式</label><select id="r_f_bidMethod"><option value="">全部</option><option>线上</option><option>线下</option></select></div></div>
                     <div style="display:flex;gap:8px;"><button class="btn btn-outline btn-sm" onclick="r_clearAdvancedFilter()">清除筛选</button></div>
