@@ -813,9 +813,15 @@ function excelSerialToDate(serial) {
         p_refreshQueryTable(p_allData);
         return;
     }
+
     p_activeSearchResults = p_allData.filter(p =>
-        (p.name && p.name.includes(kw)) || (p.idcard && p.idcard.includes(kw))
+        (p.name && p.name.includes(kw)) ||
+        (p.idcard && p.idcard.includes(kw)) ||
+        (p.issuer && p.issuer.includes(kw)) ||
+        (p.remarks && p.remarks.includes(kw))
     );
+
+
     p_queryResults = [];
     if (p_hasAdvancedFilter()) {
         p_performAdvancedFilter();
@@ -1425,22 +1431,63 @@ function getSortKeysForSystem(systemName) {
             }
 
             async function resolveDataConflict(localData, remoteData, systemName) {
-                if (!remoteData) { showToast(`无法获取云端数据，将加载本地${systemName}数据`, 'info'); return localData; }
-                if (localData.length !== remoteData.length) { const useRemote = remoteData.length > localData.length; showToast(`本地${systemName}数据${localData.length}条，云端${remoteData.length}条。将自动加载${useRemote?'云端':'本地'}数据。`, 'info'); return useRemote ? remoteData : localData; }
-                const localStr = JSON.stringify(localData); const remoteStr = JSON.stringify(remoteData);
-                if (localStr === remoteStr) { showToast(`${systemName}数据完全一致，加载本地数据`, 'info'); return localData; }
-                return new Promise((resolve) => {
-                    let diffHtml = '<div class="table-wrapper"><table><thead><tr><th>序号</th><th>字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
-                    const len = localData.length;
-                    for (let i = 0; i < len; i++) { const localItem = localData[i]; const remoteItem = remoteData[i]; const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]); for (let key of allKeys) { const localVal = localItem[key] ?? ''; const remoteVal = remoteItem[key] ?? ''; if (localVal != remoteVal) { diffHtml += `<tr><td>${i+1}</td><td>${key}</td><td>${escapeHtml(String(remoteVal))}</td><td>${escapeHtml(String(localVal))}</td></tr>`; } } }
-                    diffHtml += '</tbody></table></div>';
-                    const overlay = document.createElement('div'); overlay.className = 'modal-overlay'; overlay.style.display = 'flex';
-                    overlay.innerHTML = `<div class="modal" style="max-width:900px;"><h3>数据差异对比 - ${systemName}</h3>${diffHtml}<div class="modal-actions"><button class="btn btn-outline" id="diffChooseLocalBtn">加载本地数据</button><button class="btn btn-primary" id="diffChooseRemoteBtn">加载云端数据</button></div></div>`;
-                    document.body.appendChild(overlay);
-                    overlay.querySelector('#diffChooseLocalBtn').addEventListener('click', () => { document.body.removeChild(overlay); showToast(`已选择加载本地${systemName}数据`, 'info'); resolve(localData); });
-                    overlay.querySelector('#diffChooseRemoteBtn').addEventListener('click', () => { document.body.removeChild(overlay); showToast(`已选择加载云端${systemName}数据`, 'info'); resolve(remoteData); });
-                });
+    if (!remoteData) {
+        showToast(`无法获取云端数据，将加载本地${systemName}数据`, 'info');
+        return localData;
+    }
+
+    // 排序逻辑（与 promptUpdateFromCloud 保持一致）
+    const sortKeys = getSortKeysForSystem(systemName);
+    if (sortKeys.length > 0) {
+        const sortFn = (a, b) => {
+            for (let key of sortKeys) {
+                const valA = (a[key] || '').toString();
+                const valB = (b[key] || '').toString();
+                if (valA < valB) return -1;
+                if (valA > valB) return 1;
             }
+            return 0;
+        };
+        localData = [...localData].sort(sortFn);
+        remoteData = [...remoteData].sort(sortFn);
+    }
+
+    if (localData.length !== remoteData.length) {
+        const useRemote = remoteData.length > localData.length;
+        showToast(`本地${systemName}数据${localData.length}条，云端${remoteData.length}条。将自动加载${useRemote ? '云端' : '本地'}数据。`, 'info');
+        return useRemote ? remoteData : localData;
+    }
+    const localStr = JSON.stringify(localData);
+    const remoteStr = JSON.stringify(remoteData);
+    if (localStr === remoteStr) {
+        showToast(`${systemName}数据完全一致，加载本地数据`, 'info');
+        return localData;
+    }
+
+    // 条数相同但内容有差异，构建差异对比界面
+    return new Promise((resolve) => {
+        let diffHtml = '<div class="table-wrapper"><table><thead><tr><th>序号</th><th>字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
+        const len = localData.length;
+        for (let i = 0; i < len; i++) {
+            const localItem = localData[i];
+            const remoteItem = remoteData[i];
+            const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
+            for (let key of allKeys) {
+                const localVal = localItem[key] ?? '';
+                const remoteVal = remoteItem[key] ?? '';
+                if (localVal != remoteVal) {
+                    diffHtml += `<tr><td>${i + 1}</td><td>${key}</td><td>${escapeHtml(String(remoteVal))}</td><td>${escapeHtml(String(localVal))}</td></tr>`;
+                }
+            }
+        }
+        diffHtml += '</tbody></table></div>';
+        const overlay = document.createElement('div'); overlay.className = 'modal-overlay'; overlay.style.display = 'flex';
+        overlay.innerHTML = `<div class="modal" style="max-width:900px;"><h3>数据差异对比 - ${systemName}</h3>${diffHtml}<div class="modal-actions"><button class="btn btn-outline" id="diffChooseLocalBtn">加载本地数据</button><button class="btn btn-primary" id="diffChooseRemoteBtn">加载云端数据</button></div></div>`;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#diffChooseLocalBtn').addEventListener('click', () => { document.body.removeChild(overlay); showToast(`已选择加载本地${systemName}数据`, 'info'); resolve(localData); });
+        overlay.querySelector('#diffChooseRemoteBtn').addEventListener('click', () => { document.body.removeChild(overlay); showToast(`已选择加载云端${systemName}数据`, 'info'); resolve(remoteData); });
+    });
+}
 
             async function initAllSystems() {
                 let a_local = a_loadLocal(); if (!a_local || !a_local.length) { migrateArchive(); a_local = a_loadLocal(); }
