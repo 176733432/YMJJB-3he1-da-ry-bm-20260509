@@ -742,6 +742,87 @@ function excelSerialToDate(serial) {
             function p_saveLocal(data) { localStorage.setItem('DANGAN20020308SYRYSK', p_encryptData(data)); }
             function p_loadLocal() { const raw = localStorage.getItem('DANGAN20020308SYRYSK'); if (!raw) return null; const decrypted = p_decryptData(raw); if (decrypted) return decrypted; try { const parsed = JSON.parse(raw); if (Array.isArray(parsed)) { p_saveLocal(parsed); return parsed; } } catch (e) {} return null; }
             function p_getDisplayValue(type, value, customValue) { if (value === '其他' && customValue) return customValue; return value || ''; }
+
+            // 将人员数据标准化为“显示值”用于对比，不改变原始数据
+function p_normalizePersonForCompare(person) {
+    return {
+        ...person,
+        category: p_getDisplayValue('category', person.category, person.categoryOther),
+        categoryOther: '',
+        position: p_getDisplayValue('position', person.position, person.positionOther),
+        positionOther: '',
+        major: p_getDisplayValue('major', person.major, person.majorOther),
+        majorOther: '',
+        level: p_getDisplayValue('level', person.level, person.levelOther),
+        levelOther: '',
+        company: p_getDisplayValue('company', person.company, person.companyOther),
+        companyOther: ''
+    };
+}
+
+// 生成差异表格HTML（用于人员数据对比弹窗）
+function buildDiffTable(localNorm, remoteNorm) {
+    let html = '<div class="table-wrapper"><table><thead><tr><th>序号</th><th>字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
+    const maxLen = Math.max(localNorm.length, remoteNorm.length);
+    for (let i = 0; i < maxLen; i++) {
+        const localItem = localNorm[i] || {};
+        const remoteItem = remoteNorm[i] || {};
+        const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
+        for (let key of allKeys) {
+            const lv = (localItem[key] ?? '').toString();
+            const rv = (remoteItem[key] ?? '').toString();
+            if (lv !== rv) {
+                html += `<tr><td>${i+1}</td><td>${key}</td><td>${escapeHtml(rv)}</td><td>${escapeHtml(lv)}</td></tr>`;
+            }
+        }
+    }
+    html += '</tbody></table></div>';
+    return html;
+}
+
+// 专用的人员数据冲突解决（保留本地原始结构）
+async function resolvePersonnelConflict(localRaw, remoteRaw) {
+    if (!remoteRaw) return localRaw;
+
+    const localNorm = localRaw.map(p_normalizePersonForCompare);
+    const remoteNorm = remoteRaw.map(p => ({
+        ...p,
+        categoryOther: '', positionOther: '', majorOther: '', levelOther: '', companyOther: ''
+    }));
+
+    const localStr = JSON.stringify(localNorm);
+    const remoteStr = JSON.stringify(remoteNorm);
+
+    if (localStr === remoteStr) return localRaw;
+
+    // 构建差异表格
+    const diffHtml = buildDiffTable(localNorm, remoteNorm);
+    return new Promise((resolve) => {
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.display = 'flex';
+        overlay.innerHTML = `
+            <div class="modal" style="max-width:900px;">
+                <h3>人员数据差异对比</h3>
+                ${diffHtml}
+                <div class="modal-actions">
+                    <button class="btn btn-outline" id="diffKeepLocal">保留本地数据</button>
+                    <button class="btn btn-primary" id="diffUseRemote">使用云端数据</button>
+                </div>
+            </div>`;
+        document.body.appendChild(overlay);
+        overlay.querySelector('#diffKeepLocal').onclick = () => {
+            document.body.removeChild(overlay);
+            resolve(localRaw);
+        };
+        overlay.querySelector('#diffUseRemote').onclick = () => {
+            document.body.removeChild(overlay);
+            resolve(remoteRaw);
+        };
+    });
+}
+
+
             function p_getSortValue(obj, key) { if (key === 'seq') { const n = parseInt(obj.seq); return isNaN(n) ? -1 : n; } if (key === 'validity') { if (!obj.validity) return -8640000000000000; const d = new Date(obj.validity); return isNaN(d.getTime()) ? -8640000000000000 : d.getTime(); } if (key === 'regno') { const n = parseFloat(obj[key]); return isNaN(n) ? '' : n; } return (obj[key] || '').toString().toLowerCase(); }
             function p_sortData(data, sortKey, asc) { if (!sortKey) return data; return [...data].sort((a, b) => { const valA = p_getSortValue(a, sortKey), valB = p_getSortValue(b, sortKey); if (typeof valA === 'number' && typeof valB === 'number') return asc ? valA - valB : valB - valA; return asc ? String(valA).localeCompare(String(valB), 'zh-CN') : String(valB).localeCompare(String(valA), 'zh-CN'); }); }
 
@@ -1424,8 +1505,29 @@ function getSortKeysForSystem(systemName) {
                 if (!isLoggedIn || !currentProjectCode) return;
                 const a_remote = await fetchArchiveCloudData(currentProjectCode);
                 if (a_remote) { const needUpdate = await promptUpdateFromCloud(a_remote, a_allData, '档案'); if (needUpdate) { a_allData = a_remote; a_saveLocal(a_allData); a_refreshQueryTable(); showToast('档案数据已更新为云端版本', 'success'); } }
-                const p_remote = await fetchPersonnelCloudData(currentProjectCode);
-                if (p_remote) { const needUpdate = await promptUpdateFromCloud(p_remote, p_allData, '人员'); if (needUpdate) { p_allData = p_remote; p_saveLocal(p_allData); p_refreshQueryTable(); showToast('人员数据已更新为云端版本', 'success'); } }
+                
+      const p_remote = await fetchPersonnelCloudData(currentProjectCode);
+if (p_remote) {
+    // 标准化对比，防止“其他+自定义”误判
+    const p_local_norm = p_allData.map(p_normalizePersonForCompare);
+    const p_remote_norm = p_remote.map(p => ({
+        ...p,
+        categoryOther: '', positionOther: '', majorOther: '', levelOther: '', companyOther: ''
+    }));
+    const localStr = JSON.stringify(p_local_norm);
+    const remoteStr = JSON.stringify(p_remote_norm);
+    
+    if (localStr !== remoteStr) {
+        const useRemote = confirm('人员数据云端与本地有差异，是否更新为云端数据？\n说明：云端数据为标准化显示值，更新后本地自定义字段将被覆盖。');
+        if (useRemote) {
+            p_allData = p_remote;
+            p_saveLocal(p_allData);
+            p_refreshQueryTable();
+            showToast('人员数据已更新为云端版本', 'success');
+        }
+    }
+}
+
                 const r_remote = await fetchRegistrationCloudData(currentProjectCode);
                 if (r_remote) { const needUpdate = await promptUpdateFromCloud(r_remote, r_allData, '报名'); if (needUpdate) { r_allData = r_remote; r_saveLocal(r_allData); r_refreshQueryTable(); showToast('报名数据已更新为云端版本', 'success'); } }
             }
@@ -1497,11 +1599,18 @@ function getSortKeysForSystem(systemName) {
                 const a_final = await resolveDataConflict(a_local, a_remote, '档案');
                 a_allData = a_final; a_saveLocal(a_allData); a_activeSearchResults = null; a_refreshQueryTable();
 
-                let p_local = p_loadLocal(); if (!p_local || !p_local.length) { migratePersonnel(); p_local = p_loadLocal(); }
-                if (!p_local) p_local = [];
-                const p_remote = await fetchPersonnelCloudData(currentProjectCode);
-                const p_final = await resolveDataConflict(p_local, p_remote, '人员');
-                p_allData = p_final; p_saveLocal(p_allData); p_activeSearchResults = null; p_refreshQueryTable();
+              let p_local = p_loadLocal(); 
+if (!p_local || !p_local.length) { migratePersonnel(); p_local = p_loadLocal(); }
+if (!p_local) p_local = [];
+
+const p_remote = await fetchPersonnelCloudData(currentProjectCode);
+// 使用专用人员冲突解决函数（保留原始自定义字段）
+const p_final = await resolvePersonnelConflict(p_local, p_remote);
+p_allData = p_final; 
+p_saveLocal(p_allData);
+p_activeSearchResults = null; 
+p_refreshQueryTable();  
+
 
                 let r_local = r_loadLocal(); if (!r_local || !r_local.length) { migrateRegistration(); r_local = r_loadLocal(); }
                 if (!r_local) r_local = [];
