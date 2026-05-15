@@ -343,6 +343,10 @@
             const a_numericFields = ['contractPrice','signCopies','buildingArea'];
             const a_allFields = [ { key:'company', label:'所属公司' }, { key:'archiveNo', label:'档案号' }, { key:'engName', label:'工程名称' }, { key:'engCategory', label:'工程类别' }, { key:'usage', label:'使用性质' }, { key:'contractType', label:'承包方式' }, { key:'partyA', label:'甲方单位' }, { key:'engAddress', label:'工程地址' }, { key:'contractPrice', label:'合同价格' }, { key:'bidDate', label:'中标日期' }, { key:'startDate', label:'开工日期' }, { key:'completionDate', label:'竣工日期' }, { key:'totalDuration', label:'总工期' }, { key:'projectManager', label:'项目经理' }, { key:'signDate', label:'签署日期' }, { key:'signCopies', label:'签署份数' }, { key:'buildingArea', label:'建筑面积' }, { key:'structure', label:'结构形式' }, { key:'floors', label:'层数' }, { key:'bidDoc', label:'招标文件' }, { key:'tenderDoc', label:'投标文件' }, { key:'bidNotice', label:'中标通知书' }, { key:'contract', label:'合同' }, { key:'cooperation', label:'合作协议' }, { key:'completionDoc', label:'竣工文件' }, { key:'settlementDoc', label:'结算文件' }, { key:'legalDoc', label:'法律文书' }, { key:'constructionPermit', label:'施工许可证' }, { key:'approvalDoc', label:'立项文件' }, { key:'planningPermit', label:'规划许可证' }, { key:'reviewDoc', label:'审图合格文件' }, { key:'partner', label:'合作人' }, { key:'phone', label:'联系电话' }, { key:'remark', label:'备注说明' } ];
 
+             // 新增提醒控制字段（用于档案完整性检查时是否忽略）
+// 默认 true 表示需要提醒，false 表示忽略提醒
+const a_reminderFields = ['contractReminder', 'cooperationReminder', 'completionDocReminder'];
+
             let p_allData=[], p_queryResults=[], p_activeSearchResults=null;
             const p_allFields = [ { key:'seq', label:'序号' }, { key:'name', label:'姓名' }, { key:'idcard', label:'身份证' }, { key:'category', label:'类别' }, { key:'position', label:'岗位' }, { key:'regno', label:'注册号' }, { key:'major', label:'注册专业' }, { key:'validity', label:'有效期' }, { key:'level', label:'级别' }, { key:'issuer', label:'发证单位' }, { key:'phone', label:'联系电话' }, { key:'jishibanAccount', label:'冀时办账号' }, { key:'jishibanPassword', label:'冀时办密码' }, { key:'socialSecurity', label:'社保' }, { key:'company', label:'所属公司' }, { key:'remarks', label:'备注' } ];
             let p_editQueue=[], p_isProcessingQueue=false;
@@ -590,7 +594,7 @@ function excelSerialToDate(serial) {
     }
 }
 
-            function a_openEditModal(person, index) {
+                        function a_openEditModal(person, index) {
                 const modal = document.getElementById('editModal'); const isNew = index < 0; const showHidden = isNew || a_hiddenVisible;
                 let html = `<div class="modal"><button class="modal-close" onclick="closeEditModal()">×</button><h3>${isNew?'新增档案信息':'修改档案信息'}</h3><div class="form-row">`;
                 html += `<div class="form-group"><label>所属公司</label><select id="ae_company"><option value="">--请选择--</option><option>正大</option><option>世拓</option><option>其他</option></select></div>`;
@@ -605,19 +609,25 @@ function excelSerialToDate(serial) {
                 html += `<div class="form-group"><label>中标日期</label><input type="date" id="ae_bidDate"></div>`;
                 html += `<div class="form-group"><label>开工日期</label><input type="date" id="ae_startDate"></div>`;
                 html += `<div class="form-group"><label>竣工日期</label><input type="date" id="ae_completionDate"></div>`;
-                html += `<div class="form-group"><label>总工期</label><input type="text" id="ae_totalDuration"></div>`;
+                html += `<div class="form-group"><label>总工期</label><input type="text" id="ae_totalDuration" placeholder="自动计算或手动填写"></div>`;
                 html += `<div class="form-group"><label>项目经理</label><input type="text" id="ae_projectManager"></div>`;
                 html += `<div class="form-group"><label>签署日期</label><input type="date" id="ae_signDate"></div>`;
                 html += `<div class="form-group"><label>签署份数</label><input type="text" id="ae_signCopies"></div>`;
                 html += `<div class="form-group"><label>建筑面积</label><input type="text" id="ae_buildingArea"></div>`;
-                html += `<div class="form-group"><label>结构形式</label><select id="ae_structure"><option>框剪</option><option>框架</option><option>钢结构</option><option>剪力墙</option><option>砖混</option><option>其他</option></select></div>`;
+                html += `<div class="form-group"><label>结构形式</label><select id="ae_structure"><option>其他</option><option>框剪</option><option>框架</option><option>钢结构</option><option>剪力墙</option><option>砖混</option></select></div>`;
                 html += `<div class="form-group"><label>层数</label><input type="text" id="ae_floors"></div>`;
                 html += `<div class="form-group"><label>招标文件</label><input type="text" id="ae_bidDoc"></div>`;
                 html += `<div class="form-group"><label>投标文件</label><input type="text" id="ae_tenderDoc"></div>`;
                 html += `<div class="form-group"><label>中标通知书</label><input type="text" id="ae_bidNotice"></div>`;
-                html += `<div class="form-group"><label>合同</label><input type="text" id="ae_contract"></div>`;
-                if (showHidden) html += `<div class="form-group"><label>合作协议</label><input type="text" id="ae_cooperation"></div>`;
-                html += `<div class="form-group"><label>竣工文件</label><input type="text" id="ae_completionDoc"></div>`;
+                
+                // 合同 + 提示复选框（标签与复选框同行，间距2字符，输入框换行）
+html += `<div class="form-group"><div style="display: flex; align-items: center; gap: 2ch; flex-wrap: nowrap;"><label style="white-space: nowrap;">合同</label><label style="white-space: nowrap;"><input type="checkbox" id="ae_contractReminder" checked> 提示</label></div><input type="text" id="ae_contract" style="width:100%; margin-top:4px;"></div>`;
+// 合作协议 + 提示复选框
+if (showHidden) html += `<div class="form-group"><div style="display: flex; align-items: center; gap: 2ch; flex-wrap: nowrap;"><label style="white-space: nowrap;">合作协议</label><label style="white-space: nowrap;"><input type="checkbox" id="ae_cooperationReminder" checked> 提示</label></div><input type="text" id="ae_cooperation" style="width:100%; margin-top:4px;"></div>`;
+// 竣工文件 + 提示复选框
+html += `<div class="form-group"><div style="display: flex; align-items: center; gap: 2ch; flex-wrap: nowrap;"><label style="white-space: nowrap;">竣工文件</label><label style="white-space: nowrap;"><input type="checkbox" id="ae_completionDocReminder" checked> 提示</label></div><input type="text" id="ae_completionDoc" style="width:100%; margin-top:4px;"></div>`;
+
+
                 html += `<div class="form-group"><label>结算文件</label><input type="text" id="ae_settlementDoc"></div>`;
                 html += `<div class="form-group"><label>法律文书</label><input type="text" id="ae_legalDoc"></div>`;
                 html += `<div class="form-group"><label>施工许可证</label><input type="text" id="ae_constructionPermit"></div>`;
@@ -635,9 +645,53 @@ function excelSerialToDate(serial) {
                     const selVal = (id, val) => { const el = document.getElementById(id); if (el && val) { el.value = val; } };
                     selVal('ae_engCategory', person.engCategory); selVal('ae_usage', person.usage); selVal('ae_contractType', person.contractType); selVal('ae_structure', person.structure);
                 }
+                // 读取提醒复选框状态（兼容旧数据默认为true）
+                const getReminder = (key, def = true) => (person[key] !== undefined) ? person[key] : def;
+                const contractReminderCb = document.getElementById('ae_contractReminder');
+                const cooperationReminderCb = document.getElementById('ae_cooperationReminder');
+                const completionDocReminderCb = document.getElementById('ae_completionDocReminder');
+                if (contractReminderCb) contractReminderCb.checked = getReminder('contractReminder');
+                if (cooperationReminderCb) cooperationReminderCb.checked = getReminder('cooperationReminder');
+                if (completionDocReminderCb) completionDocReminderCb.checked = getReminder('completionDocReminder');
+                
+                // 总工期自动计算：如果用户手动修改则不再自动覆盖
+                const startInput = document.getElementById('ae_startDate');
+                const endInput = document.getElementById('ae_completionDate');
+                const durationInput = document.getElementById('ae_totalDuration');
+                let durationManuallyEdited = false;
+                if (durationInput) {
+                    durationInput.addEventListener('input', function() { durationManuallyEdited = true; });
+                }
+                function autoCalcDuration() {
+                    if (durationManuallyEdited) return;
+                    const start = startInput ? startInput.value : '';
+                    const end = endInput ? endInput.value : '';
+                    if (start && end) {
+                        const startDate = new Date(start);
+                        const endDate = new Date(end);
+                        if (!isNaN(startDate) && !isNaN(endDate) && endDate >= startDate) {
+                            const diffDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+                            if (durationInput) durationInput.value = diffDays;
+                        } else {
+                            if (durationInput && durationInput.value === '') durationInput.value = '';
+                        }
+                    } else {
+                        if (durationInput && durationInput.value === '') durationInput.value = '';
+                    }
+                }
+                if (startInput) startInput.addEventListener('change', autoCalcDuration);
+                if (endInput) endInput.addEventListener('change', autoCalcDuration);
             }
 
-            function a_saveFromModal() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const index = parseInt(document.getElementById('ae_index').value); const showHidden = index < 0 || a_hiddenVisible; const getVal = (id) => document.getElementById(id)?.value || ''; const data = {}; a_allFields.forEach(f => { const elId = 'ae_' + f.key; const el = document.getElementById(elId); if (el) data[f.key] = el.value || ''; else if (f.key === 'cooperation') data[f.key] = showHidden ? (getVal('ae_cooperation') || '') : (a_allData[index]?.cooperation || ''); else if (f.key === 'partner') data[f.key] = showHidden ? (getVal('ae_partner') || '') : (a_allData[index]?.partner || ''); else if (f.key === 'phone') data[f.key] = showHidden ? (getVal('ae_phone') || '') : (a_allData[index]?.phone || ''); else data[f.key] = data[f.key] || ''; }); if (!data.engName.trim()) { showToast('工程名称不能为空', 'error'); return; } if (index >= 0 && index < a_allData.length) a_allData[index] = data; else a_allData.push(data); a_saveLocal(a_allData); showToast(index >= 0 ? '已保存' : '已添加', 'success'); a_globalSearchResults = []; a_queryResults = []; a_activeSearchResults = null; a_refreshQueryTable(); closeEditModal(); }
+            
+                        function a_saveFromModal() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const index = parseInt(document.getElementById('ae_index').value); const showHidden = index < 0 || a_hiddenVisible; const getVal = (id) => document.getElementById(id)?.value || ''; const data = {}; a_allFields.forEach(f => { const elId = 'ae_' + f.key; const el = document.getElementById(elId); if (el) data[f.key] = el.value || ''; else if (f.key === 'cooperation') data[f.key] = showHidden ? (getVal('ae_cooperation') || '') : (a_allData[index]?.cooperation || ''); else if (f.key === 'partner') data[f.key] = showHidden ? (getVal('ae_partner') || '') : (a_allData[index]?.partner || ''); else if (f.key === 'phone') data[f.key] = showHidden ? (getVal('ae_phone') || '') : (a_allData[index]?.phone || ''); else data[f.key] = data[f.key] || ''; }); if (!data.engName.trim()) { showToast('工程名称不能为空', 'error'); return; }
+                // 读取提醒复选框状态
+                data.contractReminder = document.getElementById('ae_contractReminder')?.checked ?? true;
+                data.cooperationReminder = document.getElementById('ae_cooperationReminder')?.checked ?? true;
+                data.completionDocReminder = document.getElementById('ae_completionDocReminder')?.checked ?? true;
+                if (index >= 0 && index < a_allData.length) a_allData[index] = data; else a_allData.push(data); a_saveLocal(a_allData); showToast(index >= 0 ? '已保存' : '已添加', 'success'); a_globalSearchResults = []; a_queryResults = []; a_activeSearchResults = null; a_refreshQueryTable(); closeEditModal(); }
+
+
             function a_openAddArchiveModal() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const obj = {}; a_allFields.forEach(f => obj[f.key] = ''); a_openEditModal(obj, -1); }
             function a_processEditQueue() { if (a_editQueue.length > 0 && !a_isProcessingQueue) { a_isProcessingQueue = true; const ni = a_editQueue.shift(); if (ni >= 0 && ni < a_allData.length) a_openEditModal(a_allData[ni], ni); else a_processEditQueue(); } else if (a_editQueue.length === 0) a_isProcessingQueue = false; }
             function a_handleEditSelected() { const indices = a_getSelectedIndices(); if (!indices.length) { showToast('请勾选数据行', 'error'); return; } if (!permissions.entry) { showToast('无录入权限', 'error'); return; } showToast('编辑已选择', 'info'); a_editQueue = [...indices]; a_isProcessingQueue = false; a_processEditQueue(); }
@@ -659,6 +713,13 @@ function excelSerialToDate(serial) {
                         const rows = json.slice(1).filter(r => r.some(c => c !== '' && c !== null));
                         const imported = rows.map(row => {
                             const obj = {};
+
+// 为导入的档案添加默认提醒开关（true 表示需要提醒）
+obj.contractReminder = true;
+obj.cooperationReminder = true;
+obj.completionDocReminder = true;
+
+
                             a_allFields.forEach((f, idx) => {
                                 let val = row[idx];
                                 if (a_dateFields.includes(f.key) && typeof val === 'number' && val > 40000 && val < 80000) val = excelSerialToDate(val);
@@ -668,7 +729,10 @@ function excelSerialToDate(serial) {
                         });
                         if (imported.length === 0) { showToast('无有效数据'); return; }
                         let added = 0, updated = 0, unchanged = 0;
-                        imported.forEach(imp => {
+                        
+const defaultReminders = { contractReminder: true, cooperationReminder: true, completionDocReminder: true };
+
+imported.forEach(imp => {
                             const archiveNo = imp.archiveNo.trim();
                             if (!archiveNo) { a_allData.push(imp); added++; return; }
                             const existIdx = a_allData.findIndex(item => item.archiveNo.trim() === archiveNo);
@@ -1392,14 +1456,21 @@ function p_importFromExcel() {
                 try { data = r_decryptData(raw, () => oldKey); if (data && data.length) { r_saveLocal(data); console.log('报名数据已迁移'); } } catch(e) {}
             }
 
-            function a_checkArchives() {
+                        function a_checkArchives() {
                 if (suppressAlerts.archive) return;
                 if (!a_allData.length) return;
-                const noContract = a_allData.filter(p => !p.contract);
-                const noCooperation = a_allData.filter(p => !p.cooperation);
+                // 只提醒那些提醒开关未被关闭的项
+                const noContract = a_allData.filter(p => !p.contract && (p.contractReminder !== false));
+                const noCooperation = a_allData.filter(p => !p.cooperation && (p.cooperationReminder !== false));
                 const now = new Date();
                 const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-                const noCompletionDoc = a_allData.filter(p => { if (!p.completionDate) return false; if (p.completionDoc) return false; const compDate = new Date(p.completionDate); return compDate <= thirtyDaysAgo; });
+                const noCompletionDoc = a_allData.filter(p => { 
+                    if (!p.completionDate) return false;
+                    if (p.completionDoc) return false;
+                    if (p.completionDocReminder === false) return false;
+                    const compDate = new Date(p.completionDate);
+                    return compDate <= thirtyDaysAgo;
+                });
                 if (!noContract.length && !noCooperation.length && !noCompletionDoc.length) return;
                 let html = '';
                 if (noContract.length > 0) { html += '<div class="due-section-title">📋 无合同档案 (' + noContract.length + '条)</div><div class="table-wrapper"><table><thead><tr><th>所属公司</th><th>档案号</th><th>工程名称</th><th>甲方单位</th><th>签署日期</th><th>签署份数</th></tr></thead><tbody>'; html += noContract.map(p => `<tr><td>${p.company||''}</td><td>${p.archiveNo||''}</td><td>${p.engName||''}</td><td>${p.partyA||''}</td><td>${p.signDate||''}</td><td>${p.signCopies||''}</td></tr>`).join(''); html += '</tbody></table></div>'; }
