@@ -343,6 +343,8 @@
             const a_numericFields = ['contractPrice','signCopies','buildingArea'];
             const a_allFields = [ { key:'company', label:'所属公司' }, { key:'archiveNo', label:'档案号' }, { key:'engName', label:'工程名称' }, { key:'engCategory', label:'工程类别' }, { key:'usage', label:'使用性质' }, { key:'contractType', label:'承包方式' }, { key:'partyA', label:'甲方单位' }, { key:'engAddress', label:'工程地址' }, { key:'contractPrice', label:'合同价格' }, { key:'bidDate', label:'中标日期' }, { key:'startDate', label:'开工日期' }, { key:'completionDate', label:'竣工日期' }, { key:'totalDuration', label:'总工期' }, { key:'projectManager', label:'项目经理' }, { key:'signDate', label:'签署日期' }, { key:'signCopies', label:'签署份数' }, { key:'buildingArea', label:'建筑面积' }, { key:'structure', label:'结构形式' }, { key:'floors', label:'层数' }, { key:'bidDoc', label:'招标文件' }, { key:'tenderDoc', label:'投标文件' }, { key:'bidNotice', label:'中标通知书' }, { key:'contract', label:'合同' }, { key:'cooperation', label:'合作协议' }, { key:'completionDoc', label:'竣工文件' }, { key:'settlementDoc', label:'结算文件' }, { key:'legalDoc', label:'法律文书' }, { key:'constructionPermit', label:'施工许可证' }, { key:'approvalDoc', label:'立项文件' }, { key:'planningPermit', label:'规划许可证' }, { key:'reviewDoc', label:'审图合格文件' }, { key:'partner', label:'合作人' }, { key:'phone', label:'联系电话' }, { key:'remark', label:'备注说明' } ];
 
+
+
              // 新增提醒控制字段（用于档案完整性检查时是否忽略）
 // 默认 true 表示需要提醒，false 表示忽略提醒
 const a_reminderFields = ['contractReminder', 'cooperationReminder', 'completionDocReminder'];
@@ -358,6 +360,13 @@ const a_reminderFields = ['contractReminder', 'cooperationReminder', 'completion
             let r_dataTabClickCount=0, r_dataTabClickTimer=null;
             const r_sortState = { dataTable:{ field:'bidOpeningStatus', order:'desc' }, queryTable:{ field:'bidOpeningStatus', order:'desc' } };
             const r_allFieldsExport = [ { key:'seq', label:'序号' }, { key:'projectName', label:'工程名称' }, { key:'client', label:'委托人' }, { key:'projectManager', label:'项目经理' }, { key:'materials', label:'资料' }, { key:'registrationDate', label:'报名日期' }, { key:'bidOpeningMethod', label:'开标方式' }, { key:'bidOpeningAddress', label:'开标地址' }, { key:'bidOpeningDate', label:'开标日期' }, { key:'deposit', label:'保证金' }, { key:'maxPrice', label:'最高限价(元)' }, { key:'announcementUrl', label:'公告地址' }, { key:'company', label:'所属公司' }, { key:'remarks', label:'备注' } ];
+// ===================== 字段标签映射（放在所有字段定义之后）=====================
+const a_fieldLabelMap = new Map(a_allFields.map(f => [f.key, f.label]));
+const p_fieldLabelMap = new Map(p_allFields.map(f => [f.key, f.label]));
+const r_fieldLabelMap = new Map(r_allFieldsExport.map(f => [f.key, f.label]));
+r_fieldLabelMap.set('remarks2', '备注2');
+r_fieldLabelMap.set('bidOpeningStatus', '开标状态');
+
 
             function showToast(msg, type='info') { const c=document.getElementById('toastContainer'); const t=document.createElement('div'); t.className='toast '+type; t.textContent=msg; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
             function escapeHtml(str) { const d=document.createElement('div'); d.textContent=str||''; return d.innerHTML; }
@@ -826,19 +835,39 @@ function p_normalizePersonForCompare(person) {
 
 // 生成差异表格HTML（用于人员数据对比弹窗）
 function buildDiffTable(localNorm, remoteNorm) {
-    let html = '<div class="table-wrapper"><table><thead><tr><th>序号</th><th>字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
+    let html = '<div class="table-wrapper"><table><thead><tr><th>序号</th><th>姓名/工程名称</th><th>匹配项</th><th>差异字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
     const maxLen = Math.max(localNorm.length, remoteNorm.length);
+    let recordIndex = 1;
     for (let i = 0; i < maxLen; i++) {
         const localItem = localNorm[i] || {};
         const remoteItem = remoteNorm[i] || {};
+        // 姓名
+        let nameValue = localItem.name || remoteItem.name || '-';
+        // 匹配项：优先注册号，其次身份证
+        let matchValue = localItem.regno || remoteItem.regno || localItem.idcard || remoteItem.idcard || '-';
         const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
+        const diffFields = [];
         for (let key of allKeys) {
             const lv = (localItem[key] ?? '').toString();
             const rv = (remoteItem[key] ?? '').toString();
             if (lv !== rv) {
-                html += `<tr><td>${i+1}</td><td>${key}</td><td>${escapeHtml(rv)}</td><td>${escapeHtml(lv)}</td></tr>`;
+                const label = p_fieldLabelMap.get(key) || key;
+                diffFields.push({ label, remoteVal: rv, localVal: lv });
             }
         }
+        if (diffFields.length === 0) continue;
+        const fieldsStr = diffFields.map(d => d.label).join('；');
+        const remoteStrCombined = diffFields.map(d => d.remoteVal).join('；');
+        const localStrCombined = diffFields.map(d => d.localVal).join('；');
+        html += `<tr>
+            <td>${recordIndex}</td>
+            <td>${escapeHtml(nameValue)}</td>
+            <td>${escapeHtml(matchValue)}</td>
+            <td>${escapeHtml(fieldsStr)}</td>
+            <td>${escapeHtml(remoteStrCombined)}</td>
+            <td>${escapeHtml(localStrCombined)}</td>
+        </tr>`;
+        recordIndex++;
     }
     html += '</tbody></table></div>';
     return html;
@@ -1526,7 +1555,6 @@ function getSortKeysForSystem(systemName) {
             }
 
             async function promptUpdateFromCloud(cloudData, localData, systemName) {
-    // 获取排序键并对两份数据排序
     const sortKeys = getSortKeysForSystem(systemName);
     if (sortKeys.length > 0) {
         const sortFn = (a, b) => {
@@ -1544,34 +1572,84 @@ function getSortKeysForSystem(systemName) {
 
     const localStr = JSON.stringify(localData);
     const remoteStr = JSON.stringify(cloudData);
-    if (localStr === remoteStr) return false; // 内容完全一致，无需更新
+    if (localStr === remoteStr) return false;
 
-    // 构建差异表格（基于排序后的数据）
-    let diffHtml = '<div class="table-wrapper"><table><thead><tr><th>序号</th><th>字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
-    const len = Math.max(localData.length, cloudData.length);
-    for (let i = 0; i < len; i++) {
+    // 获取匹配标识字段和名称字段
+    let matchKey = '', nameKey = '';
+    if (systemName === '档案') {
+        matchKey = 'archiveNo';
+        nameKey = 'engName';
+    } else if (systemName === '报名') {
+        matchKey = 'seq';
+        nameKey = 'projectName';
+    } else if (systemName === '人员') {
+        matchKey = 'regno';
+        nameKey = 'name';
+    }
+
+    let labelMap;
+    if (systemName === '档案') labelMap = a_fieldLabelMap;
+    else if (systemName === '报名') labelMap = r_fieldLabelMap;
+    else labelMap = new Map();
+
+    let diffHtml = '<div class="table-wrapper"><table><thead><tr><th>序号</th><th>姓名/工程名称</th><th>匹配项</th><th>差异字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
+    const maxLen = Math.max(localData.length, cloudData.length);
+    let recordIndex = 1;
+    for (let i = 0; i < maxLen; i++) {
         const localItem = localData[i] || {};
         const remoteItem = cloudData[i] || {};
+
+        // 名称显示值
+        let nameValue = localItem[nameKey] || remoteItem[nameKey] || '-';
+        // 匹配项显示值
+        let matchValue = '';
+        if (systemName === '档案') matchValue = localItem.archiveNo || remoteItem.archiveNo || '-';
+        else if (systemName === '报名') matchValue = localItem.seq || remoteItem.seq || '-';
+        else if (systemName === '人员') {
+            const reg = localItem.regno || remoteItem.regno || '';
+            const id = localItem.idcard || remoteItem.idcard || '';
+            matchValue = reg ? reg : (id ? id : '-');
+        }
+
         const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
+        const diffFields = [];
         for (let key of allKeys) {
             const localVal = localItem[key] ?? '';
             const remoteVal = remoteItem[key] ?? '';
             if (localVal != remoteVal) {
-                diffHtml += `<tr><td>${i + 1}</td><td>${key}</td><td>${escapeHtml(String(remoteVal))}</td><td>${escapeHtml(String(localVal))}</td></tr>`;
+                const label = labelMap.get(key) || key;
+                diffFields.push({ label, remoteVal, localVal });
             }
         }
+        if (diffFields.length === 0) continue;
+
+        const fieldsStr = diffFields.map(d => d.label).join('；');
+        const remoteStrCombined = diffFields.map(d => String(d.remoteVal)).join('；');
+        const localStrCombined = diffFields.map(d => String(d.localVal)).join('；');
+
+        diffHtml += `<tr>
+            <td>${recordIndex}</td>
+            <td>${escapeHtml(nameValue)}</td>
+            <td>${escapeHtml(matchValue)}</td>
+            <td>${escapeHtml(fieldsStr)}</td>
+            <td>${escapeHtml(remoteStrCombined)}</td>
+            <td>${escapeHtml(localStrCombined)}</td>
+        </tr>`;
+        recordIndex++;
     }
     diffHtml += '</tbody></table></div>';
 
     const countMsg = `云端${systemName}数据${cloudData.length}条，本地${localData.length}条。`;
     return new Promise((resolve) => {
         const overlay = document.createElement('div'); overlay.className = 'modal-overlay'; overlay.style.display = 'flex';
-        overlay.innerHTML = `<div class="modal" style="max-width:900px;"><h3>数据差异提醒 - ${systemName}</h3><p>${countMsg}</p>${diffHtml}<div class="modal-actions"><button class="btn btn-outline" id="diffIgnoreBtn">忽略，保留本地</button><button class="btn btn-primary" id="diffUpdateBtn">更新为云端数据</button></div></div>`;
+        overlay.innerHTML = `<div class="modal" style="max-width:1000px;"><h3>数据差异提醒 - ${systemName}</h3><p>${countMsg}</p>${diffHtml}<div class="modal-actions"><button class="btn btn-outline" id="diffIgnoreBtn">忽略，保留本地</button><button class="btn btn-primary" id="diffUpdateBtn">更新为云端数据</button></div></div>`;
         document.body.appendChild(overlay);
         overlay.querySelector('#diffIgnoreBtn').onclick = () => { document.body.removeChild(overlay); resolve(false); };
         overlay.querySelector('#diffUpdateBtn').onclick = () => { document.body.removeChild(overlay); resolve(true); };
     });
 }
+
+
             async function autoSyncCheck() {
                 if (!isLoggedIn || !currentProjectCode) return;
                 const a_remote = await fetchArchiveCloudData(currentProjectCode);
@@ -1609,7 +1687,6 @@ if (p_remote) {
         return localData;
     }
 
-    // 排序逻辑（与 promptUpdateFromCloud 保持一致）
     const sortKeys = getSortKeysForSystem(systemName);
     if (sortKeys.length > 0) {
         const sortFn = (a, b) => {
@@ -1630,6 +1707,7 @@ if (p_remote) {
         showToast(`本地${systemName}数据${localData.length}条，云端${remoteData.length}条。将自动加载${useRemote ? '云端' : '本地'}数据。`, 'info');
         return useRemote ? remoteData : localData;
     }
+
     const localStr = JSON.stringify(localData);
     const remoteStr = JSON.stringify(remoteData);
     if (localStr === remoteStr) {
@@ -1637,61 +1715,172 @@ if (p_remote) {
         return localData;
     }
 
-    // 条数相同但内容有差异，构建差异对比界面
-    return new Promise((resolve) => {
-        let diffHtml = '<div class="table-wrapper"><table><thead><tr><th>序号</th><th>字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
-        const len = localData.length;
-        for (let i = 0; i < len; i++) {
-            const localItem = localData[i];
-            const remoteItem = remoteData[i];
-            const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
-            for (let key of allKeys) {
-                const localVal = localItem[key] ?? '';
-                const remoteVal = remoteItem[key] ?? '';
-                if (localVal != remoteVal) {
-                    diffHtml += `<tr><td>${i + 1}</td><td>${key}</td><td>${escapeHtml(String(remoteVal))}</td><td>${escapeHtml(String(localVal))}</td></tr>`;
-                }
+    let matchKey = '', nameKey = '';
+    if (systemName === '档案') {
+        matchKey = 'archiveNo';
+        nameKey = 'engName';
+    } else if (systemName === '报名') {
+        matchKey = 'seq';
+        nameKey = 'projectName';
+    } else if (systemName === '人员') {
+        matchKey = 'regno';
+        nameKey = 'name';
+    }
+
+    let labelMap;
+    if (systemName === '档案') labelMap = a_fieldLabelMap;
+    else if (systemName === '报名') labelMap = r_fieldLabelMap;
+    else labelMap = new Map();
+
+    let diffHtml = '<div class="table-wrapper"><tr><thead><tr><th>序号</th><th>姓名/工程名称</th><th>匹配项</th><th>差异字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
+    const len = localData.length;
+    let recordIndex = 1;
+    for (let i = 0; i < len; i++) {
+        const localItem = localData[i];
+        const remoteItem = remoteData[i];
+
+        let nameValue = localItem[nameKey] || remoteItem[nameKey] || '-';
+        let matchValue = '';
+        if (systemName === '档案') matchValue = localItem.archiveNo || remoteItem.archiveNo || '-';
+        else if (systemName === '报名') matchValue = localItem.seq || remoteItem.seq || '-';
+        else if (systemName === '人员') {
+            const reg = localItem.regno || remoteItem.regno || '';
+            const id = localItem.idcard || remoteItem.idcard || '';
+            matchValue = reg ? reg : (id ? id : '-');
+        }
+
+        const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
+        const diffFields = [];
+        for (let key of allKeys) {
+            const localVal = localItem[key] ?? '';
+            const remoteVal = remoteItem[key] ?? '';
+            if (localVal != remoteVal) {
+                const label = labelMap.get(key) || key;
+                diffFields.push({ label, remoteVal, localVal });
             }
         }
-        diffHtml += '</tbody></table></div>';
+        if (diffFields.length === 0) continue;
+
+        const fieldsStr = diffFields.map(d => d.label).join('；');
+        const remoteStrCombined = diffFields.map(d => String(d.remoteVal)).join('；');
+        const localStrCombined = diffFields.map(d => String(d.localVal)).join('；');
+
+        diffHtml += `</tr>
+            <td>${recordIndex}</td>
+            <td>${escapeHtml(nameValue)}</td>
+            <td>${escapeHtml(matchValue)}</td>
+            <td>${escapeHtml(fieldsStr)}</td>
+            <td>${escapeHtml(remoteStrCombined)}</td>
+            <td>${escapeHtml(localStrCombined)}</td>
+        </tr>`;
+        recordIndex++;
+    }
+    diffHtml += '</tbody></table></div>';
+
+    return new Promise((resolve) => {
         const overlay = document.createElement('div'); overlay.className = 'modal-overlay'; overlay.style.display = 'flex';
-        overlay.innerHTML = `<div class="modal" style="max-width:900px;"><h3>数据差异对比 - ${systemName}</h3>${diffHtml}<div class="modal-actions"><button class="btn btn-outline" id="diffChooseLocalBtn">加载本地数据</button><button class="btn btn-primary" id="diffChooseRemoteBtn">加载云端数据</button></div></div>`;
+        overlay.innerHTML = `<div class="modal" style="max-width:1000px;"><h3>数据差异对比 - ${systemName}</h3>${diffHtml}<div class="modal-actions"><button class="btn btn-outline" id="diffChooseLocalBtn">加载本地数据</button><button class="btn btn-primary" id="diffChooseRemoteBtn">加载云端数据</button></div></div>`;
         document.body.appendChild(overlay);
         overlay.querySelector('#diffChooseLocalBtn').addEventListener('click', () => { document.body.removeChild(overlay); showToast(`已选择加载本地${systemName}数据`, 'info'); resolve(localData); });
         overlay.querySelector('#diffChooseRemoteBtn').addEventListener('click', () => { document.body.removeChild(overlay); showToast(`已选择加载云端${systemName}数据`, 'info'); resolve(remoteData); });
     });
 }
 
-            async function initAllSystems() {
-                let a_local = a_loadLocal(); if (!a_local || !a_local.length) { migrateArchive(); a_local = a_loadLocal(); }
-                if (a_local && a_local.length > 0) { const sample = a_local[0]; const hasEmptyField = a_encryptFields.some(f => sample[f] === '' && localStorage.getItem('DANGAN20020308ZDSTSJ')?.includes('U2FsdGVkX1')); if (hasEmptyField) { const oldKey = deriveLocalKey(currentSensitivePwd); try { const raw = localStorage.getItem('DANGAN20020308ZDSTSJ'); if (raw) { const parsed = JSON.parse(raw); const recovered = a_decryptFromStorage(parsed, () => oldKey); if (recovered && recovered.length > 0 && recovered[0].engName) { a_local = recovered; showToast('已迁移至新加密方式', 'info'); } } } catch (e) {} } }
-                if (!a_local) a_local = [];
-                const a_remote = await fetchArchiveCloudData(currentProjectCode);
-                const a_final = await resolveDataConflict(a_local, a_remote, '档案');
-                a_allData = a_final; a_saveLocal(a_allData); a_activeSearchResults = null; a_refreshQueryTable();
+            
 
-              let p_local = p_loadLocal(); 
-if (!p_local || !p_local.length) { migratePersonnel(); p_local = p_loadLocal(); }
-if (!p_local) p_local = [];
+async function initAllSystems() {
+    // ==================== 1. 立即加载本地数据并显示（同步） ====================
+    
+    // ---------- 档案系统 ----------
+    let a_local = a_loadLocal();
+    if (!a_local || !a_local.length) { migrateArchive(); a_local = a_loadLocal(); }
+    if (a_local && a_local.length > 0) {
+        const sample = a_local[0];
+        const hasEmptyField = a_encryptFields.some(f => sample[f] === '' && localStorage.getItem('DANGAN20020308ZDSTSJ')?.includes('U2FsdGVkX1'));
+        if (hasEmptyField) {
+            const oldKey = deriveLocalKey(currentSensitivePwd);
+            try {
+                const raw = localStorage.getItem('DANGAN20020308ZDSTSJ');
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    const recovered = a_decryptFromStorage(parsed, () => oldKey);
+                    if (recovered && recovered.length > 0 && recovered[0].engName) {
+                        a_local = recovered;
+                        showToast('已迁移至新加密方式', 'info');
+                    }
+                }
+            } catch (e) {}
+        }
+    }
+    if (!a_local) a_local = [];
+    a_allData = a_local;
+    a_saveLocal(a_allData);
+    a_activeSearchResults = null;
+    a_refreshQueryTable();
 
-const p_remote = await fetchPersonnelCloudData(currentProjectCode);
-// 使用专用人员冲突解决函数（保留原始自定义字段）
-const p_final = await resolvePersonnelConflict(p_local, p_remote);
-p_allData = p_final; 
-p_saveLocal(p_allData);
-p_activeSearchResults = null; 
-p_refreshQueryTable();  
+    // ---------- 人员系统 ----------
+    let p_local = p_loadLocal();
+    if (!p_local || !p_local.length) { migratePersonnel(); p_local = p_loadLocal(); }
+    if (!p_local) p_local = [];
+    p_allData = p_local;
+    p_saveLocal(p_allData);
+    p_activeSearchResults = null;
+    p_refreshQueryTable();
 
+    // ---------- 报名系统 ----------
+    let r_local = r_loadLocal();
+    if (!r_local || !r_local.length) { migrateRegistration(); r_local = r_loadLocal(); }
+    if (!r_local) r_local = [];
+    r_allData = r_local;
+    r_saveLocal(r_allData);
+    r_activeSearchResults = null;
+    r_refreshQueryTable();
 
-                let r_local = r_loadLocal(); if (!r_local || !r_local.length) { migrateRegistration(); r_local = r_loadLocal(); }
-                if (!r_local) r_local = [];
-                const r_remote = await fetchRegistrationCloudData(currentProjectCode);
-                const r_final = await resolveDataConflict(r_local, r_remote, '报名');
-                r_allData = r_final; r_saveLocal(r_allData); r_activeSearchResults = null; r_refreshQueryTable();
+    updateSyncStatus(false, '本地模式');
+    setTimeout(() => a_checkArchives(), 500);  // 本地数据加载后立即检查档案完整性
 
-                updateSyncStatus(false, '本地模式');
-                setTimeout(() => a_checkArchives(), 500);
+    // ==================== 2. 后台异步获取云端数据并对比（不阻塞界面） ====================
+    (async () => {
+        // 档案系统云端对比
+        const a_remote = await fetchArchiveCloudData(currentProjectCode);
+        if (a_remote) {
+            const a_final = await resolveDataConflict(a_local, a_remote, '档案');
+            if (a_final !== a_local) {   // 用户选择了云端数据
+                a_allData = a_final;
+                a_saveLocal(a_allData);
+                a_activeSearchResults = null;
+                a_refreshQueryTable();
+                showToast('档案数据已更新为云端版本', 'success');
             }
+        }
+
+        // 人员系统云端对比（使用专用冲突函数）
+        const p_remote = await fetchPersonnelCloudData(currentProjectCode);
+        if (p_remote) {
+            const p_final = await resolvePersonnelConflict(p_local, p_remote);
+            if (p_final !== p_local) {
+                p_allData = p_final;
+                p_saveLocal(p_allData);
+                p_activeSearchResults = null;
+                p_refreshQueryTable();
+                showToast('人员数据已更新为云端版本', 'success');
+            }
+        }
+
+        // 报名系统云端对比
+        const r_remote = await fetchRegistrationCloudData(currentProjectCode);
+        if (r_remote) {
+            const r_final = await resolveDataConflict(r_local, r_remote, '报名');
+            if (r_final !== r_local) {
+                r_allData = r_final;
+                r_saveLocal(r_allData);
+                r_activeSearchResults = null;
+                r_refreshQueryTable();
+                showToast('报名数据已更新为云端版本', 'success');
+            }
+        }
+    })();  // 立即执行后台任务，但不等待
+}
 
             // 事件绑定区域
             document.getElementById('mainTabNav').addEventListener('click', function(e) { const btn = e.target.closest('.main-tab-btn'); if (!btn) return; const systemId = btn.getAttribute('data-main')?.replace('panel-', ''); if (systemId) switchMainTab(systemId); });
