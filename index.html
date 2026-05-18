@@ -329,7 +329,7 @@
             let passwordCallback=null, pendingExportCallback=null;
             let activeSystem='archive';
             let r_refreshTimer = null;
-            let autoSyncTimer = null;
+            let autoSyncTimeout = null;
             let activeSubTab = { archive:'archive-query', personnel:'personnel-query', registration:'registration-query' };
             let suppressAlerts = { archive:false, personnel:false, registration:false };
 
@@ -417,7 +417,7 @@ function excelSerialToDate(serial) {
                     suppressAlerts = { archive:false, personnel:false, registration:false };
                     applyAllPermissions();
                     await initAllSystems();
-                    autoSyncTimer = setInterval(autoSyncCheck, 10 * 60 * 1000);
+                    scheduleAutoSync();
                 } catch(e) { err.textContent='登录服务异常'; err.style.display='block'; } finally { document.getElementById('loginBtn').disabled=false; document.getElementById('loginPwd').value=''; }
             }
 
@@ -430,7 +430,7 @@ function excelSerialToDate(serial) {
                 suppressAlerts={ archive:false, personnel:false, registration:false };
                 document.body.classList.remove('no-copy');
                 if (r_refreshTimer) { clearInterval(r_refreshTimer); r_refreshTimer = null; }
-                if (autoSyncTimer) { clearInterval(autoSyncTimer); autoSyncTimer = null; }
+                if (autoSyncTimeout) { clearTimeout(autoSyncTimeout); autoSyncTimeout = null; }
             }
 
             function applyAllPermissions() {
@@ -1812,14 +1812,22 @@ function getSortKeysForSystem(systemName) {
             p_saveLocal(p_allData);
             p_refreshQueryTable();
             showToast('人员数据已同步云端更新', 'success');
-        }
-    }
+        }  
+  }
 
     const r_remote = await fetchRegistrationCloudData(currentProjectCode);
     if (r_remote) { const needUpdate = await promptUpdateFromCloud(r_remote, r_allData, '报名'); if (needUpdate) { r_allData = r_remote; r_saveLocal(r_allData); r_refreshQueryTable(); showToast('报名数据已更新为云端版本', 'success'); } }
+
+scheduleAutoSync();
 }
 
-      
+      function scheduleAutoSync() {
+    if (autoSyncTimeout) clearTimeout(autoSyncTimeout);
+    autoSyncTimeout = setTimeout(async () => {
+        await autoSyncCheck();
+        scheduleAutoSync(); // 本次完成后再次调度
+    }, 10 * 60 * 1000);
+}
 
 
             async function resolveDataConflict(localData, remoteData, systemName) {
