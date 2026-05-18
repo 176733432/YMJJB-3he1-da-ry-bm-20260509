@@ -1324,29 +1324,71 @@ function p_importFromExcel() {
             function r_getSelectedIndices() { return Array.from(document.querySelectorAll('#r_queryTbody .r_row-checkbox-query:checked')).map(cb => parseInt(cb.dataset.index)).filter(i => i >= 0); }
 
             function r_openEditModal(person, index) {
-                const modal = document.getElementById('editModal');
-                const showR2 = (index < 0 && permissions.showSensitive) || (r_remarks2Visible && permissions.showSensitive);
-                let html = `<div class="modal" style="max-width:850px;"><button class="modal-close" onclick="closeEditModal()">×</button><h3 id="editModalTitle">${index>=0?'修改报名信息':'新增报名信息'}</h3><div class="form-row">`;
-                html += `<div class="form-group"><label>所属公司</label><select id="re_company"><option value="">--请选择--</option><option>正大</option><option>世拓</option></select></div>`;
-                html += `<div class="form-group"><label>序号</label><input type="text" id="re_seq"></div>`;
-                html += `<div class="form-group"><label>工程名称 *</label><input type="text" id="re_projectName"></div>`;
-                html += `<div class="form-group"><label>委托人</label><input type="text" id="re_client"></div>`;
-                html += `<div class="form-group"><label>项目经理</label><input type="text" id="re_projectManager"></div>`;
-                html += `<div class="form-group"><label>资料</label><input type="text" id="re_materials"></div>`;
-                html += `<div class="form-group"><label>报名日期</label><input type="date" id="re_registrationDate"></div>`;
-                html += `<div class="form-group"><label>开标方式</label><select id="re_bidOpeningMethod"><option>线上</option><option>线下</option></select></div>`;
-                html += `<div class="form-group"><label>开标地址</label><input type="text" id="re_bidOpeningAddress"></div>`;
-                html += `<div class="form-group"><label>开标日期</label><input type="datetime-local" id="re_bidOpeningDate"></div>`;
-                html += `<div class="form-group"><label>保证金</label><input type="text" id="re_deposit"></div>`;
-                html += `<div class="form-group"><label>最高限价(元)</label><input type="text" id="re_maxPrice"></div>`;
-                html += `<div class="form-group"><label>公告地址</label><input type="text" id="re_announcementUrl"></div>`;
-                html += `<div class="form-group"><label>备注</label><input type="text" id="re_remarks"></div>`;
-                if (showR2) html += `<div class="form-group"><label>备注2</label><input type="text" id="re_remarks2"></div>`;
-                html += `</div><input type="hidden" id="re_index" value="${index}"><div class="modal-actions"><button class="btn btn-outline" onclick="closeEditModal()">取消</button><button class="btn btn-primary" onclick="r_saveFromModal()">保存</button></div></div>`;
-                modal.innerHTML = html; modal.style.display = 'flex';
-                const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-                setVal('re_company', person.company || ''); setVal('re_seq', person.seq || ''); setVal('re_projectName', person.projectName || ''); setVal('re_client', person.client || ''); setVal('re_projectManager', person.projectManager || ''); setVal('re_materials', person.materials || ''); setVal('re_registrationDate', person.registrationDate || ''); setVal('re_bidOpeningMethod', person.bidOpeningMethod || '线上'); setVal('re_bidOpeningAddress', person.bidOpeningAddress || ''); setVal('re_bidOpeningDate', person.bidOpeningDate || ''); setVal('re_deposit', person.deposit || ''); setVal('re_maxPrice', person.maxPrice || ''); setVal('re_announcementUrl', person.announcementUrl || ''); setVal('re_remarks', person.remarks || ''); if (showR2) setVal('re_remarks2', person.remarks2 || '');
+    const modal = document.getElementById('editModal');
+    const showR2 = (index < 0 && permissions.showSensitive) || (r_remarks2Visible && permissions.showSensitive);
+    let html = `<div class="modal" style="max-width:850px;"><button class="modal-close" onclick="closeEditModal()">×</button><h3 id="editModalTitle">${index>=0?'修改报名信息':'新增报名信息'}</h3><div class="form-row">`;
+    html += `<div class="form-group"><label>所属公司</label><select id="re_company"><option value="">--请选择--</option><option>正大</option><option>世拓</option></select></div>`;
+    html += `<div class="form-group"><label>序号</label><input type="text" id="re_seq" readonly style="background:#f5f5f5;"></div>`;
+    html += `<div class="form-group"><label>工程名称 *</label><input type="text" id="re_projectName"></div>`;
+    html += `<div class="form-group"><label>委托人</label><input type="text" id="re_client"></div>`;
+    html += `<div class="form-group"><label>项目经理</label><input type="text" id="re_projectManager"></div>`;
+    html += `<div class="form-group"><label>资料</label><input type="text" id="re_materials"></div>`;
+    html += `<div class="form-group"><label>报名日期</label><input type="date" id="re_registrationDate"></div>`;
+    html += `<div class="form-group"><label>开标方式</label><select id="re_bidOpeningMethod"><option>线上</option><option>线下</option></select></div>`;
+    html += `<div class="form-group"><label>开标地址</label><input type="text" id="re_bidOpeningAddress"></div>`;
+    html += `<div class="form-group"><label>开标日期</label><input type="datetime-local" id="re_bidOpeningDate"></div>`;
+    html += `<div class="form-group"><label>保证金</label><input type="text" id="re_deposit"></div>`;
+    html += `<div class="form-group"><label>最高限价(元)</label><input type="text" id="re_maxPrice"></div>`;
+    html += `<div class="form-group"><label>公告地址</label><input type="text" id="re_announcementUrl"></div>`;
+    html += `<div class="form-group"><label>备注</label><input type="text" id="re_remarks"></div>`;
+    if (showR2) html += `<div class="form-group"><label>备注2</label><input type="text" id="re_remarks2"></div>`;
+    html += `</div><input type="hidden" id="re_index" value="${index}"><div class="modal-actions"><button class="btn btn-outline" onclick="closeEditModal()">取消</button><button class="btn btn-primary" onclick="r_saveFromModal()">保存</button></div></div>`;
+    modal.innerHTML = html;
+    modal.style.display = 'flex';
+
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    setVal('re_company', person.company || '');
+    setVal('re_seq', person.seq || '');
+    setVal('re_projectName', person.projectName || '');
+    setVal('re_client', person.client || '');
+    setVal('re_projectManager', person.projectManager || '');
+    setVal('re_materials', person.materials || '');
+    setVal('re_registrationDate', person.registrationDate || '');
+    setVal('re_bidOpeningMethod', person.bidOpeningMethod || '线上');
+    setVal('re_bidOpeningAddress', person.bidOpeningAddress || '');
+    setVal('re_bidOpeningDate', person.bidOpeningDate || '');
+    setVal('re_deposit', person.deposit || '');
+    setVal('re_maxPrice', person.maxPrice || '');
+    setVal('re_announcementUrl', person.announcementUrl || '');
+    setVal('re_remarks', person.remarks || '');
+    if (showR2) setVal('re_remarks2', person.remarks2 || '');
+
+    // 新增模式：动态生成序号（仅当 index < 0）
+    const isNew = (index < 0);
+    if (isNew) {
+        const companySelect = document.getElementById('re_company');
+        const seqInput = document.getElementById('re_seq');
+        
+        // 定义更新序号的函数
+        const updateSeq = () => {
+            const selectedCompany = companySelect.value;
+            if (selectedCompany) {
+                const newSeq = r_getNextSeq(selectedCompany);
+                seqInput.value = newSeq;
+            } else {
+                seqInput.value = '';
             }
+        };
+        
+        // 监听公司选择变化
+        companySelect.addEventListener('change', updateSeq);
+        
+        // 初始调用一次（如果已有默认公司）
+        if (companySelect.value) {
+            updateSeq();
+        }
+    }
+}
 
             function r_saveFromModal() { const index = parseInt(document.getElementById('re_index').value); const person = { seq: document.getElementById('re_seq').value, projectName: document.getElementById('re_projectName').value, client: document.getElementById('re_client').value, projectManager: document.getElementById('re_projectManager').value, materials: document.getElementById('re_materials').value, registrationDate: document.getElementById('re_registrationDate').value, bidOpeningMethod: document.getElementById('re_bidOpeningMethod').value, bidOpeningAddress: document.getElementById('re_bidOpeningAddress').value, bidOpeningDate: document.getElementById('re_bidOpeningDate').value, deposit: document.getElementById('re_deposit').value, maxPrice: document.getElementById('re_maxPrice').value, announcementUrl: document.getElementById('re_announcementUrl').value, company: document.getElementById('re_company').value, remarks: document.getElementById('re_remarks').value, remarks2: document.getElementById('re_remarks2')?.value || '' }; if (!person.projectName.trim()) { showToast('工程名称不能为空', 'error'); return; } if (index >= 0 && index < r_allData.length) r_allData[index] = person; else r_allData.push(person); r_saveLocal(r_allData); showToast(index >= 0 ? '已更新' : '已添加', 'success'); r_activeSearchResults = null; r_refreshQueryTable(); closeEditModal(); }
             function r_openAddProjectModal() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const nextSeq = r_getNextSeq('正大'); r_openEditModal({ seq: nextSeq, projectName: '', client: '', projectManager: '', materials: '', registrationDate: '', bidOpeningMethod: '线上', bidOpeningAddress: '', bidOpeningDate: '', deposit: '', maxPrice: '', announcementUrl: '', company: '', remarks: '', remarks2: '' }, -1); }
