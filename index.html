@@ -835,39 +835,33 @@ function p_normalizePersonForCompare(person) {
 
 // 生成差异表格HTML（用于人员数据对比弹窗）
 function buildDiffTable(localNorm, remoteNorm) {
-    let html = '<div class="table-wrapper"><table><thead><tr><th>序号</th><th>姓名/工程名称</th><th>匹配项</th><th>差异字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
+    let html = '<div class="table-wrapper"><table><thead><tr><th>序号</th><th>姓名</th><th>匹配项</th><th>差异字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
     const maxLen = Math.max(localNorm.length, remoteNorm.length);
-    let recordIndex = 1;
+    let idx = 1;
     for (let i = 0; i < maxLen; i++) {
         const localItem = localNorm[i] || {};
         const remoteItem = remoteNorm[i] || {};
-        // 姓名
-        let nameValue = localItem.name || remoteItem.name || '-';
-        // 匹配项：优先注册号，其次身份证
-        let matchValue = localItem.regno || remoteItem.regno || localItem.idcard || remoteItem.idcard || '-';
+        const nameValue = localItem.name || remoteItem.name || '-';
+        const matchValue = localItem.regno || remoteItem.regno || localItem.idcard || remoteItem.idcard || '-';
         const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
-        const diffFields = [];
         for (let key of allKeys) {
+            if (key === 'seq') continue;  // 忽略序号
+            if (key === 'categoryOther' || key === 'positionOther' || key === 'majorOther' || key === 'levelOther' || key === 'companyOther') continue;
             const lv = (localItem[key] ?? '').toString();
             const rv = (remoteItem[key] ?? '').toString();
             if (lv !== rv) {
                 const label = p_fieldLabelMap.get(key) || key;
-                diffFields.push({ label, remoteVal: rv, localVal: lv });
+                html += `<tr>
+                    <td>${idx}</td>
+                    <td>${escapeHtml(nameValue)}</td>
+                    <td>${escapeHtml(matchValue)}</td>
+                    <td>${escapeHtml(label)}</td>
+                    <td>${escapeHtml(rv)}</td>
+                    <td>${escapeHtml(lv)}</td>
+                </tr>`;
+                idx++;
             }
         }
-        if (diffFields.length === 0) continue;
-        const fieldsStr = diffFields.map(d => d.label).join('；');
-        const remoteStrCombined = diffFields.map(d => d.remoteVal).join('；');
-        const localStrCombined = diffFields.map(d => d.localVal).join('；');
-        html += `<tr>
-            <td>${recordIndex}</td>
-            <td>${escapeHtml(nameValue)}</td>
-            <td>${escapeHtml(matchValue)}</td>
-            <td>${escapeHtml(fieldsStr)}</td>
-            <td>${escapeHtml(remoteStrCombined)}</td>
-            <td>${escapeHtml(localStrCombined)}</td>
-        </tr>`;
-        recordIndex++;
     }
     html += '</tbody></table></div>';
     return html;
@@ -883,34 +877,103 @@ async function resolvePersonnelConflict(localRaw, remoteRaw) {
         categoryOther: '', positionOther: '', majorOther: '', levelOther: '', companyOther: ''
     }));
 
-    const localStr = JSON.stringify(localNorm);
-    const remoteStr = JSON.stringify(remoteNorm);
+    const localMap = new Map();
+    const remoteMap = new Map();
+    localNorm.forEach((item, idx) => {
+        const key = (item.regno || '') + '|||' + (item.idcard || '');
+        if (key !== '|||') localMap.set(key, { norm: item, raw: localRaw[idx] });
+    });
+    remoteNorm.forEach((item, idx) => {
+        const key = (item.regno || '') + '|||' + (item.idcard || '');
+        if (key !== '|||') remoteMap.set(key, { norm: item, raw: remoteRaw[idx] });
+    });
 
-    if (localStr === remoteStr) return localRaw;
+    // 增量添加
+    let added = [];
+    for (let [key, remoteObj] of remoteMap) {
+        if (!localMap.has(key)) {
+            localRaw.push(remoteObj.raw);
+            added.push(remoteObj.raw);
+            localMap.set(key, { norm: remoteObj.norm, raw: remoteObj.raw });
+        }
+    }
+    if (added.length > 0) {
+        showToast(`人员系统：云端新增 ${added.length} 条记录已自动添加到本地`, 'success');
+    }
 
-    // 构建差异表格
-    const diffHtml = buildDiffTable(localNorm, remoteNorm);
+    // 收集差异（忽略序号字段）
+    let diffRows = [];
+    for (let [key, remoteObj] of remoteMap) {
+        if (localMap.has(key)) {
+            const localObj = localMap.get(key);
+            const localNormItem = localObj.norm;
+            const remoteNormItem = remoteObj.norm;
+            const allKeys = new Set([...Object.keys(localNormItem), ...Object.keys(remoteNormItem)]);
+            for (let field of allKeys) {
+                if (field === 'seq') continue;                    // 忽略序号
+                if (field === 'categoryOther' || field === 'positionOther' || field === 'majorOther' || field === 'levelOther' || field === 'companyOther') continue;
+                const lv = localNormItem[field] ?? '';
+                const rv = remoteNormItem[field] ?? '';
+                if (lv != rv) {
+                    const fieldLabel = p_fieldLabelMap.get(field) || field;
+                    const nameValue = localObj.raw.name || remoteObj.raw.name || '-';
+                    const matchValue = localObj.raw.regno || remoteObj.raw.regno || localObj.raw.idcard || remoteObj.raw.idcard || '-';
+                    diffRows.push({
+                        nameValue, matchValue,
+                        fieldLabel, remoteVal: String(rv), localVal: String(lv)
+                    });
+                }
+            }
+        }
+    }
+
+    if (diffRows.length === 0) {
+        if (added.length > 0) return localRaw;
+        return localRaw;
+    }
+
+    let diffHtml = '<div class="table-wrapper"><table><thead><tr><th>序号</th><th>姓名</th><th>匹配项</th><th>差异字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
+    let idx = 1;
+    for (let row of diffRows) {
+        diffHtml += `<tr>
+            <td>${idx}</td>
+            <td>${escapeHtml(row.nameValue)}</td>
+            <td>${escapeHtml(row.matchValue)}</td>
+            <td>${escapeHtml(row.fieldLabel)}</td>
+            <td>${escapeHtml(row.remoteVal)}</td>
+            <td>${escapeHtml(row.localVal)}</td>
+        </tr>`;
+        idx++;
+    }
+    diffHtml += '</tbody></table></div>';
+
     return new Promise((resolve) => {
         const overlay = document.createElement('div');
         overlay.className = 'modal-overlay';
         overlay.style.display = 'flex';
-        overlay.innerHTML = `
-            <div class="modal" style="max-width:900px;">
-                <h3>人员数据差异对比</h3>
-                ${diffHtml}
-                <div class="modal-actions">
-                    <button class="btn btn-outline" id="diffKeepLocal">保留本地数据</button>
-                    <button class="btn btn-primary" id="diffUseRemote">使用云端数据</button>
-                </div>
-            </div>`;
+        overlay.innerHTML = `<div class="modal" style="max-width:1000px;"><h3>人员数据差异对比</h3>${diffHtml}<div class="modal-actions"><button class="btn btn-outline" id="diffKeepLocal">保留本地数据</button><button class="btn btn-primary" id="diffUseRemote">使用云端数据覆盖差异字段</button></div></div>`;
         document.body.appendChild(overlay);
         overlay.querySelector('#diffKeepLocal').onclick = () => {
             document.body.removeChild(overlay);
             resolve(localRaw);
         };
         overlay.querySelector('#diffUseRemote').onclick = () => {
+            for (let [key, remoteObj] of remoteMap) {
+                if (localMap.has(key)) {
+                    const localRawItem = localMap.get(key).raw;
+                    const remoteRawItem = remoteObj.raw;
+                    const allKeys = new Set([...Object.keys(localRawItem), ...Object.keys(remoteRawItem)]);
+                    for (let field of allKeys) {
+                        if (field === 'seq') continue;
+                        if (localRawItem[field] != remoteRawItem[field]) {
+                            localRawItem[field] = remoteRawItem[field];
+                        }
+                    }
+                }
+            }
             document.body.removeChild(overlay);
-            resolve(remoteRaw);
+            showToast('已将云端差异字段更新到本地人员数据', 'success');
+            resolve(localRaw);
         };
     });
 }
@@ -1597,26 +1660,6 @@ function getSortKeysForSystem(systemName) {
             }
 
             async function promptUpdateFromCloud(cloudData, localData, systemName) {
-    const sortKeys = getSortKeysForSystem(systemName);
-    if (sortKeys.length > 0) {
-        const sortFn = (a, b) => {
-            for (let key of sortKeys) {
-                const valA = (a[key] || '').toString();
-                const valB = (b[key] || '').toString();
-                if (valA < valB) return -1;
-                if (valA > valB) return 1;
-            }
-            return 0;
-        };
-        localData = [...localData].sort(sortFn);
-        cloudData = [...cloudData].sort(sortFn);
-    }
-
-    const localStr = JSON.stringify(localData);
-    const remoteStr = JSON.stringify(cloudData);
-    if (localStr === remoteStr) return false;
-
-    // 获取匹配标识字段和名称字段
     let matchKey = '', nameKey = '';
     if (systemName === '档案') {
         matchKey = 'archiveNo';
@@ -1629,99 +1672,155 @@ function getSortKeysForSystem(systemName) {
         nameKey = 'name';
     }
 
-    let labelMap;
-    if (systemName === '档案') labelMap = a_fieldLabelMap;
-    else if (systemName === '报名') labelMap = r_fieldLabelMap;
-    else labelMap = new Map();
+    const localMap = new Map();
+    const remoteMap = new Map();
+    if (systemName === '人员') {
+        localData.forEach(item => {
+            const key = (item.regno || '') + '|||' + (item.idcard || '');
+            if (key !== '|||') localMap.set(key, item);
+        });
+        cloudData.forEach(item => {
+            const key = (item.regno || '') + '|||' + (item.idcard || '');
+            if (key !== '|||') remoteMap.set(key, item);
+        });
+    } else {
+        localData.forEach(item => {
+            const key = item[matchKey] || '';
+            if (key) localMap.set(key, item);
+        });
+        cloudData.forEach(item => {
+            const key = item[matchKey] || '';
+            if (key) remoteMap.set(key, item);
+        });
+    }
 
-    let diffHtml = '<div class="table-wrapper"><table><thead><tr><th>序号</th><th>姓名/工程名称</th><th>匹配项</th><th>差异字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
-    const maxLen = Math.max(localData.length, cloudData.length);
-    let recordIndex = 1;
-    for (let i = 0; i < maxLen; i++) {
-        const localItem = localData[i] || {};
-        const remoteItem = cloudData[i] || {};
-
-        // 名称显示值
-        let nameValue = localItem[nameKey] || remoteItem[nameKey] || '-';
-        // 匹配项显示值
-        let matchValue = '';
-        if (systemName === '档案') matchValue = localItem.archiveNo || remoteItem.archiveNo || '-';
-        else if (systemName === '报名') matchValue = localItem.seq || remoteItem.seq || '-';
-        else if (systemName === '人员') {
-            const reg = localItem.regno || remoteItem.regno || '';
-            const id = localItem.idcard || remoteItem.idcard || '';
-            matchValue = reg ? reg : (id ? id : '-');
-        }
-
-        const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
-        const diffFields = [];
-        for (let key of allKeys) {
-            const localVal = localItem[key] ?? '';
-            const remoteVal = remoteItem[key] ?? '';
-            if (localVal != remoteVal) {
-                const label = labelMap.get(key) || key;
-                diffFields.push({ label, remoteVal, localVal });
+    // 增量添加
+    let addedCount = 0;
+    for (let [key, remoteItem] of remoteMap) {
+        if (!localMap.has(key)) {
+            localData.push(remoteItem);
+            addedCount++;
+            if (systemName === '人员') {
+                const k = (remoteItem.regno || '') + '|||' + (remoteItem.idcard || '');
+                if (k !== '|||') localMap.set(k, remoteItem);
+            } else {
+                const k = remoteItem[matchKey] || '';
+                if (k) localMap.set(k, remoteItem);
             }
         }
-        if (diffFields.length === 0) continue;
+    }
+    if (addedCount > 0) {
+        showToast(`${systemName}系统：云端新增 ${addedCount} 条记录已自动添加到本地`, 'success');
+    }
 
-        const fieldsStr = diffFields.map(d => d.label).join('；');
-        const remoteStrCombined = diffFields.map(d => String(d.remoteVal)).join('；');
-        const localStrCombined = diffFields.map(d => String(d.localVal)).join('；');
+    // 收集差异行
+    let diffRows = [];
+    for (let [key, remoteItem] of remoteMap) {
+        if (localMap.has(key)) {
+            const localItem = localMap.get(key);
+            const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
+            for (let field of allKeys) {
+                if (systemName === '人员' && field === 'seq') continue;
+                const localVal = localItem[field] ?? '';
+                const remoteVal = remoteItem[field] ?? '';
+                if (localVal != remoteVal) {
+                    let labelMap;
+                    if (systemName === '档案') labelMap = a_fieldLabelMap;
+                    else if (systemName === '报名') labelMap = r_fieldLabelMap;
+                    else labelMap = p_fieldLabelMap;
+                    const fieldLabel = labelMap.get(field) || field;
+                    let nameValue = localItem[nameKey] || remoteItem[nameKey] || '-';
+                    let matchValue = '';
+                    if (systemName === '档案') matchValue = localItem.archiveNo || remoteItem.archiveNo || '-';
+                    else if (systemName === '报名') matchValue = localItem.seq || remoteItem.seq || '-';
+                    else matchValue = localItem.regno || remoteItem.regno || localItem.idcard || remoteItem.idcard || '-';
+                    diffRows.push({
+                        nameValue, matchValue,
+                        fieldLabel, remoteVal: String(remoteVal), localVal: String(localVal)
+                    });
+                }
+            }
+        }
+    }
 
+    if (diffRows.length === 0) {
+        return addedCount > 0;
+    }
+
+    let labelMap2;
+    if (systemName === '档案') labelMap2 = a_fieldLabelMap;
+    else if (systemName === '报名') labelMap2 = r_fieldLabelMap;
+    else labelMap2 = p_fieldLabelMap;
+
+    let diffHtml = '<div class="table-wrapper"></td><thead><tr><th>序号</th><th>姓名/工程名称</th><th>匹配项</th><th>差异字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
+    let idx = 1;
+    for (let row of diffRows) {
         diffHtml += `<tr>
-            <td>${recordIndex}</td>
-            <td>${escapeHtml(nameValue)}</td>
-            <td>${escapeHtml(matchValue)}</td>
-            <td>${escapeHtml(fieldsStr)}</td>
-            <td>${escapeHtml(remoteStrCombined)}</td>
-            <td>${escapeHtml(localStrCombined)}</td>
+            <td>${idx}</td>
+            <td>${escapeHtml(row.nameValue)}</td>
+            <td>${escapeHtml(row.matchValue)}</td>
+            <td>${escapeHtml(row.fieldLabel)}</td>
+            <td>${escapeHtml(row.remoteVal)}</td>
+            <td>${escapeHtml(row.localVal)}</td>
         </tr>`;
-        recordIndex++;
+        idx++;
     }
     diffHtml += '</tbody></table></div>';
 
-    const countMsg = `云端${systemName}数据${cloudData.length}条，本地${localData.length}条。`;
+    const countMsg = `云端${systemName}数据${cloudData.length}条，本地${localData.length}条。${addedCount > 0 ? `已自动添加新增记录 ${addedCount} 条。` : ''}`;
     return new Promise((resolve) => {
-        const overlay = document.createElement('div'); overlay.className = 'modal-overlay'; overlay.style.display = 'flex';
-        overlay.innerHTML = `<div class="modal" style="max-width:1000px;"><h3>数据差异提醒 - ${systemName}</h3><p>${countMsg}</p>${diffHtml}<div class="modal-actions"><button class="btn btn-outline" id="diffIgnoreBtn">忽略，保留本地</button><button class="btn btn-primary" id="diffUpdateBtn">更新为云端数据</button></div></div>`;
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.display = 'flex';
+        overlay.innerHTML = `<div class="modal" style="max-width:1000px;"><h3>数据差异提醒 - ${systemName}</h3><p>${countMsg}</p>${diffHtml}<div class="modal-actions"><button class="btn btn-outline" id="diffIgnoreBtn">忽略，保留本地差异</button><button class="btn btn-primary" id="diffUpdateBtn">更新差异字段为云端值</button></div></div>`;
         document.body.appendChild(overlay);
-        overlay.querySelector('#diffIgnoreBtn').onclick = () => { document.body.removeChild(overlay); resolve(false); };
-        overlay.querySelector('#diffUpdateBtn').onclick = () => { document.body.removeChild(overlay); resolve(true); };
+        overlay.querySelector('#diffIgnoreBtn').onclick = () => {
+            document.body.removeChild(overlay);
+            resolve(addedCount > 0);
+        };
+        overlay.querySelector('#diffUpdateBtn').onclick = () => {
+            for (let [key, remoteItem] of remoteMap) {
+                if (localMap.has(key)) {
+                    const localItem = localMap.get(key);
+                    const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
+                    for (let field of allKeys) {
+                        if (systemName === '人员' && field === 'seq') continue;
+                        if (localItem[field] != remoteItem[field]) {
+                            localItem[field] = remoteItem[field];
+                        }
+                    }
+                }
+            }
+            document.body.removeChild(overlay);
+            showToast(`已将云端差异字段更新到本地${systemName}数据`, 'success');
+            resolve(true);
+        };
     });
 }
 
-
-            async function autoSyncCheck() {
-                if (!isLoggedIn || !currentProjectCode) return;
-                const a_remote = await fetchArchiveCloudData(currentProjectCode);
-                if (a_remote) { const needUpdate = await promptUpdateFromCloud(a_remote, a_allData, '档案'); if (needUpdate) { a_allData = a_remote; a_saveLocal(a_allData); a_refreshQueryTable(); showToast('档案数据已更新为云端版本', 'success'); } }
-                
-      const p_remote = await fetchPersonnelCloudData(currentProjectCode);
-if (p_remote) {
-    // 标准化对比，防止“其他+自定义”误判
-    const p_local_norm = p_allData.map(p_normalizePersonForCompare);
-    const p_remote_norm = p_remote.map(p => ({
-        ...p,
-        categoryOther: '', positionOther: '', majorOther: '', levelOther: '', companyOther: ''
-    }));
-    const localStr = JSON.stringify(p_local_norm);
-    const remoteStr = JSON.stringify(p_remote_norm);
+      async function autoSyncCheck() {
+    if (!isLoggedIn || !currentProjectCode) return;
+    const a_remote = await fetchArchiveCloudData(currentProjectCode);
+    if (a_remote) { const needUpdate = await promptUpdateFromCloud(a_remote, a_allData, '档案'); if (needUpdate) { a_allData = a_remote; a_saveLocal(a_allData); a_refreshQueryTable(); showToast('档案数据已更新为云端版本', 'success'); } }
     
-    if (localStr !== remoteStr) {
-        const useRemote = confirm('人员数据云端与本地有差异，是否更新为云端数据？\n说明：云端数据为标准化显示值，更新后本地自定义字段将被覆盖。');
-        if (useRemote) {
-            p_allData = p_remote;
+    const p_remote = await fetchPersonnelCloudData(currentProjectCode);
+    if (p_remote) {
+        // 使用专用的人员冲突解决函数（已包含增量添加和内容差异对比）
+        const p_final = await resolvePersonnelConflict(p_allData, p_remote);
+        if (p_final !== p_allData) {
+            p_allData = p_final;
             p_saveLocal(p_allData);
             p_refreshQueryTable();
-            showToast('人员数据已更新为云端版本', 'success');
+            showToast('人员数据已同步云端更新', 'success');
         }
     }
+
+    const r_remote = await fetchRegistrationCloudData(currentProjectCode);
+    if (r_remote) { const needUpdate = await promptUpdateFromCloud(r_remote, r_allData, '报名'); if (needUpdate) { r_allData = r_remote; r_saveLocal(r_allData); r_refreshQueryTable(); showToast('报名数据已更新为云端版本', 'success'); } }
 }
 
-                const r_remote = await fetchRegistrationCloudData(currentProjectCode);
-                if (r_remote) { const needUpdate = await promptUpdateFromCloud(r_remote, r_allData, '报名'); if (needUpdate) { r_allData = r_remote; r_saveLocal(r_allData); r_refreshQueryTable(); showToast('报名数据已更新为云端版本', 'success'); } }
-            }
+      
+
 
             async function resolveDataConflict(localData, remoteData, systemName) {
     if (!remoteData) {
@@ -1729,34 +1828,6 @@ if (p_remote) {
         return localData;
     }
 
-    const sortKeys = getSortKeysForSystem(systemName);
-    if (sortKeys.length > 0) {
-        const sortFn = (a, b) => {
-            for (let key of sortKeys) {
-                const valA = (a[key] || '').toString();
-                const valB = (b[key] || '').toString();
-                if (valA < valB) return -1;
-                if (valA > valB) return 1;
-            }
-            return 0;
-        };
-        localData = [...localData].sort(sortFn);
-        remoteData = [...remoteData].sort(sortFn);
-    }
-
-    if (localData.length !== remoteData.length) {
-        const useRemote = remoteData.length > localData.length;
-        showToast(`本地${systemName}数据${localData.length}条，云端${remoteData.length}条。将自动加载${useRemote ? '云端' : '本地'}数据。`, 'info');
-        return useRemote ? remoteData : localData;
-    }
-
-    const localStr = JSON.stringify(localData);
-    const remoteStr = JSON.stringify(remoteData);
-    if (localStr === remoteStr) {
-        showToast(`${systemName}数据完全一致，加载本地数据`, 'info');
-        return localData;
-    }
-
     let matchKey = '', nameKey = '';
     if (systemName === '档案') {
         matchKey = 'archiveNo';
@@ -1769,65 +1840,138 @@ if (p_remote) {
         nameKey = 'name';
     }
 
-    let labelMap;
-    if (systemName === '档案') labelMap = a_fieldLabelMap;
-    else if (systemName === '报名') labelMap = r_fieldLabelMap;
-    else labelMap = new Map();
+    // 构建映射
+    const localMap = new Map();
+    const remoteMap = new Map();
+    if (systemName === '人员') {
+        localData.forEach(item => {
+            const key = (item.regno || '') + '|||' + (item.idcard || '');
+            if (key !== '|||') localMap.set(key, item);
+        });
+        remoteData.forEach(item => {
+            const key = (item.regno || '') + '|||' + (item.idcard || '');
+            if (key !== '|||') remoteMap.set(key, item);
+        });
+    } else {
+        localData.forEach(item => {
+            const key = item[matchKey] || '';
+            if (key) localMap.set(key, item);
+        });
+        remoteData.forEach(item => {
+            const key = item[matchKey] || '';
+            if (key) remoteMap.set(key, item);
+        });
+    }
 
-    let diffHtml = '<div class="table-wrapper"><tr><thead><tr><th>序号</th><th>姓名/工程名称</th><th>匹配项</th><th>差异字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
-    const len = localData.length;
-    let recordIndex = 1;
-    for (let i = 0; i < len; i++) {
-        const localItem = localData[i];
-        const remoteItem = remoteData[i];
-
-        let nameValue = localItem[nameKey] || remoteItem[nameKey] || '-';
-        let matchValue = '';
-        if (systemName === '档案') matchValue = localItem.archiveNo || remoteItem.archiveNo || '-';
-        else if (systemName === '报名') matchValue = localItem.seq || remoteItem.seq || '-';
-        else if (systemName === '人员') {
-            const reg = localItem.regno || remoteItem.regno || '';
-            const id = localItem.idcard || remoteItem.idcard || '';
-            matchValue = reg ? reg : (id ? id : '-');
+    // 第一步：增量添加
+    const toAdd = [];
+    for (let [key, remoteItem] of remoteMap) {
+        if (!localMap.has(key)) {
+            toAdd.push(remoteItem);
         }
+    }
+    if (toAdd.length > 0) {
+        localData.push(...toAdd);
+        showToast(`${systemName}系统：云端新增 ${toAdd.length} 条记录已自动添加到本地`, 'success');
+        // 重新构建映射
+        if (systemName === '人员') {
+            localData.forEach(item => {
+                const k = (item.regno || '') + '|||' + (item.idcard || '');
+                if (k !== '|||') localMap.set(k, item);
+            });
+        } else {
+            localData.forEach(item => {
+                const k = item[matchKey] || '';
+                if (k) localMap.set(k, item);
+            });
+        }
+    }
 
-        const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
-        const diffFields = [];
-        for (let key of allKeys) {
-            const localVal = localItem[key] ?? '';
-            const remoteVal = remoteItem[key] ?? '';
-            if (localVal != remoteVal) {
-                const label = labelMap.get(key) || key;
-                diffFields.push({ label, remoteVal, localVal });
+    // 第二步：收集内容差异（每个字段单独记录）
+    let diffRows = []; // 每个元素为 { nameValue, matchValue, fieldLabel, remoteVal, localVal }
+    for (let [key, remoteItem] of remoteMap) {
+        if (localMap.has(key)) {
+            const localItem = localMap.get(key);
+            const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
+            for (let field of allKeys) {
+                // 人员系统跳过序号字段
+                if (systemName === '人员' && field === 'seq') continue;
+                const localVal = localItem[field] ?? '';
+                const remoteVal = remoteItem[field] ?? '';
+                if (localVal != remoteVal) {
+                    // 获取字段标签
+                    let labelMap;
+                    if (systemName === '档案') labelMap = a_fieldLabelMap;
+                    else if (systemName === '报名') labelMap = r_fieldLabelMap;
+                    else labelMap = p_fieldLabelMap;
+                    const fieldLabel = labelMap.get(field) || field;
+                    // 名称和匹配项
+                    let nameValue = localItem[nameKey] || remoteItem[nameKey] || '-';
+                    let matchValue = '';
+                    if (systemName === '档案') matchValue = localItem.archiveNo || remoteItem.archiveNo || '-';
+                    else if (systemName === '报名') matchValue = localItem.seq || remoteItem.seq || '-';
+                    else matchValue = localItem.regno || remoteItem.regno || localItem.idcard || remoteItem.idcard || '-';
+                    diffRows.push({
+                        nameValue, matchValue,
+                        fieldLabel, remoteVal: String(remoteVal), localVal: String(localVal)
+                    });
+                }
             }
         }
-        if (diffFields.length === 0) continue;
-
-        const fieldsStr = diffFields.map(d => d.label).join('；');
-        const remoteStrCombined = diffFields.map(d => String(d.remoteVal)).join('；');
-        const localStrCombined = diffFields.map(d => String(d.localVal)).join('；');
-
-        diffHtml += `</tr>
-            <td>${recordIndex}</td>
-            <td>${escapeHtml(nameValue)}</td>
-            <td>${escapeHtml(matchValue)}</td>
-            <td>${escapeHtml(fieldsStr)}</td>
-            <td>${escapeHtml(remoteStrCombined)}</td>
-            <td>${escapeHtml(localStrCombined)}</td>
-        </tr>`;
-        recordIndex++;
     }
-    diffHtml += '</tbody></table></div>';
+
+    if (diffRows.length === 0) {
+        showToast(`${systemName}系统：数据已同步，无内容差异`, 'info');
+        return localData;
+    }
+
+    // 构建明细表格
+    let diffHtml = '<div class="table-wrapper"><table><thead><tr><th>序号</th><th>姓名/工程名称</th><th>匹配项</th><th>差异字段</th><th>云端数据</th><th>本地数据</th></tr></thead><tbody>';
+    let idx = 1;
+    for (let row of diffRows) {
+        diffHtml += `<tr>
+            <td>${idx}</td>
+            <td>${escapeHtml(row.nameValue)}</td>
+            <td>${escapeHtml(row.matchValue)}</td>
+            <td>${escapeHtml(row.fieldLabel)}</td>
+            <td>${escapeHtml(row.remoteVal)}</td>
+            <td>${escapeHtml(row.localVal)}</td>
+        </tr>`;
+        idx++;
+    }
+    diffHtml += '</tbody></tr></div>';
 
     return new Promise((resolve) => {
-        const overlay = document.createElement('div'); overlay.className = 'modal-overlay'; overlay.style.display = 'flex';
-        overlay.innerHTML = `<div class="modal" style="max-width:1000px;"><h3>数据差异对比 - ${systemName}</h3>${diffHtml}<div class="modal-actions"><button class="btn btn-outline" id="diffChooseLocalBtn">加载本地数据</button><button class="btn btn-primary" id="diffChooseRemoteBtn">加载云端数据</button></div></div>`;
+        const overlay = document.createElement('div');
+        overlay.className = 'modal-overlay';
+        overlay.style.display = 'flex';
+        overlay.innerHTML = `<div class="modal" style="max-width:1000px;"><h3>数据差异对比 - ${systemName}</h3><p>以下记录存在内容差异，请选择处理方式：</p>${diffHtml}<div class="modal-actions"><button class="btn btn-outline" id="diffKeepLocal">保留本地数据（不更新）</button><button class="btn btn-primary" id="diffUseRemote">使用云端数据覆盖差异字段</button></div></div>`;
         document.body.appendChild(overlay);
-        overlay.querySelector('#diffChooseLocalBtn').addEventListener('click', () => { document.body.removeChild(overlay); showToast(`已选择加载本地${systemName}数据`, 'info'); resolve(localData); });
-        overlay.querySelector('#diffChooseRemoteBtn').addEventListener('click', () => { document.body.removeChild(overlay); showToast(`已选择加载云端${systemName}数据`, 'info'); resolve(remoteData); });
+        overlay.querySelector('#diffKeepLocal').onclick = () => {
+            document.body.removeChild(overlay);
+            showToast(`已保留本地${systemName}数据`, 'info');
+            resolve(localData);
+        };
+        overlay.querySelector('#diffUseRemote').onclick = () => {
+            // 将云端差异字段覆盖到本地（需要回原记录）
+            for (let [key, remoteItem] of remoteMap) {
+                if (localMap.has(key)) {
+                    const localItem = localMap.get(key);
+                    const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
+                    for (let field of allKeys) {
+                        if (systemName === '人员' && field === 'seq') continue;
+                        if (localItem[field] != remoteItem[field]) {
+                            localItem[field] = remoteItem[field];
+                        }
+                    }
+                }
+            }
+            document.body.removeChild(overlay);
+            showToast(`已将云端差异字段更新到本地${systemName}数据`, 'success');
+            resolve(localData);
+        };
     });
 }
-
             
 
 async function initAllSystems() {
