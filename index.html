@@ -604,93 +604,109 @@ function excelSerialToDate(serial) {
 }
 
                         function a_openEditModal(person, index) {
-                const modal = document.getElementById('editModal'); const isNew = index < 0; const showHidden = isNew || a_hiddenVisible;
-                let html = `<div class="modal"><button class="modal-close" onclick="closeEditModal()">×</button><h3>${isNew?'新增档案信息':'修改档案信息'}</h3><div class="form-row">`;
-                html += `<div class="form-group"><label>所属公司</label><select id="ae_company"><option value="">--请选择--</option><option>正大</option><option>世拓</option><option>其他</option></select></div>`;
-                html += `<div class="form-group"><label>档案号</label><input type="text" id="ae_archiveNo"></div>`;
-                html += `<div class="form-group"><label>工程名称 *</label><input type="text" id="ae_engName"></div>`;
-                html += `<div class="form-group"><label>工程类别</label><select id="ae_engCategory"><option>建筑</option><option>装修</option><option>市政</option><option>钢结构</option><option>水利</option><option>机电</option><option>防水防腐</option><option>消防</option><option>维修改造</option><option>环保</option><option>公路</option><option>其他</option></select></div>`;
-                html += `<div class="form-group"><label>使用性质</label><select id="ae_usage"><option>公共</option><option>工业</option><option>商业</option><option>农业</option><option>住宅</option><option>其他</option></select></div>`;
-                html += `<div class="form-group"><label>承包方式</label><select id="ae_contractType"><option>总承包</option><option>专业承包</option><option>劳务</option><option>甲供材</option><option>其他</option></select></div>`;
-                html += `<div class="form-group"><label>甲方单位</label><input type="text" id="ae_partyA"></div>`;
-                html += `<div class="form-group"><label>工程地址</label><input type="text" id="ae_engAddress"></div>`;
-                html += `<div class="form-group"><label>合同价格</label><input type="text" id="ae_contractPrice"></div>`;
-                html += `<div class="form-group"><label>中标日期</label><input type="date" id="ae_bidDate"></div>`;
-                html += `<div class="form-group"><label>开工日期</label><input type="date" id="ae_startDate"></div>`;
-                html += `<div class="form-group"><label>竣工日期</label><input type="date" id="ae_completionDate"></div>`;
-                html += `<div class="form-group"><label>总工期</label><input type="text" id="ae_totalDuration" placeholder="自动计算或手动填写"></div>`;
-                html += `<div class="form-group"><label>项目经理</label><input type="text" id="ae_projectManager"></div>`;
-                html += `<div class="form-group"><label>签署日期</label><input type="date" id="ae_signDate"></div>`;
-                html += `<div class="form-group"><label>签署份数</label><input type="text" id="ae_signCopies"></div>`;
-                html += `<div class="form-group"><label>建筑面积</label><input type="text" id="ae_buildingArea"></div>`;
-                html += `<div class="form-group"><label>结构形式</label><select id="ae_structure"><option>其他</option><option>框剪</option><option>框架</option><option>钢结构</option><option>剪力墙</option><option>砖混</option></select></div>`;
-                html += `<div class="form-group"><label>层数</label><input type="text" id="ae_floors"></div>`;
-                html += `<div class="form-group"><label>招标文件</label><input type="text" id="ae_bidDoc"></div>`;
-                html += `<div class="form-group"><label>投标文件</label><input type="text" id="ae_tenderDoc"></div>`;
-                html += `<div class="form-group"><label>中标通知书</label><input type="text" id="ae_bidNotice"></div>`;
-                
-                // 合同 + 提示复选框（标签与复选框同行，间距2字符，输入框换行）
-html += `<div class="form-group"><div style="display: flex; align-items: center; gap: 2ch; flex-wrap: nowrap;"><label style="white-space: nowrap;">合同</label><label style="white-space: nowrap;"><input type="checkbox" id="ae_contractReminder" checked> 提示</label></div><input type="text" id="ae_contract" style="width:100%; margin-top:4px;"></div>`;
-// 合作协议 + 提示复选框
-if (showHidden) html += `<div class="form-group"><div style="display: flex; align-items: center; gap: 2ch; flex-wrap: nowrap;"><label style="white-space: nowrap;">合作协议</label><label style="white-space: nowrap;"><input type="checkbox" id="ae_cooperationReminder" checked> 提示</label></div><input type="text" id="ae_cooperation" style="width:100%; margin-top:4px;"></div>`;
-// 竣工文件 + 提示复选框
-html += `<div class="form-group"><div style="display: flex; align-items: center; gap: 2ch; flex-wrap: nowrap;"><label style="white-space: nowrap;">竣工文件</label><label style="white-space: nowrap;"><input type="checkbox" id="ae_completionDocReminder" checked> 提示</label></div><input type="text" id="ae_completionDoc" style="width:100%; margin-top:4px;"></div>`;
+    const modal = document.getElementById('editModal'); const isNew = index < 0; const showHidden = isNew || a_hiddenVisible;
+    let html = `<div class="modal"><button class="modal-close" onclick="closeEditModal()">×</button><h3>${isNew?'新增档案信息':'修改档案信息'}</h3><div class="form-row">`;
+    html += `<div class="form-group"><label>所属公司</label><select id="ae_company"><option value="">--请选择--</option><option>正大</option><option>世拓</option><option>其他</option></select></div>`;
+    html += `<div class="form-group"><label>档案号</label><input type="text" id="ae_archiveNo"></div>`;
+    html += `<div class="form-group"><label>工程名称 *</label><input type="text" id="ae_engName"></div>`;
+    html += `<div class="form-group"><label>工程类别</label><select id="ae_engCategory"><option>建筑</option><option>装修</option><option>市政</option><option>钢结构</option><option>水利</option><option>机电</option><option>防水防腐</option><option>消防</option><option>维修改造</option><option>环保</option><option>公路</option><option>其他</option></select></div>`;
+    html += `<div class="form-group"><label>使用性质</label><select id="ae_usage"><option>公共</option><option>工业</option><option>商业</option><option>农业</option><option>住宅</option><option>其他</option></select></div>`;
+    html += `<div class="form-group"><label>承包方式</label><select id="ae_contractType"><option>总承包</option><option>专业承包</option><option>劳务</option><option>甲供材</option><option>其他</option></select></div>`;
+    html += `<div class="form-group"><label>甲方单位</label><input type="text" id="ae_partyA"></div>`;
+    html += `<div class="form-group"><label>工程地址</label><input type="text" id="ae_engAddress"></div>`;
+    html += `<div class="form-group"><label>合同价格</label><input type="text" id="ae_contractPrice"></div>`;
+    html += `<div class="form-group"><label>中标日期</label><input type="date" id="ae_bidDate"></div>`;
+    html += `<div class="form-group"><label>开工日期</label><input type="date" id="ae_startDate"></div>`;
+    html += `<div class="form-group"><label>竣工日期</label><input type="date" id="ae_completionDate"></div>`;
+    html += `<div class="form-group"><label>总工期</label><input type="text" id="ae_totalDuration" placeholder="自动计算或手动填写"></div>`;
+    html += `<div class="form-group"><label>项目经理</label><input type="text" id="ae_projectManager"></div>`;
+    html += `<div class="form-group"><label>签署日期</label><input type="date" id="ae_signDate"></div>`;
+    html += `<div class="form-group"><label>签署份数</label><input type="text" id="ae_signCopies"></div>`;
+    html += `<div class="form-group"><label>建筑面积</label><input type="text" id="ae_buildingArea"></div>`;
+    html += `<div class="form-group"><label>结构形式</label><select id="ae_structure"><option>其他</option><option>框剪</option><option>框架</option><option>钢结构</option><option>剪力墙</option><option>砖混</option></select></div>`;
+    html += `<div class="form-group"><label>层数</label><input type="text" id="ae_floors"></div>`;
+    html += `<div class="form-group"><label>招标文件</label><input type="text" id="ae_bidDoc"></div>`;
+    html += `<div class="form-group"><label>投标文件</label><input type="text" id="ae_tenderDoc"></div>`;
+    html += `<div class="form-group"><label>中标通知书</label><input type="text" id="ae_bidNotice"></div>`;
+    
+    // 合同 + 提示复选框（标签与复选框同行，间距2字符，输入框换行）
+    html += `<div class="form-group"><div style="display: flex; align-items: center; gap: 2ch; flex-wrap: nowrap;"><label style="white-space: nowrap;">合同</label><label style="white-space: nowrap;"><input type="checkbox" id="ae_contractReminder" checked> 提示</label></div><input type="text" id="ae_contract" style="width:100%; margin-top:4px;"></div>`;
+    // 合作协议 + 提示复选框
+    if (showHidden) html += `<div class="form-group"><div style="display: flex; align-items: center; gap: 2ch; flex-wrap: nowrap;"><label style="white-space: nowrap;">合作协议</label><label style="white-space: nowrap;"><input type="checkbox" id="ae_cooperationReminder" checked> 提示</label></div><input type="text" id="ae_cooperation" style="width:100%; margin-top:4px;"></div>`;
+    // 竣工文件 + 提示复选框
+    html += `<div class="form-group"><div style="display: flex; align-items: center; gap: 2ch; flex-wrap: nowrap;"><label style="white-space: nowrap;">竣工文件</label><label style="white-space: nowrap;"><input type="checkbox" id="ae_completionDocReminder" checked> 提示</label></div><input type="text" id="ae_completionDoc" style="width:100%; margin-top:4px;"></div>`;
 
-
-                html += `<div class="form-group"><label>结算文件</label><input type="text" id="ae_settlementDoc"></div>`;
-                html += `<div class="form-group"><label>法律文书</label><input type="text" id="ae_legalDoc"></div>`;
-                html += `<div class="form-group"><label>施工许可证</label><input type="text" id="ae_constructionPermit"></div>`;
-                html += `<div class="form-group"><label>立项文件</label><input type="text" id="ae_approvalDoc"></div>`;
-                html += `<div class="form-group"><label>规划许可证</label><input type="text" id="ae_planningPermit"></div>`;
-                html += `<div class="form-group"><label>审图合格文件</label><input type="text" id="ae_reviewDoc"></div>`;
-                if (showHidden) { html += `<div class="form-group"><label>合作人</label><input type="text" id="ae_partner"></div>`; html += `<div class="form-group"><label>联系电话</label><input type="text" id="ae_phone"></div>`; }
-                html += `<div class="form-group"><label>备注说明</label><input type="text" id="ae_remark"></div>`;
-                html += `</div><input type="hidden" id="ae_index" value="${index}"><div class="modal-actions"><button class="btn btn-outline" onclick="closeEditModal()">取消</button><button class="btn btn-primary" onclick="a_saveFromModal()">保存</button></div></div>`;
-                modal.innerHTML = html; modal.style.display = 'flex';
-                if (!isNew) {
-                    document.getElementById('ae_company').value = person.company || '';
-                    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-                    setVal('ae_archiveNo', person.archiveNo); setVal('ae_engName', person.engName); setVal('ae_partyA', person.partyA); setVal('ae_engAddress', person.engAddress); setVal('ae_contractPrice', person.contractPrice); setVal('ae_bidDate', person.bidDate); setVal('ae_startDate', person.startDate); setVal('ae_completionDate', person.completionDate); setVal('ae_totalDuration', person.totalDuration); setVal('ae_projectManager', person.projectManager); setVal('ae_signDate', person.signDate); setVal('ae_signCopies', person.signCopies); setVal('ae_buildingArea', person.buildingArea); setVal('ae_floors', person.floors); setVal('ae_bidDoc', person.bidDoc); setVal('ae_tenderDoc', person.tenderDoc); setVal('ae_bidNotice', person.bidNotice); setVal('ae_contract', person.contract); if (showHidden) setVal('ae_cooperation', person.cooperation); setVal('ae_completionDoc', person.completionDoc); setVal('ae_settlementDoc', person.settlementDoc); setVal('ae_legalDoc', person.legalDoc); setVal('ae_constructionPermit', person.constructionPermit); setVal('ae_approvalDoc', person.approvalDoc); setVal('ae_planningPermit', person.planningPermit); setVal('ae_reviewDoc', person.reviewDoc); if (showHidden) { setVal('ae_partner', person.partner); setVal('ae_phone', person.phone); } setVal('ae_remark', person.remark);
-                    const selVal = (id, val) => { const el = document.getElementById(id); if (el && val) { el.value = val; } };
-                    selVal('ae_engCategory', person.engCategory); selVal('ae_usage', person.usage); selVal('ae_contractType', person.contractType); selVal('ae_structure', person.structure);
-                }
-                // 读取提醒复选框状态（兼容旧数据默认为true）
-                const getReminder = (key, def = true) => (person[key] !== undefined) ? person[key] : def;
-                const contractReminderCb = document.getElementById('ae_contractReminder');
-                const cooperationReminderCb = document.getElementById('ae_cooperationReminder');
-                const completionDocReminderCb = document.getElementById('ae_completionDocReminder');
-                if (contractReminderCb) contractReminderCb.checked = getReminder('contractReminder');
-                if (cooperationReminderCb) cooperationReminderCb.checked = getReminder('cooperationReminder');
-                if (completionDocReminderCb) completionDocReminderCb.checked = getReminder('completionDocReminder');
-                
-                // 总工期自动计算：如果用户手动修改则不再自动覆盖
-                const startInput = document.getElementById('ae_startDate');
-                const endInput = document.getElementById('ae_completionDate');
-                const durationInput = document.getElementById('ae_totalDuration');
-                let durationManuallyEdited = false;
-                if (durationInput) {
-                    durationInput.addEventListener('input', function() { durationManuallyEdited = true; });
-                }
-                function autoCalcDuration() {
-                    if (durationManuallyEdited) return;
-                    const start = startInput ? startInput.value : '';
-                    const end = endInput ? endInput.value : '';
-                    if (start && end) {
-                        const startDate = new Date(start);
-                        const endDate = new Date(end);
-                        if (!isNaN(startDate) && !isNaN(endDate) && endDate >= startDate) {
-                            const diffDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
-                            if (durationInput) durationInput.value = diffDays;
-                        } else {
-                            if (durationInput && durationInput.value === '') durationInput.value = '';
-                        }
-                    } else {
-                        if (durationInput && durationInput.value === '') durationInput.value = '';
-                    }
-                }
-                if (startInput) startInput.addEventListener('change', autoCalcDuration);
-                if (endInput) endInput.addEventListener('change', autoCalcDuration);
+    html += `<div class="form-group"><label>结算文件</label><input type="text" id="ae_settlementDoc"></div>`;
+    html += `<div class="form-group"><label>法律文书</label><input type="text" id="ae_legalDoc"></div>`;
+    html += `<div class="form-group"><label>施工许可证</label><input type="text" id="ae_constructionPermit"></div>`;
+    html += `<div class="form-group"><label>立项文件</label><input type="text" id="ae_approvalDoc"></div>`;
+    html += `<div class="form-group"><label>规划许可证</label><input type="text" id="ae_planningPermit"></div>`;
+    html += `<div class="form-group"><label>审图合格文件</label><input type="text" id="ae_reviewDoc"></div>`;
+    if (showHidden) { html += `<div class="form-group"><label>合作人</label><input type="text" id="ae_partner"></div>`; html += `<div class="form-group"><label>联系电话</label><input type="text" id="ae_phone"></div>`; }
+    html += `<div class="form-group"><label>备注说明</label><input type="text" id="ae_remark"></div>`;
+    html += `</div><input type="hidden" id="ae_index" value="${index}"><div class="modal-actions"><button class="btn btn-outline" onclick="closeEditModal()">取消</button><button class="btn btn-primary" onclick="a_saveFromModal()">保存</button></div></div>`;
+    modal.innerHTML = html; modal.style.display = 'flex';
+    if (!isNew) {
+        document.getElementById('ae_company').value = person.company || '';
+        const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+        setVal('ae_archiveNo', person.archiveNo); setVal('ae_engName', person.engName); setVal('ae_partyA', person.partyA); setVal('ae_engAddress', person.engAddress); setVal('ae_contractPrice', person.contractPrice); setVal('ae_bidDate', person.bidDate); setVal('ae_startDate', person.startDate); setVal('ae_completionDate', person.completionDate); setVal('ae_totalDuration', person.totalDuration); setVal('ae_projectManager', person.projectManager); setVal('ae_signDate', person.signDate); setVal('ae_signCopies', person.signCopies); setVal('ae_buildingArea', person.buildingArea); setVal('ae_floors', person.floors); setVal('ae_bidDoc', person.bidDoc); setVal('ae_tenderDoc', person.tenderDoc); setVal('ae_bidNotice', person.bidNotice); setVal('ae_contract', person.contract); if (showHidden) setVal('ae_cooperation', person.cooperation); setVal('ae_completionDoc', person.completionDoc); setVal('ae_settlementDoc', person.settlementDoc); setVal('ae_legalDoc', person.legalDoc); setVal('ae_constructionPermit', person.constructionPermit); setVal('ae_approvalDoc', person.approvalDoc); setVal('ae_planningPermit', person.planningPermit); setVal('ae_reviewDoc', person.reviewDoc); if (showHidden) { setVal('ae_partner', person.partner); setVal('ae_phone', person.phone); } setVal('ae_remark', person.remark);
+        const selVal = (id, val) => { const el = document.getElementById(id); if (el && val) { el.value = val; } };
+        selVal('ae_engCategory', person.engCategory); selVal('ae_usage', person.usage); selVal('ae_contractType', person.contractType); selVal('ae_structure', person.structure);
+    }
+    // 读取提醒复选框状态（兼容旧数据默认为true）
+    const getReminder = (key, def = true) => (person[key] !== undefined) ? person[key] : def;
+    const contractReminderCb = document.getElementById('ae_contractReminder');
+    const cooperationReminderCb = document.getElementById('ae_cooperationReminder');
+    const completionDocReminderCb = document.getElementById('ae_completionDocReminder');
+    if (contractReminderCb) contractReminderCb.checked = getReminder('contractReminder');
+    if (cooperationReminderCb) cooperationReminderCb.checked = getReminder('cooperationReminder');
+    if (completionDocReminderCb) completionDocReminderCb.checked = getReminder('completionDocReminder');
+    
+    // 总工期自动计算：如果用户手动修改则不再自动覆盖
+    const startInput = document.getElementById('ae_startDate');
+    const endInput = document.getElementById('ae_completionDate');
+    const durationInput = document.getElementById('ae_totalDuration');
+    let durationManuallyEdited = false;
+    if (durationInput) {
+        durationInput.addEventListener('input', function() { durationManuallyEdited = true; });
+    }
+    function autoCalcDuration() {
+        if (durationManuallyEdited) return;
+        const start = startInput ? startInput.value : '';
+        const end = endInput ? endInput.value : '';
+        if (start && end) {
+            const startDate = new Date(start);
+            const endDate = new Date(end);
+            if (!isNaN(startDate) && !isNaN(endDate) && endDate >= startDate) {
+                const diffDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+                if (durationInput) durationInput.value = diffDays;
+            } else {
+                if (durationInput && durationInput.value === '') durationInput.value = '';
             }
+        } else {
+            if (durationInput && durationInput.value === '') durationInput.value = '';
+        }
+    }
+    if (startInput) startInput.addEventListener('change', autoCalcDuration);
+    if (endInput) endInput.addEventListener('change', autoCalcDuration);
+
+    // ***** 自动填充：合作人 → 联系电话（仅新增模式）*****
+    if (isNew && showHidden) { // 合作人和联系电话仅在 showHidden 时可见（即新增模式或已开启敏感信息）
+        const partnerInput = document.getElementById('ae_partner');
+        const phoneInput = document.getElementById('ae_phone');
+        if (partnerInput && phoneInput) {
+            partnerInput.addEventListener('blur', function() {
+                const partnerValue = partnerInput.value.trim();
+                if (!partnerValue) return;
+                const match = a_allData.find(item => item.partner === partnerValue);
+                if (match && match.phone && phoneInput.value === '') {
+                    phoneInput.value = match.phone;
+                    showToast(`已自动填入联系电话：${match.phone}`, 'info');
+                }
+            });
+        }
+    }
+}
 
             
                         function a_saveFromModal() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const index = parseInt(document.getElementById('ae_index').value); const showHidden = index < 0 || a_hiddenVisible; const getVal = (id) => document.getElementById(id)?.value || ''; const data = {}; a_allFields.forEach(f => { const elId = 'ae_' + f.key; const el = document.getElementById(elId); if (el) data[f.key] = el.value || ''; else if (f.key === 'cooperation') data[f.key] = showHidden ? (getVal('ae_cooperation') || '') : (a_allData[index]?.cooperation || ''); else if (f.key === 'partner') data[f.key] = showHidden ? (getVal('ae_partner') || '') : (a_allData[index]?.partner || ''); else if (f.key === 'phone') data[f.key] = showHidden ? (getVal('ae_phone') || '') : (a_allData[index]?.phone || ''); else data[f.key] = data[f.key] || ''; }); if (!data.engName.trim()) { showToast('工程名称不能为空', 'error'); return; }
@@ -1069,40 +1085,92 @@ async function resolvePersonnelConflict(localRaw, remoteRaw) {
             function p_setCustomInputVal(selectId, customInputId, value, customVal) { const select = document.getElementById(selectId), input = document.getElementById(customInputId); if (!select || !input) return; if (value === '其他' && customVal) { select.value = '其他'; input.disabled = false; input.value = customVal; } else { if (select.querySelector(`option[value="${value}"]`)) select.value = value; else { select.value = '其他'; input.disabled = false; input.value = value; } if (select.value !== '其他') { input.disabled = true; input.value = ''; } } }
             function p_getCustomInputVal(selectId, customInputId) { const select = document.getElementById(selectId), input = document.getElementById(customInputId); if (select && input && select.value === '其他') return input.value.trim(); return ''; }
 
-            function p_openEditModal(person, index) {
-                const modal = document.getElementById('editModal'); modal.innerHTML = '';
-                let html = `<div class="modal" style="max-width:800px;"><button class="modal-close" onclick="closeEditModal()">×</button><h3 id="editModalTitle">${index>=0?'修改人员信息':'新增人员信息'}</h3><div class="form-row">`;
-                html += `<div class="form-group"><label>序号</label><input type="text" id="pe_seq"></div>`;
-                html += `<div class="form-group"><label>姓名 *</label><input type="text" id="pe_name"></div>`;
-                html += `<div class="form-group"><label>身份证</label><input type="text" id="pe_idcard"></div>`;
-                html += `<div class="form-group"><label>类别</label><select id="pe_category"><option>注册人员</option><option>职称人员</option><option>八大员</option><option>技术工人</option><option>特殊工种</option><option>其他</option></select><input type="text" id="pe_category_custom" class="custom-input" disabled placeholder="自定义类别"></div>`;
-                html += `<div class="form-group"><label>岗位</label><select id="pe_position"><option>建造师</option><option>工程师</option><option>安全员</option><option>质量员</option><option>施工员</option><option>资料员</option><option>劳务员</option><option>机械员</option><option>材料员</option><option>标准员</option><option>试验员</option><option>测量员</option><option>钢筋工</option><option>模板工</option><option>其他</option></select><input type="text" id="pe_position_custom" class="custom-input" disabled placeholder="自定义岗位"></div>`;
-                html += `<div class="form-group"><label>注册号</label><input type="text" id="pe_regno"></div>`;
-                html += `<div class="form-group"><label>注册专业</label><select id="pe_major"><option>建筑</option><option>市政</option><option>机电</option><option>水利</option><option>公路</option><option>其他</option></select><input type="text" id="pe_major_custom" class="custom-input" disabled placeholder="自定义专业"></div>`;
-                html += `<div class="form-group"><label>有效期</label><input type="date" id="pe_validity"></div>`;
-                html += `<div class="form-group"><label>级别</label><select id="pe_level"><option>一级</option><option>二级</option><option>A类</option><option>B类</option><option>C类</option><option>初级</option><option>中级</option><option>高级</option><option>其他</option></select><input type="text" id="pe_level_custom" class="custom-input" disabled placeholder="自定义级别"></div>`;
-                html += `<div class="form-group"><label>发证单位</label><input type="text" id="pe_issuer"></div>`;
-                html += `<div class="form-group"><label>联系电话</label><input type="text" id="pe_phone"></div>`;
-                html += `<div class="form-group"><label>冀时办账号</label><input type="text" id="pe_jishibanAccount"></div>`;
-                html += `<div class="form-group"><label>冀时办密码</label><input type="text" id="pe_jishibanPassword"></div>`;
-                html += `<div class="form-group"><label>社保</label><select id="pe_socialSecurity"><option>有</option><option>无</option></select></div>`;
-                html += `<div class="form-group"><label>所属公司</label><select id="pe_company"><option value="">--请选择--</option><option>正大</option><option>世拓</option><option>其他</option></select><input type="text" id="pe_company_custom" class="custom-input" disabled placeholder="自定义公司"></div>`;
-                html += `<div class="form-group"><label>备注</label><input type="text" id="pe_remarks"></div>`;
-                html += `</div><input type="hidden" id="pe_index" value="${index}"><div class="modal-actions"><button class="btn btn-outline" onclick="closeEditModal()">取消</button><button class="btn btn-primary" onclick="p_saveFromModal()">保存</button></div></div>`;
-                modal.innerHTML = html; modal.style.display = 'flex';
-                const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
-                setVal('pe_seq', person.seq || ''); setVal('pe_name', person.name || ''); setVal('pe_idcard', person.idcard || '');
-                p_setCustomInputVal('pe_category', 'pe_category_custom', person.category, person.categoryOther);
-                p_setCustomInputVal('pe_position', 'pe_position_custom', person.position, person.positionOther);
-                p_setCustomInputVal('pe_major', 'pe_major_custom', person.major, person.majorOther);
-                p_setCustomInputVal('pe_level', 'pe_level_custom', person.level, person.levelOther);
-                p_setCustomInputVal('pe_company', 'pe_company_custom', person.company, person.companyOther);
-                setVal('pe_regno', person.regno); setVal('pe_validity', person.validity); setVal('pe_issuer', person.issuer);
-                setVal('pe_phone', person.phone); setVal('pe_jishibanAccount', person.jishibanAccount); setVal('pe_jishibanPassword', person.jishibanPassword);
-                setVal('pe_socialSecurity', person.socialSecurity || '有'); setVal('pe_remarks', person.remarks);
-                const addSelectHandler = (selectId, customInputId) => { const select = document.getElementById(selectId); const input = document.getElementById(customInputId); if (!select || !input) return; select.addEventListener('change', () => { if (select.value === '其他') { input.disabled = false; } else { input.disabled = true; input.value = ''; } }); };
-                addSelectHandler('pe_category', 'pe_category_custom'); addSelectHandler('pe_position', 'pe_position_custom'); addSelectHandler('pe_major', 'pe_major_custom'); addSelectHandler('pe_level', 'pe_level_custom'); addSelectHandler('pe_company', 'pe_company_custom');
-            }
+           function p_openEditModal(person, index) {
+    const modal = document.getElementById('editModal'); modal.innerHTML = '';
+    let html = `<div class="modal" style="max-width:800px;"><button class="modal-close" onclick="closeEditModal()">×</button><h3 id="editModalTitle">${index>=0?'修改人员信息':'新增人员信息'}</h3><div class="form-row">`;
+    html += `<div class="form-group"><label>序号</label><input type="text" id="pe_seq"></div>`;
+    html += `<div class="form-group"><label>姓名 *</label><input type="text" id="pe_name"></div>`;
+    html += `<div class="form-group"><label>身份证</label><input type="text" id="pe_idcard"></div>`;
+    html += `<div class="form-group"><label>类别</label><select id="pe_category"><option>注册人员</option><option>职称人员</option><option>八大员</option><option>技术工人</option><option>特殊工种</option><option>其他</option></select><input type="text" id="pe_category_custom" class="custom-input" disabled placeholder="自定义类别"></div>`;
+    html += `<div class="form-group"><label>岗位</label><select id="pe_position"><option>建造师</option><option>工程师</option><option>安全员</option><option>质量员</option><option>施工员</option><option>资料员</option><option>劳务员</option><option>机械员</option><option>材料员</option><option>标准员</option><option>试验员</option><option>测量员</option><option>钢筋工</option><option>模板工</option><option>其他</option></select><input type="text" id="pe_position_custom" class="custom-input" disabled placeholder="自定义岗位"></div>`;
+    html += `<div class="form-group"><label>注册号</label><input type="text" id="pe_regno"></div>`;
+    html += `<div class="form-group"><label>注册专业</label><select id="pe_major"><option>建筑</option><option>市政</option><option>机电</option><option>水利</option><option>公路</option><option>其他</option></select><input type="text" id="pe_major_custom" class="custom-input" disabled placeholder="自定义专业"></div>`;
+    html += `<div class="form-group"><label>有效期</label><input type="date" id="pe_validity"></div>`;
+    html += `<div class="form-group"><label>级别</label><select id="pe_level"><option>一级</option><option>二级</option><option>A类</option><option>B类</option><option>C类</option><option>初级</option><option>中级</option><option>高级</option><option>其他</option></select><input type="text" id="pe_level_custom" class="custom-input" disabled placeholder="自定义级别"></div>`;
+    html += `<div class="form-group"><label>发证单位</label><input type="text" id="pe_issuer"></div>`;
+    html += `<div class="form-group"><label>联系电话</label><input type="text" id="pe_phone"></div>`;
+    html += `<div class="form-group"><label>冀时办账号</label><input type="text" id="pe_jishibanAccount"></div>`;
+    html += `<div class="form-group"><label>冀时办密码</label><input type="text" id="pe_jishibanPassword"></div>`;
+    html += `<div class="form-group"><label>社保</label><select id="pe_socialSecurity"><option>有</option><option>无</option></select></div>`;
+    html += `<div class="form-group"><label>所属公司</label><select id="pe_company"><option value="">--请选择--</option><option>正大</option><option>世拓</option><option>其他</option></select><input type="text" id="pe_company_custom" class="custom-input" disabled placeholder="自定义公司"></div>`;
+    html += `<div class="form-group"><label>备注</label><input type="text" id="pe_remarks"></div>`;
+    html += `</div><input type="hidden" id="pe_index" value="${index}"><div class="modal-actions"><button class="btn btn-outline" onclick="closeEditModal()">取消</button><button class="btn btn-primary" onclick="p_saveFromModal()">保存</button></div></div>`;
+    modal.innerHTML = html; modal.style.display = 'flex';
+    const setVal = (id, val) => { const el = document.getElementById(id); if (el) el.value = val || ''; };
+    setVal('pe_seq', person.seq || ''); setVal('pe_name', person.name || ''); setVal('pe_idcard', person.idcard || '');
+    p_setCustomInputVal('pe_category', 'pe_category_custom', person.category, person.categoryOther);
+    p_setCustomInputVal('pe_position', 'pe_position_custom', person.position, person.positionOther);
+    p_setCustomInputVal('pe_major', 'pe_major_custom', person.major, person.majorOther);
+    p_setCustomInputVal('pe_level', 'pe_level_custom', person.level, person.levelOther);
+    p_setCustomInputVal('pe_company', 'pe_company_custom', person.company, person.companyOther);
+    setVal('pe_regno', person.regno); setVal('pe_validity', person.validity); setVal('pe_issuer', person.issuer);
+    setVal('pe_phone', person.phone); setVal('pe_jishibanAccount', person.jishibanAccount); setVal('pe_jishibanPassword', person.jishibanPassword);
+    setVal('pe_socialSecurity', person.socialSecurity || '有'); setVal('pe_remarks', person.remarks);
+    const addSelectHandler = (selectId, customInputId) => { const select = document.getElementById(selectId); const input = document.getElementById(customInputId); if (!select || !input) return; select.addEventListener('change', () => { if (select.value === '其他') { input.disabled = false; } else { input.disabled = true; input.value = ''; } }); };
+    addSelectHandler('pe_category', 'pe_category_custom'); addSelectHandler('pe_position', 'pe_position_custom'); addSelectHandler('pe_major', 'pe_major_custom'); addSelectHandler('pe_level', 'pe_level_custom'); addSelectHandler('pe_company', 'pe_company_custom');
+
+    // ***** 自动填充：姓名 → 身份证、联系电话、所属公司、冀时办账号、冀时办密码（仅新增模式）*****
+    const isNew = (index < 0);
+    if (isNew) {
+        const nameInput = document.getElementById('pe_name');
+        if (nameInput) {
+            nameInput.addEventListener('blur', function() {
+                const nameValue = nameInput.value.trim();
+                if (!nameValue) return;
+                const match = p_allData.find(item => item.name === nameValue);
+                if (match) {
+                    // 身份证
+                    const idcardInput = document.getElementById('pe_idcard');
+                    if (idcardInput && idcardInput.value === '' && match.idcard) {
+                        idcardInput.value = match.idcard;
+                    }
+                    // 联系电话
+                    const phoneInput = document.getElementById('pe_phone');
+                    if (phoneInput && phoneInput.value === '' && match.phone) {
+                        phoneInput.value = match.phone;
+                    }
+                    // 冀时办账号
+                    const jishibanAccountInput = document.getElementById('pe_jishibanAccount');
+                    if (jishibanAccountInput && jishibanAccountInput.value === '' && match.jishibanAccount) {
+                        jishibanAccountInput.value = match.jishibanAccount;
+                    }
+                    // 冀时办密码
+                    const jishibanPasswordInput = document.getElementById('pe_jishibanPassword');
+                    if (jishibanPasswordInput && jishibanPasswordInput.value === '' && match.jishibanPassword) {
+                        jishibanPasswordInput.value = match.jishibanPassword;
+                    }
+                    // 所属公司（处理下拉框和自定义）
+                    const companySelect = document.getElementById('pe_company');
+                    const companyCustom = document.getElementById('pe_company_custom');
+                    if (companySelect && match.company) {
+                        const standardOptions = ['正大', '世拓'];
+                        if (standardOptions.includes(match.company)) {
+                            companySelect.value = match.company;
+                            if (companyCustom) { companyCustom.disabled = true; companyCustom.value = ''; }
+                        } else {
+                            companySelect.value = '其他';
+                            if (companyCustom) {
+                                companyCustom.disabled = false;
+                                companyCustom.value = match.company;
+                            }
+                        }
+                    }
+                    if (match.name) showToast(`已自动填充 ${match.name} 的信息`, 'info');
+                }
+            });
+        }
+    }
+}
 
             function p_saveFromModal() { const index = parseInt(document.getElementById('pe_index').value); const person = { seq: document.getElementById('pe_seq').value, name: document.getElementById('pe_name').value, idcard: document.getElementById('pe_idcard').value, category: document.getElementById('pe_category').value, position: document.getElementById('pe_position').value, regno: document.getElementById('pe_regno').value, major: document.getElementById('pe_major').value, validity: document.getElementById('pe_validity').value, level: document.getElementById('pe_level').value, issuer: document.getElementById('pe_issuer').value, phone: document.getElementById('pe_phone').value, jishibanAccount: document.getElementById('pe_jishibanAccount').value, jishibanPassword: document.getElementById('pe_jishibanPassword').value, socialSecurity: document.getElementById('pe_socialSecurity').value, company: document.getElementById('pe_company').value, remarks: document.getElementById('pe_remarks').value, categoryOther: p_getCustomInputVal('pe_category', 'pe_category_custom'), positionOther: p_getCustomInputVal('pe_position', 'pe_position_custom'), majorOther: p_getCustomInputVal('pe_major', 'pe_major_custom'), levelOther: p_getCustomInputVal('pe_level', 'pe_level_custom'), companyOther: p_getCustomInputVal('pe_company', 'pe_company_custom') }; if (!person.name.trim()) { showToast('姓名不能为空', 'error'); return; } if (index >= 0 && index < p_allData.length) p_allData[index] = person; else { if (!person.seq) person.seq = String(Math.max(...p_allData.map(d => parseInt(d.seq) || 0), 0) + 1); p_allData.push(person); } p_saveLocal(p_allData); showToast(index >= 0 ? '已更新' : '已添加', 'success'); p_activeSearchResults = null; p_refreshQueryTable(); closeEditModal(); }
             function p_openAddPersonModal() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const nextSeq = String(Math.max(...p_allData.map(d => parseInt(d.seq) || 0), 0) + 1); p_openEditModal({ seq: nextSeq, name: '', idcard: '', category: '注册人员', position: '建造师', regno: '', major: '建筑', validity: '', level: '二级', issuer: '', phone: '', jishibanAccount: '', jishibanPassword: '', socialSecurity: '有', company: '正大', remarks: '', categoryOther: '', positionOther: '', majorOther: '', levelOther: '', companyOther: '' }, -1); }
