@@ -628,14 +628,12 @@ function excelSerialToDate(serial) {
     html += `<div class="form-group"><label>招标文件</label><input type="text" id="ae_bidDoc"></div>`;
     html += `<div class="form-group"><label>投标文件</label><input type="text" id="ae_tenderDoc"></div>`;
     html += `<div class="form-group"><label>中标通知书</label><input type="text" id="ae_bidNotice"></div>`;
-    
-    // 合同 + 提示复选框（标签与复选框同行，间距2字符，输入框换行）
+    // 合同 + 提示复选框
     html += `<div class="form-group"><div style="display: flex; align-items: center; gap: 2ch; flex-wrap: nowrap;"><label style="white-space: nowrap;">合同</label><label style="white-space: nowrap;"><input type="checkbox" id="ae_contractReminder" checked> 提示</label></div><input type="text" id="ae_contract" style="width:100%; margin-top:4px;"></div>`;
     // 合作协议 + 提示复选框
     if (showHidden) html += `<div class="form-group"><div style="display: flex; align-items: center; gap: 2ch; flex-wrap: nowrap;"><label style="white-space: nowrap;">合作协议</label><label style="white-space: nowrap;"><input type="checkbox" id="ae_cooperationReminder" checked> 提示</label></div><input type="text" id="ae_cooperation" style="width:100%; margin-top:4px;"></div>`;
     // 竣工文件 + 提示复选框
     html += `<div class="form-group"><div style="display: flex; align-items: center; gap: 2ch; flex-wrap: nowrap;"><label style="white-space: nowrap;">竣工文件</label><label style="white-space: nowrap;"><input type="checkbox" id="ae_completionDocReminder" checked> 提示</label></div><input type="text" id="ae_completionDoc" style="width:100%; margin-top:4px;"></div>`;
-
     html += `<div class="form-group"><label>结算文件</label><input type="text" id="ae_settlementDoc"></div>`;
     html += `<div class="form-group"><label>法律文书</label><input type="text" id="ae_legalDoc"></div>`;
     html += `<div class="form-group"><label>施工许可证</label><input type="text" id="ae_constructionPermit"></div>`;
@@ -662,7 +660,7 @@ function excelSerialToDate(serial) {
     if (cooperationReminderCb) cooperationReminderCb.checked = getReminder('cooperationReminder');
     if (completionDocReminderCb) completionDocReminderCb.checked = getReminder('completionDocReminder');
     
-    // 总工期自动计算：如果用户手动修改则不再自动覆盖
+    // 总工期自动计算
     const startInput = document.getElementById('ae_startDate');
     const endInput = document.getElementById('ae_completionDate');
     const durationInput = document.getElementById('ae_totalDuration');
@@ -690,20 +688,29 @@ function excelSerialToDate(serial) {
     if (startInput) startInput.addEventListener('change', autoCalcDuration);
     if (endInput) endInput.addEventListener('change', autoCalcDuration);
 
-    // ***** 自动填充：合作人 → 联系电话（仅新增模式）*****
-    if (isNew && showHidden) { // 合作人和联系电话仅在 showHidden 时可见（即新增模式或已开启敏感信息）
-        const partnerInput = document.getElementById('ae_partner');
-        const phoneInput = document.getElementById('ae_phone');
-        if (partnerInput && phoneInput) {
-            partnerInput.addEventListener('blur', function() {
-                const partnerValue = partnerInput.value.trim();
-                if (!partnerValue) return;
-                const match = a_allData.find(item => item.partner === partnerValue);
-                if (match && match.phone && phoneInput.value === '') {
-                    phoneInput.value = match.phone;
-                    showToast(`已自动填入联系电话：${match.phone}`, 'info');
-                }
-            });
+    // ==================== 自动填充：合作人 → 联系电话 ====================
+    const partnerInput = document.getElementById('ae_partner');
+    const phoneInput = document.getElementById('ae_phone');
+    if (partnerInput && phoneInput) {
+        // 监听失去焦点事件
+        partnerInput.addEventListener('blur', function() {
+            const partnerValue = partnerInput.value.trim();
+            if (!partnerValue) return;
+            // 如果联系电话已经不为空，则不自动填充
+            if (phoneInput.value.trim() !== '') return;
+            // 在已有档案数据中查找合作人相同的记录
+            const match = a_allData.find(item => item.partner === partnerValue);
+            if (match && match.phone) {
+                phoneInput.value = match.phone;
+                showToast(`已自动填入联系电话：${match.phone}`, 'info');
+            }
+        });
+        // 如果是在编辑模式且合作人已有值，但联系电话为空，也可以触发一次填充（可选）
+        if (!isNew && partnerInput.value.trim() !== '' && phoneInput.value.trim() === '') {
+            const match = a_allData.find(item => item.partner === partnerInput.value.trim());
+            if (match && match.phone) {
+                phoneInput.value = match.phone;
+            }
         }
     }
 }
@@ -1119,40 +1126,82 @@ async function resolvePersonnelConflict(localRaw, remoteRaw) {
     const addSelectHandler = (selectId, customInputId) => { const select = document.getElementById(selectId); const input = document.getElementById(customInputId); if (!select || !input) return; select.addEventListener('change', () => { if (select.value === '其他') { input.disabled = false; } else { input.disabled = true; input.value = ''; } }); };
     addSelectHandler('pe_category', 'pe_category_custom'); addSelectHandler('pe_position', 'pe_position_custom'); addSelectHandler('pe_major', 'pe_major_custom'); addSelectHandler('pe_level', 'pe_level_custom'); addSelectHandler('pe_company', 'pe_company_custom');
 
-    // ***** 自动填充：姓名 → 身份证、联系电话、所属公司、冀时办账号、冀时办密码（仅新增模式）*****
-    const isNew = (index < 0);
-    if (isNew) {
-        const nameInput = document.getElementById('pe_name');
-        if (nameInput) {
-            nameInput.addEventListener('blur', function() {
-                const nameValue = nameInput.value.trim();
-                if (!nameValue) return;
-                const match = p_allData.find(item => item.name === nameValue);
-                if (match) {
-                    // 身份证
-                    const idcardInput = document.getElementById('pe_idcard');
-                    if (idcardInput && idcardInput.value === '' && match.idcard) {
+    // ==================== 自动填充：姓名 → 身份证、联系电话、所属公司、冀时办账号、冀时办密码 ====================
+    const nameInput = document.getElementById('pe_name');
+    if (nameInput) {
+        const currentRegno = person.regno || '';
+        const currentIdcard = person.idcard || '';
+        
+        function autoFillFromName() {
+            const nameValue = nameInput.value.trim();
+            if (!nameValue) return;
+            
+            // 收集所有同名记录（排除自身）
+            const matches = p_allData.filter(item => {
+                if (item.name !== nameValue) return false;
+                if (index >= 0) {
+                    const itemRegno = item.regno || '';
+                    const itemIdcard = item.idcard || '';
+                    if (itemRegno === currentRegno && itemIdcard === currentIdcard) {
+                        return false;
+                    }
+                }
+                return true;
+            });
+            if (matches.length === 0) return;
+            
+            let hasFilled = false;
+            
+            // 身份证
+            const idcardInput = document.getElementById('pe_idcard');
+            if (idcardInput && (idcardInput.value === '' || idcardInput.value === null)) {
+                for (let match of matches) {
+                    if (match.idcard) {
                         idcardInput.value = match.idcard;
+                        hasFilled = true;
+                        break;
                     }
-                    // 联系电话
-                    const phoneInput = document.getElementById('pe_phone');
-                    if (phoneInput && phoneInput.value === '' && match.phone) {
+                }
+            }
+            // 联系电话
+            const phoneInput = document.getElementById('pe_phone');
+            if (phoneInput && (phoneInput.value === '' || phoneInput.value === null)) {
+                for (let match of matches) {
+                    if (match.phone) {
                         phoneInput.value = match.phone;
+                        hasFilled = true;
+                        break;
                     }
-                    // 冀时办账号
-                    const jishibanAccountInput = document.getElementById('pe_jishibanAccount');
-                    if (jishibanAccountInput && jishibanAccountInput.value === '' && match.jishibanAccount) {
+                }
+            }
+            // 冀时办账号
+            const jishibanAccountInput = document.getElementById('pe_jishibanAccount');
+            if (jishibanAccountInput && (jishibanAccountInput.value === '' || jishibanAccountInput.value === null)) {
+                for (let match of matches) {
+                    if (match.jishibanAccount) {
                         jishibanAccountInput.value = match.jishibanAccount;
+                        hasFilled = true;
+                        break;
                     }
-                    // 冀时办密码
-                    const jishibanPasswordInput = document.getElementById('pe_jishibanPassword');
-                    if (jishibanPasswordInput && jishibanPasswordInput.value === '' && match.jishibanPassword) {
+                }
+            }
+            // 冀时办密码
+            const jishibanPasswordInput = document.getElementById('pe_jishibanPassword');
+            if (jishibanPasswordInput && (jishibanPasswordInput.value === '' || jishibanPasswordInput.value === null)) {
+                for (let match of matches) {
+                    if (match.jishibanPassword) {
                         jishibanPasswordInput.value = match.jishibanPassword;
+                        hasFilled = true;
+                        break;
                     }
-                    // 所属公司（处理下拉框和自定义）
-                    const companySelect = document.getElementById('pe_company');
-                    const companyCustom = document.getElementById('pe_company_custom');
-                    if (companySelect && match.company) {
+                }
+            }
+            // 所属公司
+            const companySelect = document.getElementById('pe_company');
+            const companyCustom = document.getElementById('pe_company_custom');
+            if (companySelect && (companySelect.value === '' || companySelect.value === null)) {
+                for (let match of matches) {
+                    if (match.company) {
                         const standardOptions = ['正大', '世拓'];
                         if (standardOptions.includes(match.company)) {
                             companySelect.value = match.company;
@@ -1164,10 +1213,19 @@ async function resolvePersonnelConflict(localRaw, remoteRaw) {
                                 companyCustom.value = match.company;
                             }
                         }
+                        hasFilled = true;
+                        break;
                     }
-                    if (match.name) showToast(`已自动填充 ${match.name} 的信息`, 'info');
                 }
-            });
+            }
+            if (hasFilled) {
+                showToast(`已自动填充 ${nameValue} 的信息`, 'info');
+            }
+        }
+        
+        nameInput.addEventListener('blur', autoFillFromName);
+        if (index >= 0 && nameInput.value.trim() !== '') {
+            autoFillFromName();
         }
     }
 }
