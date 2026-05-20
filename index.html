@@ -1938,25 +1938,42 @@ function getSortKeysForSystem(systemName) {
 
       async function autoSyncCheck() {
     if (!isLoggedIn || !currentProjectCode) return;
+
+    // 档案系统
     const a_remote = await fetchArchiveCloudData(currentProjectCode);
-    if (a_remote) { const needUpdate = await promptUpdateFromCloud(a_remote, a_allData, '档案'); if (needUpdate) { a_allData = a_remote; a_saveLocal(a_allData); a_refreshQueryTable(); showToast('档案数据已更新为云端版本', 'success'); } }
-    
+    if (a_remote) {
+        const needUpdate = await promptUpdateFromCloud(a_remote, a_allData, '档案');
+        if (needUpdate) {
+            a_saveLocal(a_allData);          // ✅ 保存已被修改的本地数据
+            a_refreshQueryTable();
+            showToast('档案数据已同步云端更新', 'success');
+        }
+    }
+
+    // 人员系统（逻辑正确，无需修改）
     const p_remote = await fetchPersonnelCloudData(currentProjectCode);
     if (p_remote) {
-        // 使用专用的人员冲突解决函数（已包含增量添加和内容差异对比）
         const p_final = await resolvePersonnelConflict(p_allData, p_remote);
         if (p_final !== p_allData) {
             p_allData = p_final;
             p_saveLocal(p_allData);
             p_refreshQueryTable();
             showToast('人员数据已同步云端更新', 'success');
-        }  
-  }
+        }
+    }
 
+    // 报名系统（修改同档案）
     const r_remote = await fetchRegistrationCloudData(currentProjectCode);
-    if (r_remote) { const needUpdate = await promptUpdateFromCloud(r_remote, r_allData, '报名'); if (needUpdate) { r_allData = r_remote; r_saveLocal(r_allData); r_refreshQueryTable(); showToast('报名数据已更新为云端版本', 'success'); } }
+    if (r_remote) {
+        const needUpdate = await promptUpdateFromCloud(r_remote, r_allData, '报名');
+        if (needUpdate) {
+            r_saveLocal(r_allData);          // ✅ 保存已被修改的本地数据
+            r_refreshQueryTable();
+            showToast('报名数据已同步云端更新', 'success');
+        }
+    }
 
-scheduleAutoSync();
+    scheduleAutoSync();
 }
 
       function scheduleAutoSync() {
