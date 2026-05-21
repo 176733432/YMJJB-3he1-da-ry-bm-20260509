@@ -1751,63 +1751,67 @@ function p_importFromExcel() {
 
     let html = '';
 
-    // 无合同档案
-    if (noContract.length > 0) {
-        html += '<div class="due-section-title">📋 无合同档案 (' + noContract.length + '条)</div>';
-        html += '<div class="table-wrapper">';
-        html += '<table>';
-        html += '<thead><tr><th>所属公司</th><th>档案号</th><th>工程名称</th><th>甲方单位</th><th>签署日期</th><th>签署份数</th></tr></thead>';
-        html += '<tbody>';
-        noContract.forEach(p => {
-            html += `<tr>
-                <td>${escapeHtml(p.company||'')}</td>
-                <td>${escapeHtml(p.archiveNo||'')}</td>
-                <td>${escapeHtml(p.engName||'')}</td>
-                <td>${escapeHtml(p.partyA||'')}</td>
-                <td>${escapeHtml(p.signDate||'')}</td>
-                <td>${escapeHtml(p.signCopies||'')}</td>
-            </tr>`;
-        });
-        html += '</tbody></table></div>';
+    // 辅助函数：生成表格HTML
+    function buildTable(title, data, columns) {
+        if (!data.length) return '';
+        let tableHtml = `<div class="due-section-title">${title} (${data.length}条)</div>`;
+        tableHtml += '<div class="table-wrapper">';
+        tableHtml += '<table style="border-collapse:collapse; width:100%;">';
+        // 表头
+        tableHtml += '<thead><tr>';
+        for (let col of columns) {
+            tableHtml += `<th>${col.label}</th>`;
+        }
+        tableHtml += '</tr></thead><tbody>';
+        // 数据行
+        for (let item of data) {
+            tableHtml += '<tr>';
+            for (let col of columns) {
+                let val = item[col.field] || '';
+                tableHtml += `<td style="border:1px solid #ddd; padding:6px;">${escapeHtml(val)}</td>`;
+            }
+            tableHtml += '</tr>';
+        }
+        tableHtml += '</tbody></table></div>';
+        return tableHtml;
     }
 
-    // 无合作协议档案（修正：添加完整的 <table> 标签）
-    if (noCooperation.length > 0) {
-        html += '<div class="due-section-title">📋 无合作协议档案 (' + noCooperation.length + '条)</div>';
-        html += '<div class="table-wrapper">';
-        html += '<table>';
-        html += '<thead><tr><th>所属公司</th><th>档案号</th><th>工程名称</th><th>甲方单位</th><th>签署日期</th><th>签署份数</th></tr></thead>';
-        html += '<tbody>';
-        noCooperation.forEach(p => {
-            html += `<tr>
-                <td>${escapeHtml(p.company||'')}</td>
-                <td>${escapeHtml(p.archiveNo||'')}</td>
-                <td>${escapeHtml(p.engName||'')}</td>
-                <td>${escapeHtml(p.partyA||'')}</td>
-                <td>${escapeHtml(p.signDate||'')}</td>
-                <td>${escapeHtml(p.signCopies||'')}</td>
-            </tr>`;
-        });
-        html += '</tbody></table></div>';
+    // 无合同档案表格列定义
+    if (noContract.length) {
+        html += buildTable('📋 无合同档案', noContract, [
+            { label: '所属公司', field: 'company' },
+            { label: '档案号', field: 'archiveNo' },
+            { label: '工程名称', field: 'engName' },
+            { label: '甲方单位', field: 'partyA' },
+            { label: '签署日期', field: 'signDate' },
+            { label: '签署份数', field: 'signCopies' },
+            { label: '合同', field: 'contract' }
+        ]);
     }
 
-    // 无竣工资料档案
-    if (noCompletionDoc.length > 0) {
-        html += '<div class="due-section-title">📋 无竣工资料档案 (' + noCompletionDoc.length + '条)</div>';
-        html += '<div class="table-wrapper">';
-        html += '<table>';
-        html += '<thead><tr><th>档案号</th><th>工程名称</th><th>甲方单位</th><th>开工日期</th><th>竣工日期</th></tr></thead>';
-        html += '<tbody>';
-        noCompletionDoc.forEach(p => {
-            html += `<tr>
-                <td>${escapeHtml(p.archiveNo||'')}</td>
-                <td>${escapeHtml(p.engName||'')}</td>
-                <td>${escapeHtml(p.partyA||'')}</td>
-                <td>${escapeHtml(p.startDate||'')}</td>
-                <td>${escapeHtml(p.completionDate||'')}</td>
-            </table>`;
-        });
-        html += '</tbody></table></div>';
+    // 无合作协议档案表格列定义
+    if (noCooperation.length) {
+        html += buildTable('📋 无合作协议档案', noCooperation, [
+            { label: '所属公司', field: 'company' },
+            { label: '档案号', field: 'archiveNo' },
+            { label: '工程名称', field: 'engName' },
+            { label: '甲方单位', field: 'partyA' },
+            { label: '签署日期', field: 'signDate' },
+            { label: '签署份数', field: 'signCopies' },
+            { label: '合作协议', field: 'cooperation' }
+        ]);
+    }
+
+    // 无竣工资料档案表格列定义
+    if (noCompletionDoc.length) {
+        html += buildTable('📋 无竣工资料档案', noCompletionDoc, [
+            { label: '档案号', field: 'archiveNo' },
+            { label: '工程名称', field: 'engName' },
+            { label: '甲方单位', field: 'partyA' },
+            { label: '开工日期', field: 'startDate' },
+            { label: '竣工日期', field: 'completionDate' },
+            { label: '竣工文件', field: 'completionDoc' }
+        ]);
     }
 
     const downloadFn = () => {
@@ -1815,21 +1819,21 @@ function p_importFromExcel() {
         if (noContract.length > 0) {
             const ws = XLSX.utils.json_to_sheet(noContract.map(p => ({
                 "所属公司": p.company, "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA,
-                "签署日期": p.signDate, "签署份数": p.signCopies, "合作人": p.partner, "联系电话": p.phone
+                "签署日期": p.signDate, "签署份数": p.signCopies, "合同": p.contract
             })));
             XLSX.utils.book_append_sheet(wb, ws, '无合同档案');
         }
         if (noCooperation.length > 0) {
             const ws = XLSX.utils.json_to_sheet(noCooperation.map(p => ({
                 "所属公司": p.company, "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA,
-                "签署日期": p.signDate, "签署份数": p.signCopies, "合作人": p.partner, "联系电话": p.phone
+                "签署日期": p.signDate, "签署份数": p.signCopies, "合作协议": p.cooperation
             })));
             XLSX.utils.book_append_sheet(wb, ws, '无合作协议档案');
         }
         if (noCompletionDoc.length > 0) {
             const ws = XLSX.utils.json_to_sheet(noCompletionDoc.map(p => ({
                 "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA,
-                "开工日期": p.startDate, "竣工日期": p.completionDate
+                "开工日期": p.startDate, "竣工日期": p.completionDate, "竣工文件": p.completionDoc
             })));
             XLSX.utils.book_append_sheet(wb, ws, '无竣工资料档案');
         }
@@ -1840,7 +1844,6 @@ function p_importFromExcel() {
 
     showDueModal(html, 'archive', downloadFn);
 }
-
             // 通用导出列选择框
             function openExportFieldModal(fieldsDef, cb) { if (!permissions.export) { showToast('无导出权限', 'error'); return; } const modal = document.getElementById('exportFieldModal'); modal.innerHTML = `<div class="modal" style="max-width:650px;"><h3>📋 自定义导出列</h3><p style="margin-bottom:12px;">勾选需要导出的字段</p><div class="export-field-grid" id="exportFieldCheckboxes"></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeExportFieldModal()">取消</button><button class="btn btn-primary" onclick="confirmExport()">确认导出</button></div></div>`; modal.style.display = 'flex'; const container = document.getElementById('exportFieldCheckboxes'); container.innerHTML = ''; fieldsDef.forEach(f => { const label = document.createElement('label'); label.innerHTML = `<input type="checkbox" value="${f.key}" checked> ${f.label}`; container.appendChild(label); }); pendingExportCallback = cb; }
             function closeExportFieldModal() { document.getElementById('exportFieldModal').style.display = 'none'; pendingExportCallback = null; }
