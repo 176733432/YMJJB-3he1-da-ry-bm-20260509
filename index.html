@@ -731,60 +731,81 @@ function excelSerialToDate(serial) {
             async function a_handleBatchDelete() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const indices = a_getSelectedIndices(); if (!indices.length) { showToast('请勾选', 'error'); return; } showPasswordModal(async () => { if (confirm(`删除 ${indices.length} 条？`)) { indices.sort((a, b) => b - a).forEach(i => a_allData.splice(i, 1)); a_saveLocal(a_allData); a_globalSearchResults = []; a_queryResults = []; a_activeSearchResults = null; a_refreshQueryTable(); showToast('已删除', 'success'); } }); }
 
             function a_importFromExcel() {
-                if (!permissions.import) { showToast('无导入权限', 'error'); return; }
-                const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx,.xls';
-                input.onchange = function(e) {
-                    const file = e.target.files[0]; if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = function(evt) {
-                        const data = new Uint8Array(evt.target.result);
-                        const wb = XLSX.read(data, { type: 'array' });
-                        const sheet = wb.Sheets[wb.SheetNames[0]];
-                        const json = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-                        if (json.length < 2) { showToast('Excel格式错误'); return; }
-                        const rows = json.slice(1).filter(r => r.some(c => c !== '' && c !== null));
-                        const imported = rows.map(row => {
-                            const obj = {};
-
-// 为导入的档案添加默认提醒开关（true 表示需要提醒）
-obj.contractReminder = true;
-obj.cooperationReminder = true;
-obj.completionDocReminder = true;
-
-
-                            a_allFields.forEach((f, idx) => {
-                                let val = row[idx];
-                                if (a_dateFields.includes(f.key) && typeof val === 'number' && val > 40000 && val < 80000) val = excelSerialToDate(val);
-                                obj[f.key] = String(val ?? '');
-                            });
-                            return obj;
-                        });
-                        if (imported.length === 0) { showToast('无有效数据'); return; }
-                        let added = 0, updated = 0, unchanged = 0;
-                        
-const defaultReminders = { contractReminder: true, cooperationReminder: true, completionDocReminder: true };
-
-imported.forEach(imp => {
-                            const archiveNo = imp.archiveNo.trim();
-                            if (!archiveNo) { a_allData.push(imp); added++; return; }
-                            const existIdx = a_allData.findIndex(item => item.archiveNo.trim() === archiveNo);
-                            if (existIdx === -1) { a_allData.push(imp); added++; }
-                            else {
-                                const existing = a_allData[existIdx];
-                                let diff = false;
-                                for (let key of Object.keys(imp)) { if (imp[key] !== existing[key]) { diff = true; break; } }
-                                if (diff) { a_allData[existIdx] = imp; updated++; } else unchanged++;
+    if (!permissions.import) { showToast('无导入权限', 'error'); return; }
+    const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx,.xls';
+    input.onchange = function(e) {
+        const file = e.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            const data = new Uint8Array(evt.target.result);
+            const wb = XLSX.read(data, { type: 'array' });
+            const sheet = wb.Sheets[wb.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+            if (json.length < 2) { showToast('Excel格式错误'); return; }
+            const rows = json.slice(1).filter(r => r.some(c => c !== '' && c !== null));
+            const imported = rows.map(row => {
+                const obj = {};
+                // 为导入的档案添加默认提醒开关
+                obj.contractReminder = true;
+                obj.cooperationReminder = true;
+                obj.completionDocReminder = true;
+                a_allFields.forEach((f, idx) => {
+                    let val = row[idx];
+                    if (a_dateFields.includes(f.key) && typeof val === 'number' && val > 40000 && val < 80000) val = excelSerialToDate(val);
+                    obj[f.key] = String(val ?? '');
+                });
+                return obj;
+            });
+            if (!imported.length) { showToast('无有效数据'); return; }
+            let added = 0, updated = 0, unchanged = 0;
+            imported.forEach(imp => {
+                const archiveNo = imp.archiveNo.trim();
+                if (!archiveNo) {
+                    a_allData.push(imp);
+                    added++;
+                    return;
+                }
+                const existIdx = a_allData.findIndex(item => item.archiveNo.trim() === archiveNo);
+                if (existIdx === -1) {
+                    a_allData.push(imp);
+                    added++;
+                } else {
+                    const existing = a_allData[existIdx];
+                    let diff = false;
+                    // 逐字段覆盖：仅当 Excel 中的字段非空时才更新
+                    for (let key of Object.keys(imp)) {
+                        // 跳过提醒开关字段（除非 Excel 中明确提供了值）
+                        if (key === 'contractReminder' || key === 'cooperationReminder' || key === 'completionDocReminder') {
+                            // 如果 Excel 中有值（true/false）则覆盖，否则保留本地
+                            if (imp[key] !== undefined && imp[key] !== '') {
+                                if (existing[key] != imp[key]) { diff = true; existing[key] = imp[key]; }
                             }
-                        });
-                        a_saveLocal(a_allData);
-                        a_globalSearchResults = []; a_queryResults = []; a_activeSearchResults = null;
-                        a_refreshQueryTable();
-                        showToast(`导入完成：新增${added}条，更新${updated}条，无变化${unchanged}条`, 'success');
-                    };
-                    reader.readAsArrayBuffer(file);
-                };
-                input.click();
-            }
+                            continue;
+                        }
+                        const excelVal = imp[key];
+                        if (excelVal !== undefined && excelVal !== null && excelVal !== '') {
+                            if (existing[key] != excelVal) {
+                                diff = true;
+                                existing[key] = excelVal;
+                            }
+                        }
+                    }
+                    if (diff) {
+                        updated++;
+                    } else {
+                        unchanged++;
+                    }
+                }
+            });
+            a_saveLocal(a_allData);
+            a_globalSearchResults = []; a_queryResults = []; a_activeSearchResults = null;
+            a_refreshQueryTable();
+            showToast(`导入完成：新增${added}条，更新${updated}条，无变化${unchanged}条`, 'success');
+        };
+        reader.readAsArrayBuffer(file);
+    };
+    input.click();
+}
 
             async function a_handleBackupToCloud() {
                 if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
@@ -1613,35 +1634,87 @@ function p_importFromExcel() {
     }
 }
             function r_importFromExcel() {
-                if (!permissions.import) { showToast('无导入权限', 'error'); return; }
-                const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx,.xls';
-                input.onchange = function(e) {
-                    const file = e.target.files[0]; if (!file) return;
-                    const reader = new FileReader();
-                    reader.onload = function(evt) {
-                        const data = new Uint8Array(evt.target.result);
-                        const wb = XLSX.read(data, { type: 'array' });
-                        const sheet = wb.Sheets[wb.SheetNames[0]];
-                        const json = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-                        if (json.length < 2) { showToast('Excel格式错误'); return; }
-                        const rows = json.slice(1).filter(r => r.some(c => c !== '' && c !== null));
-                        const imported = rows.map(row => {
-                            const regDateRaw = row[5]; let regDateStr = ''; if (typeof regDateRaw === 'number' && isExcelSerialNumber(regDateRaw)) regDateStr = excelSerialToDate(regDateRaw); else if (regDateRaw) regDateStr = String(regDateRaw);
-                            const bidDateRaw = row[8]; let bidDateStr = ''; if (typeof bidDateRaw === 'number' && isExcelSerialNumber(bidDateRaw)) { const d = excelSerialToDate(bidDateRaw); bidDateStr = d + 'T00:00'; } else if (bidDateRaw) bidDateStr = String(bidDateRaw);
-                            const remarks2 = (row.length > 14 && row[14] !== undefined && row[14] !== null) ? String(row[14]) : '';
-                            return { seq: String(row[0] || ''), projectName: String(row[1] || ''), client: String(row[2] || ''), projectManager: String(row[3] || ''), materials: String(row[4] || ''), registrationDate: regDateStr, bidOpeningMethod: String(row[6] || ''), bidOpeningAddress: String(row[7] || ''), bidOpeningDate: bidDateStr, deposit: String(row[9] || ''), maxPrice: String(row[10] || ''), announcementUrl: String(row[11] || ''), company: String(row[12] || ''), remarks: String(row[13] || ''), remarks2: remarks2 };
-                        });
-                        if (!imported.length) { showToast('无有效数据'); return; }
-                        let updatedCount = 0, addedCount = 0;
-                        const newData = [...r_allData];
-                        imported.forEach(imp => { const existingIndex = newData.findIndex(d => d.seq === imp.seq); if (existingIndex >= 0) { if (JSON.stringify({ ...newData[existingIndex], remarks2: undefined }) !== JSON.stringify({ ...imp, remarks2: undefined })) { newData[existingIndex] = { ...imp, remarks2: newData[existingIndex].remarks2 }; updatedCount++; } } else { newData.push(imp); addedCount++; } });
-                        if (updatedCount === 0 && addedCount === 0) { showToast('导入数据与现有数据一致，无需更新', 'info'); return; }
-                        if (confirm(`即将更新 ${updatedCount} 条，新增 ${addedCount} 条。确定继续？`)) { r_allData = newData; r_saveLocal(r_allData); r_activeSearchResults = null; r_refreshQueryTable(); showToast(`导入完成：更新${updatedCount}条，新增${addedCount}条`, 'success'); }
-                    };
-                    reader.readAsArrayBuffer(file);
+    if (!permissions.import) { showToast('无导入权限', 'error'); return; }
+    const input = document.createElement('input'); input.type = 'file'; input.accept = '.xlsx,.xls';
+    input.onchange = function(e) {
+        const file = e.target.files[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(evt) {
+            const data = new Uint8Array(evt.target.result);
+            const wb = XLSX.read(data, { type: 'array' });
+            const sheet = wb.Sheets[wb.SheetNames[0]];
+            const json = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+            if (json.length < 2) { showToast('Excel格式错误'); return; }
+            const rows = json.slice(1).filter(r => r.some(c => c !== '' && c !== null));
+            const imported = rows.map(row => {
+                const regDateRaw = row[5]; let regDateStr = '';
+                if (typeof regDateRaw === 'number' && isExcelSerialNumber(regDateRaw)) regDateStr = excelSerialToDate(regDateRaw);
+                else if (regDateRaw) regDateStr = String(regDateRaw);
+                const bidDateRaw = row[8]; let bidDateStr = '';
+                if (typeof bidDateRaw === 'number' && isExcelSerialNumber(bidDateRaw)) { const d = excelSerialToDate(bidDateRaw); bidDateStr = d + 'T00:00'; }
+                else if (bidDateRaw) bidDateStr = String(bidDateRaw);
+                const remarks2 = (row.length > 14 && row[14] !== undefined && row[14] !== null) ? String(row[14]) : '';
+                return {
+                    seq: String(row[0] || ''),
+                    projectName: String(row[1] || ''),
+                    client: String(row[2] || ''),
+                    projectManager: String(row[3] || ''),
+                    materials: String(row[4] || ''),
+                    registrationDate: regDateStr,
+                    bidOpeningMethod: String(row[6] || ''),
+                    bidOpeningAddress: String(row[7] || ''),
+                    bidOpeningDate: bidDateStr,
+                    deposit: String(row[9] || ''),
+                    maxPrice: String(row[10] || ''),
+                    announcementUrl: String(row[11] || ''),
+                    company: String(row[12] || ''),
+                    remarks: String(row[13] || ''),
+                    remarks2: remarks2
                 };
-                input.click();
+            });
+            if (!imported.length) { showToast('无有效数据'); return; }
+            let updatedCount = 0, addedCount = 0;
+            const newData = [...r_allData];
+            imported.forEach(imp => {
+                const seq = imp.seq;
+                const existingIndex = newData.findIndex(d => d.seq === seq);
+                if (existingIndex >= 0) {
+                    const existing = newData[existingIndex];
+                    let diff = false;
+                    // 逐字段覆盖：仅当 Excel 中的字段非空时才更新
+                    for (let key of Object.keys(imp)) {
+                        const excelVal = imp[key];
+                        if (excelVal !== undefined && excelVal !== null && excelVal !== '') {
+                            if (existing[key] != excelVal) {
+                                diff = true;
+                                existing[key] = excelVal;
+                            }
+                        }
+                    }
+                    if (diff) {
+                        updatedCount++;
+                    }
+                } else {
+                    newData.push(imp);
+                    addedCount++;
+                }
+            });
+            if (updatedCount === 0 && addedCount === 0) {
+                showToast('导入数据与现有数据一致，无需更新', 'info');
+                return;
             }
+            if (confirm(`即将更新 ${updatedCount} 条，新增 ${addedCount} 条。确定继续？`)) {
+                r_allData = newData;
+                r_saveLocal(r_allData);
+                r_activeSearchResults = null;
+                r_refreshQueryTable();
+                showToast(`导入完成：更新${updatedCount}条，新增${addedCount}条`, 'success');
+            }
+        };
+        reader.readAsArrayBuffer(file);
+    };
+    input.click();
+}
 
             async function r_handleBackupToCloud() {
                 if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
