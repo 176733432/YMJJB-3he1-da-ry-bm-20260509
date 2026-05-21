@@ -1717,35 +1717,129 @@ function p_importFromExcel() {
             }
 
                         function a_checkArchives() {
-                if (suppressAlerts.archive) return;
-                if (!a_allData.length) return;
-                // 只提醒那些提醒开关未被关闭的项
-                const noContract = a_allData.filter(p => !p.contract && (p.contractReminder !== false));
-                const noCooperation = a_allData.filter(p => !p.cooperation && (p.cooperationReminder !== false));
-                const now = new Date();
-                const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-                const noCompletionDoc = a_allData.filter(p => { 
-                    if (!p.completionDate) return false;
-                    if (p.completionDoc) return false;
-                    if (p.completionDocReminder === false) return false;
-                    const compDate = new Date(p.completionDate);
-                    return compDate <= thirtyDaysAgo;
-                });
-                if (!noContract.length && !noCooperation.length && !noCompletionDoc.length) return;
-                let html = '';
-                if (noContract.length > 0) { html += '<div class="due-section-title">📋 无合同档案 (' + noContract.length + '条)</div><div class="table-wrapper"><table><thead><tr><th>所属公司</th><th>档案号</th><th>工程名称</th><th>甲方单位</th><th>签署日期</th><th>签署份数</th></tr></thead><tbody>'; html += noContract.map(p => `<tr><td>${p.company||''}</td><td>${p.archiveNo||''}</td><td>${p.engName||''}</td><td>${p.partyA||''}</td><td>${p.signDate||''}</td><td>${p.signCopies||''}</td></tr>`).join(''); html += '</tbody></table></div>'; }
-                if (noCooperation.length > 0) { html += '<div class="due-section-title">📋 无合作协议档案 (' + noCooperation.length + '条)</div><div class="table-wrapper"><table><thead><tr><th>所属公司</th><th>档案号</th><th>工程名称</th><th>甲方单位</th><th>签署日期</th><th>签署份数</th></tr></thead><tbody>'; html += noCooperation.map(p => `<tr><td>${p.company||''}</td><td>${p.archiveNo||''}</td><td>${p.engName||''}</td><td>${p.partyA||''}</td><td>${p.signDate||''}</td><td>${p.signCopies||''}</td></tr>`).join(''); html += '</tbody></table></div>'; }
-                if (noCompletionDoc.length > 0) { html += '<div class="due-section-title">📋 无竣工资料档案 (' + noCompletionDoc.length + '条)</div><div class="table-wrapper"><table><thead><tr><th>档案号</th><th>工程名称</th><th>甲方单位</th><th>开工日期</th><th>竣工日期</th></tr></thead><tbody>'; html += noCompletionDoc.map(p => `<tr><td>${p.archiveNo||''}</td><td>${p.engName||''}</td><td>${p.partyA||''}</td><td>${p.startDate||''}</td><td>${p.completionDate||''}</td></tr>`).join(''); html += '</tbody></table></div>'; }
-                const downloadFn = () => {
-                    const wb = XLSX.utils.book_new();
-                    if (noContract.length > 0) { const ws = XLSX.utils.json_to_sheet(noContract.map(p => ({ "所属公司": p.company, "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA, "签署日期": p.signDate, "签署份数": p.signCopies, "合作人": p.partner, "联系电话": p.phone }))); XLSX.utils.book_append_sheet(wb, ws, '无合同档案'); }
-                    if (noCooperation.length > 0) { const ws = XLSX.utils.json_to_sheet(noCooperation.map(p => ({ "所属公司": p.company, "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA, "签署日期": p.signDate, "签署份数": p.signCopies, "合作人": p.partner, "联系电话": p.phone }))); XLSX.utils.book_append_sheet(wb, ws, '无合作协议档案'); }
-                    if (noCompletionDoc.length > 0) { const ws = XLSX.utils.json_to_sheet(noCompletionDoc.map(p => ({ "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA, "开工日期": p.startDate, "竣工日期": p.completionDate }))); XLSX.utils.book_append_sheet(wb, ws, '无竣工资料档案'); }
-                    const fileName = `档案完整性检查_${getNowString()}.xlsx`;
-                    XLSX.writeFile(wb, fileName); showToast('提醒列表已下载', 'success');
-                };
-                showDueModal(html, 'archive', downloadFn);
-            }
+    if (suppressAlerts.archive) return;
+    if (!a_allData.length) return;
+
+    // 无合同档案（空 或 不含“有”）
+    const noContract = a_allData.filter(p => {
+        if (p.contractReminder === false) return false;
+        if (!p.contract) return true;
+        return !p.contract.includes('有');
+    });
+
+    // 无合作协议档案（空 或 不含“有”）
+    const noCooperation = a_allData.filter(p => {
+        if (p.cooperationReminder === false) return false;
+        if (!p.cooperation) return true;
+        return !p.cooperation.includes('有');
+    });
+
+    const now = new Date();
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    // 无竣工资料档案（竣工日期超过30天 且 （空 或 不含“有”））
+    const noCompletionDoc = a_allData.filter(p => {
+        if (p.completionDocReminder === false) return false;
+        if (!p.completionDate) return false;
+        const compDate = new Date(p.completionDate);
+        if (compDate > thirtyDaysAgo) return false;
+        if (!p.completionDoc) return true;
+        return !p.completionDoc.includes('有');
+    });
+
+    if (!noContract.length && !noCooperation.length && !noCompletionDoc.length) return;
+
+    let html = '';
+
+    // 无合同档案
+    if (noContract.length > 0) {
+        html += '<div class="due-section-title">📋 无合同档案 (' + noContract.length + '条)</div>';
+        html += '<div class="table-wrapper">';
+        html += '<table>';
+        html += '<thead><tr><th>所属公司</th><th>档案号</th><th>工程名称</th><th>甲方单位</th><th>签署日期</th><th>签署份数</th></tr></thead>';
+        html += '<tbody>';
+        noContract.forEach(p => {
+            html += `<tr>
+                <td>${escapeHtml(p.company||'')}</td>
+                <td>${escapeHtml(p.archiveNo||'')}</td>
+                <td>${escapeHtml(p.engName||'')}</td>
+                <td>${escapeHtml(p.partyA||'')}</td>
+                <td>${escapeHtml(p.signDate||'')}</td>
+                <td>${escapeHtml(p.signCopies||'')}</td>
+            </tr>`;
+        });
+        html += '</tbody></table></div>';
+    }
+
+    // 无合作协议档案（修正：添加完整的 <table> 标签）
+    if (noCooperation.length > 0) {
+        html += '<div class="due-section-title">📋 无合作协议档案 (' + noCooperation.length + '条)</div>';
+        html += '<div class="table-wrapper">';
+        html += '<table>';
+        html += '<thead><tr><th>所属公司</th><th>档案号</th><th>工程名称</th><th>甲方单位</th><th>签署日期</th><th>签署份数</th></tr></thead>';
+        html += '<tbody>';
+        noCooperation.forEach(p => {
+            html += `<tr>
+                <td>${escapeHtml(p.company||'')}</td>
+                <td>${escapeHtml(p.archiveNo||'')}</td>
+                <td>${escapeHtml(p.engName||'')}</td>
+                <td>${escapeHtml(p.partyA||'')}</td>
+                <td>${escapeHtml(p.signDate||'')}</td>
+                <td>${escapeHtml(p.signCopies||'')}</td>
+            </tr>`;
+        });
+        html += '</tbody></table></div>';
+    }
+
+    // 无竣工资料档案
+    if (noCompletionDoc.length > 0) {
+        html += '<div class="due-section-title">📋 无竣工资料档案 (' + noCompletionDoc.length + '条)</div>';
+        html += '<div class="table-wrapper">';
+        html += '<table>';
+        html += '<thead><tr><th>档案号</th><th>工程名称</th><th>甲方单位</th><th>开工日期</th><th>竣工日期</th></tr></thead>';
+        html += '<tbody>';
+        noCompletionDoc.forEach(p => {
+            html += `<tr>
+                <td>${escapeHtml(p.archiveNo||'')}</td>
+                <td>${escapeHtml(p.engName||'')}</td>
+                <td>${escapeHtml(p.partyA||'')}</td>
+                <td>${escapeHtml(p.startDate||'')}</td>
+                <td>${escapeHtml(p.completionDate||'')}</td>
+            </table>`;
+        });
+        html += '</tbody></table></div>';
+    }
+
+    const downloadFn = () => {
+        const wb = XLSX.utils.book_new();
+        if (noContract.length > 0) {
+            const ws = XLSX.utils.json_to_sheet(noContract.map(p => ({
+                "所属公司": p.company, "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA,
+                "签署日期": p.signDate, "签署份数": p.signCopies, "合作人": p.partner, "联系电话": p.phone
+            })));
+            XLSX.utils.book_append_sheet(wb, ws, '无合同档案');
+        }
+        if (noCooperation.length > 0) {
+            const ws = XLSX.utils.json_to_sheet(noCooperation.map(p => ({
+                "所属公司": p.company, "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA,
+                "签署日期": p.signDate, "签署份数": p.signCopies, "合作人": p.partner, "联系电话": p.phone
+            })));
+            XLSX.utils.book_append_sheet(wb, ws, '无合作协议档案');
+        }
+        if (noCompletionDoc.length > 0) {
+            const ws = XLSX.utils.json_to_sheet(noCompletionDoc.map(p => ({
+                "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA,
+                "开工日期": p.startDate, "竣工日期": p.completionDate
+            })));
+            XLSX.utils.book_append_sheet(wb, ws, '无竣工资料档案');
+        }
+        const fileName = `档案完整性检查_${getNowString()}.xlsx`;
+        XLSX.writeFile(wb, fileName);
+        showToast('提醒列表已下载', 'success');
+    };
+
+    showDueModal(html, 'archive', downloadFn);
+}
 
             // 通用导出列选择框
             function openExportFieldModal(fieldsDef, cb) { if (!permissions.export) { showToast('无导出权限', 'error'); return; } const modal = document.getElementById('exportFieldModal'); modal.innerHTML = `<div class="modal" style="max-width:650px;"><h3>📋 自定义导出列</h3><p style="margin-bottom:12px;">勾选需要导出的字段</p><div class="export-field-grid" id="exportFieldCheckboxes"></div><div class="modal-actions"><button class="btn btn-outline" onclick="closeExportFieldModal()">取消</button><button class="btn btn-primary" onclick="confirmExport()">确认导出</button></div></div>`; modal.style.display = 'flex'; const container = document.getElementById('exportFieldCheckboxes'); container.innerHTML = ''; fieldsDef.forEach(f => { const label = document.createElement('label'); label.innerHTML = `<input type="checkbox" value="${f.key}" checked> ${f.label}`; container.appendChild(label); }); pendingExportCallback = cb; }
