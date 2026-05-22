@@ -370,17 +370,22 @@ r_fieldLabelMap.set('bidOpeningStatus', '开标状态');
 
             function showToast(msg, type='info') { const c=document.getElementById('toastContainer'); const t=document.createElement('div'); t.className='toast '+type; t.textContent=msg; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
             function escapeHtml(str) { const d=document.createElement('div'); d.textContent=str||''; return d.innerHTML; }
+ 
 function excelSerialToDate(serial) {
     if (typeof serial !== 'number' || isNaN(serial) || serial <= 0) return serial;
-    // 基于 UTC 的转换，25569 是 1900-01-01 到 1970-01-01 的天数差
-    const utcDays = Math.floor(serial) - 25569;
-    const utcMs = utcDays * 86400 * 1000;
+    // Excel 的 1900 日期系统：1900-01-01 对应序列号 1，但 Excel 错误地认为 1900 年是闰年，所以 1900-02-28 后需校正
+    // 简单处理：直接使用 (serial - 25569) * 86400000 并加上本地时区偏移
+    const msPerDay = 86400000;
+    const epochDays = serial - 25569; // 1970-01-01 对应的 Excel 序列号是 25569
+    const utcMs = epochDays * msPerDay;
     const date = new Date(utcMs);
-    // 使用 UTC 方法提取年月日，避免时区干扰
-    return date.getUTCFullYear() + '-' +
-           String(date.getUTCMonth() + 1).padStart(2, '0') + '-' +
-           String(date.getUTCDate()).padStart(2, '0');
+    // 获取本地时区的年月日
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
+
             function isExcelSerialNumber(val) { return typeof val==='number' && val>40000 && val<80000; }
             function getNowString() { const n=new Date(); return n.getFullYear()+('0'+(n.getMonth()+1)).slice(-2)+('0'+n.getDate()).slice(-2)+'_'+('0'+n.getHours()).slice(-2)+('0'+n.getMinutes()).slice(-2)+('0'+n.getSeconds()).slice(-2); }
             function formatDateTimeForDisplay(dtStr) { if(!dtStr) return ''; return dtStr.replace('T',' '); }
@@ -1600,7 +1605,40 @@ function p_importFromExcel() {
     }
 }
 
-            function r_saveFromModal() { const index = parseInt(document.getElementById('re_index').value); const person = { seq: document.getElementById('re_seq').value, projectName: document.getElementById('re_projectName').value, client: document.getElementById('re_client').value, projectManager: document.getElementById('re_projectManager').value, materials: document.getElementById('re_materials').value, registrationDate: document.getElementById('re_registrationDate').value, bidOpeningMethod: document.getElementById('re_bidOpeningMethod').value, bidOpeningAddress: document.getElementById('re_bidOpeningAddress').value, bidOpeningDate: document.getElementById('re_bidOpeningDate').value, deposit: document.getElementById('re_deposit').value, maxPrice: document.getElementById('re_maxPrice').value, announcementUrl: document.getElementById('re_announcementUrl').value, company: document.getElementById('re_company').value, remarks: document.getElementById('re_remarks').value, remarks2: document.getElementById('re_remarks2')?.value || '' }; if (!person.projectName.trim()) { showToast('工程名称不能为空', 'error'); return; } if (index >= 0 && index < r_allData.length) r_allData[index] = person; else r_allData.push(person); r_saveLocal(r_allData); showToast(index >= 0 ? '已更新' : '已添加', 'success'); r_activeSearchResults = null; r_refreshQueryTable(); closeEditModal(); }
+            function r_saveFromModal() {
+    const index = parseInt(document.getElementById('re_index').value);
+    const person = {
+        seq: document.getElementById('re_seq').value,
+        projectName: document.getElementById('re_projectName').value,
+        client: document.getElementById('re_client').value,
+        projectManager: document.getElementById('re_projectManager').value,
+        materials: document.getElementById('re_materials').value,
+        registrationDate: document.getElementById('re_registrationDate').value,
+        bidOpeningMethod: document.getElementById('re_bidOpeningMethod').value,
+        bidOpeningAddress: document.getElementById('re_bidOpeningAddress').value,
+        bidOpeningDate: document.getElementById('re_bidOpeningDate').value,
+        deposit: document.getElementById('re_deposit').value,
+        maxPrice: document.getElementById('re_maxPrice').value,
+        announcementUrl: document.getElementById('re_announcementUrl').value,
+        company: document.getElementById('re_company').value,
+        remarks: document.getElementById('re_remarks').value,
+        remarks2: document.getElementById('re_remarks2')?.value || ''
+    };
+    if (!person.projectName.trim()) {
+        showToast('工程名称不能为空', 'error');
+        return;
+    }
+    if (index >= 0 && index < r_allData.length) {
+        r_allData[index] = person;   // 更新已有记录
+    } else {
+        r_allData.push(person);      // 新增
+    }
+    r_saveLocal(r_allData);          // 保存到本地存储
+    r_activeSearchResults = null;    // 清除搜索缓存
+    r_refreshQueryTable();           // 刷新表格显示
+    closeEditModal();                // 关闭弹窗
+}
+
             function r_openAddProjectModal() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const nextSeq = r_getNextSeq('正大'); r_openEditModal({ seq: nextSeq, projectName: '', client: '', projectManager: '', materials: '', registrationDate: '', bidOpeningMethod: '线上', bidOpeningAddress: '', bidOpeningDate: '', deposit: '', maxPrice: '', announcementUrl: '', company: '', remarks: '', remarks2: '' }, -1); }
             function r_processEditQueue() { if (r_editQueue.length > 0 && !r_isProcessingQueue) { r_isProcessingQueue = true; const ni = r_editQueue.shift(); if (ni >= 0 && ni < r_allData.length) r_openEditModal(r_allData[ni], ni); else r_processEditQueue(); } else if (r_editQueue.length === 0) r_isProcessingQueue = false; }
             function r_handleEditSelected() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const indices = r_getSelectedIndices(); if (!indices.length) { showToast('请勾选', 'error'); return; } showToast('编辑已选择', 'info'); r_editQueue = [...indices]; r_isProcessingQueue = false; r_processEditQueue(); }
