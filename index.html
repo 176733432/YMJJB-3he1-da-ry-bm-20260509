@@ -115,6 +115,15 @@
         .today-bid { color: #d32; font-weight: bold; }
         .expired { font-weight: bold; text-decoration: line-through; background-color: #f8d7da; color: #000; }
         .expiring-soon { font-weight: bold; background-color: #fff3cd; color: #d32; }
+
+/* 搜索关键词高亮 */
+.highlight {
+    background-color: #ffeb3b;
+    color: #000;
+    font-weight: bold;
+    padding: 0 2px;
+    border-radius: 3px;
+}
         /* 新增：查询结果标题行的按钮容器 */
         .query-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-left: auto; }
         .query-title-row { display: flex; align-items: center; justify-content: space-between; width: 100%; }
@@ -538,12 +547,42 @@ function excelSerialToDate(serial) {
             }
 
             function a_refreshQueryTable(results) {
-                const resolved = results !== undefined ? results : (a_queryResults.length > 0 ? a_queryResults : (a_activeSearchResults || a_allData));
-                const table = document.getElementById('a_queryTable'); table.innerHTML = ''; table.appendChild(a_buildTableHeader());
-                const tbody = document.createElement('tbody'); tbody.id = 'a_queryTbody';
-                resolved.forEach((p, idx) => { const origIdx = a_allData.indexOf(p); const tr = a_buildTableRow(p, origIdx >= 0 ? origIdx : idx); tr.addEventListener('dblclick', () => { const ri = a_allData.indexOf(p); if (ri >= 0) a_handleDoubleClickRow(ri); }); tr.addEventListener('click', function(e) { if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') return; const cb = this.querySelector('.a_row-checkbox-query'); if (cb) cb.checked = !cb.checked; }); tbody.appendChild(tr); });
-                table.appendChild(tbody); document.getElementById('a_queryCount').textContent = resolved.length;
+    const resolved = results !== undefined ? results : (a_queryResults.length > 0 ? a_queryResults : (a_activeSearchResults || a_allData));
+    const table = document.getElementById('a_queryTable');
+    table.innerHTML = '';
+    table.appendChild(a_buildTableHeader());
+    const tbody = document.createElement('tbody');
+    tbody.id = 'a_queryTbody';
+    // 获取当前搜索关键词（用于高亮）
+    const searchKw = document.getElementById('a_globalSearch').value.trim().toLowerCase();
+    resolved.forEach((p, idx) => {
+        const origIdx = a_allData.indexOf(p);
+        const tr = a_buildTableRow(p, origIdx >= 0 ? origIdx : idx);
+        // 高亮处理：遍历所有可见单元格（跳过复选框列）
+        const cells = tr.querySelectorAll('td:not(.checkbox-cell)');
+        cells.forEach(cell => {
+            let originalHtml = cell.innerHTML;
+            if (searchKw && originalHtml) {
+                // 转义正则特殊字符
+                const escapedKw = searchKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`(${escapedKw})`, 'gi');
+                const newHtml = originalHtml.replace(regex, `<span class="highlight">$1</span>`);
+                if (newHtml !== originalHtml) {
+                    cell.innerHTML = newHtml;
+                }
             }
+        });
+        tr.addEventListener('dblclick', () => { const ri = a_allData.indexOf(p); if (ri >= 0) a_handleDoubleClickRow(ri); });
+        tr.addEventListener('click', function(e) {
+            if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') return;
+            const cb = this.querySelector('.a_row-checkbox-query');
+            if (cb) cb.checked = !cb.checked;
+        });
+        tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    document.getElementById('a_queryCount').textContent = resolved.length;
+}
 
             function a_updateSelectAll() { const cbs = document.querySelectorAll('#a_queryTbody .a_row-checkbox-query'); document.getElementById('a_querySelectAll').checked = cbs.length > 0 && Array.from(cbs).every(cb => cb.checked); }
             function a_toggleSelectAllQuery(cb) { document.querySelectorAll('#a_queryTbody .a_row-checkbox-query').forEach(c => c.checked = cb.checked); }
@@ -1059,13 +1098,43 @@ async function resolvePersonnelConflict(localRaw, remoteRaw) {
             }
 
             function p_refreshQueryTable(results) {
-                let resolved = results !== undefined ? results : (p_queryResults.length > 0 ? p_queryResults : (p_activeSearchResults || p_allData));
-                resolved = p_sortData(resolved, p_querySortKey, p_querySortAsc);
-                const table = document.getElementById('p_queryTable'); table.innerHTML = ''; table.appendChild(p_buildTableHeader());
-                const tbody = document.createElement('tbody'); tbody.id = 'p_queryTbody';
-                resolved.forEach((p, idx) => { const orig = p_allData.indexOf(p); const tr = p_buildTableRow(p, orig >= 0 ? orig : idx); tr.addEventListener('dblclick', () => { const ri = p_allData.indexOf(p); if (ri >= 0) p_handleDoubleClickRow(ri); }); tr.addEventListener('click', function(e) { if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') return; const cb = this.querySelector('.p_row-checkbox-query'); if (cb) cb.checked = !cb.checked; }); tbody.appendChild(tr); });
-                table.appendChild(tbody); document.getElementById('p_queryCount').textContent = resolved.length; document.getElementById('p_querySelectAll').checked = false;
+    let resolved = results !== undefined ? results : (p_queryResults.length > 0 ? p_queryResults : (p_activeSearchResults || p_allData));
+    resolved = p_sortData(resolved, p_querySortKey, p_querySortAsc);
+    const table = document.getElementById('p_queryTable');
+    table.innerHTML = '';
+    table.appendChild(p_buildTableHeader());
+    const tbody = document.createElement('tbody');
+    tbody.id = 'p_queryTbody';
+    // 获取当前搜索关键词
+    const searchKw = document.getElementById('p_quickSearch').value.trim().toLowerCase();
+    resolved.forEach((p, idx) => {
+        const orig = p_allData.indexOf(p);
+        const tr = p_buildTableRow(p, orig >= 0 ? orig : idx);
+        // 高亮处理：遍历所有数据单元格（跳过复选框列）
+        const cells = tr.querySelectorAll('td:not(.checkbox-cell)');
+        cells.forEach(cell => {
+            let originalHtml = cell.innerHTML;
+            if (searchKw && originalHtml) {
+                const escapedKw = searchKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`(${escapedKw})`, 'gi');
+                const newHtml = originalHtml.replace(regex, `<span class="highlight">$1</span>`);
+                if (newHtml !== originalHtml) {
+                    cell.innerHTML = newHtml;
+                }
             }
+        });
+        tr.addEventListener('dblclick', () => { const ri = p_allData.indexOf(p); if (ri >= 0) p_handleDoubleClickRow(ri); });
+        tr.addEventListener('click', function(e) {
+            if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') return;
+            const cb = this.querySelector('.p_row-checkbox-query');
+            if (cb) cb.checked = !cb.checked;
+        });
+        tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    document.getElementById('p_queryCount').textContent = resolved.length;
+    document.getElementById('p_querySelectAll').checked = false;
+}
 
             function p_updateSelectAll() { const cbs = document.querySelectorAll('#p_queryTbody .p_row-checkbox-query'); document.getElementById('p_querySelectAll').checked = cbs.length > 0 && Array.from(cbs).every(cb => cb.checked); }
             function p_toggleSelectAllQuery(cb) { document.querySelectorAll('#p_queryTbody .p_row-checkbox-query').forEach(c => c.checked = cb.checked); }
@@ -1508,36 +1577,58 @@ function p_importFromExcel() {
             function r_shouldHide(person) { const status = r_getBidOpeningStatus(person); return status === '已经开标' || status === '已取消投标'; }
 
             function r_refreshQueryTable(results) {
-                const state = r_sortState.queryTable;
-                let base = results !== undefined ? results : (r_queryResults.length > 0 ? r_queryResults : (r_activeSearchResults || r_allData));
-                if (document.getElementById('r_hideCompletedQuery')?.checked) base = base.filter(p => !r_shouldHide(p));
-                if (state.field) base = r_sortDataArray(base, state.field, state.order);
-                const table = document.getElementById('r_queryTable'); table.innerHTML = ''; table.appendChild(r_buildTableHeader());
-                const tbody = document.createElement('tbody'); tbody.id = 'r_queryTbody';
-                base.forEach((p, idx) => {
-                    const orig = r_allData.indexOf(p);
-                    const tr = r_buildTableRow(p, orig >= 0 ? orig : idx);
-                    tr.addEventListener('dblclick', () => { const ri = r_allData.indexOf(p); if (ri >= 0) { if (permissions.entry) r_handleDoubleClickRow(ri); else showToast('无录入权限', 'error'); } });
-                    tr.addEventListener('click', function(e) { if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') return; const cb = this.querySelector('.r_row-checkbox-query'); if (cb) cb.checked = !cb.checked; });
-                    tbody.appendChild(tr);
-                });
-                table.appendChild(tbody);
-                document.getElementById('r_queryCount').textContent = base.length;
-                document.getElementById('r_querySelectAll').checked = false;
-                r_updateSortArrows(state);
-                const thead = table.querySelector('thead');
-                if (thead) {
-                    thead.addEventListener('click', function(e) {
-                        const th = e.target.closest('th[data-sort]');
-                        if (!th) return;
-                        const field = th.getAttribute('data-sort');
-                        const currentState = r_sortState.queryTable;
-                        if (currentState.field === field) currentState.order = currentState.order === 'asc' ? 'desc' : 'asc';
-                        else { currentState.field = field; currentState.order = 'asc'; }
-                        r_refreshQueryTable();
-                    });
+    const state = r_sortState.queryTable;
+    let base = results !== undefined ? results : (r_queryResults.length > 0 ? r_queryResults : (r_activeSearchResults || r_allData));
+    if (document.getElementById('r_hideCompletedQuery')?.checked) base = base.filter(p => !r_shouldHide(p));
+    if (state.field) base = r_sortDataArray(base, state.field, state.order);
+    const table = document.getElementById('r_queryTable');
+    table.innerHTML = '';
+    table.appendChild(r_buildTableHeader());
+    const tbody = document.createElement('tbody');
+    tbody.id = 'r_queryTbody';
+    // 获取当前搜索关键词
+    const searchKw = document.getElementById('r_quickSearch').value.trim().toLowerCase();
+    base.forEach((p, idx) => {
+        const orig = r_allData.indexOf(p);
+        const tr = r_buildTableRow(p, orig >= 0 ? orig : idx);
+        // 高亮处理：遍历所有数据单元格（跳过复选框列）
+        const cells = tr.querySelectorAll('td:not(.checkbox-cell)');
+        cells.forEach(cell => {
+            let originalHtml = cell.innerHTML;
+            if (searchKw && originalHtml) {
+                const escapedKw = searchKw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                const regex = new RegExp(`(${escapedKw})`, 'gi');
+                const newHtml = originalHtml.replace(regex, `<span class="highlight">$1</span>`);
+                if (newHtml !== originalHtml) {
+                    cell.innerHTML = newHtml;
                 }
             }
+        });
+        tr.addEventListener('dblclick', () => { const ri = r_allData.indexOf(p); if (ri >= 0) { if (permissions.entry) r_handleDoubleClickRow(ri); else showToast('无录入权限', 'error'); } });
+        tr.addEventListener('click', function(e) {
+            if (e.target.tagName === 'INPUT' && e.target.type === 'checkbox') return;
+            const cb = this.querySelector('.r_row-checkbox-query');
+            if (cb) cb.checked = !cb.checked;
+        });
+        tbody.appendChild(tr);
+    });
+    table.appendChild(tbody);
+    document.getElementById('r_queryCount').textContent = base.length;
+    document.getElementById('r_querySelectAll').checked = false;
+    r_updateSortArrows(state);
+    const thead = table.querySelector('thead');
+    if (thead) {
+        thead.addEventListener('click', function(e) {
+            const th = e.target.closest('th[data-sort]');
+            if (!th) return;
+            const field = th.getAttribute('data-sort');
+            const currentState = r_sortState.queryTable;
+            if (currentState.field === field) currentState.order = currentState.order === 'asc' ? 'desc' : 'asc';
+            else { currentState.field = field; currentState.order = 'asc'; }
+            r_refreshQueryTable();
+        });
+    }
+}
 
             function r_updateSelectAll() { const cbs = document.querySelectorAll('#r_queryTbody .r_row-checkbox-query'); document.getElementById('r_querySelectAll').checked = cbs.length > 0 && Array.from(cbs).every(cb => cb.checked); }
             function r_toggleSelectAllQuery(cb) { document.querySelectorAll('#r_queryTbody .r_row-checkbox-query').forEach(c => c.checked = cb.checked); }
