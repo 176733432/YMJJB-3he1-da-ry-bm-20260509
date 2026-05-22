@@ -124,6 +124,11 @@
     padding: 0 2px;
     border-radius: 3px;
 }
+/* 人员系统敏感信息星号样式 */
+.sensitive-star {
+    font-family: monospace;
+    letter-spacing: 2px;
+}
         /* 新增：查询结果标题行的按钮容器 */
         .query-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-left: auto; }
         .query-title-row { display: flex; align-items: center; justify-content: space-between; width: 100%; }
@@ -305,6 +310,23 @@
     <div class="modal-overlay" id="dueModal" style="display:none;"><div class="modal" style="max-width:1000px;"><button class="modal-close" id="dueCloseBtn">×</button><h3>🔔 提醒</h3><div id="dueModalContent"></div><div class="modal-actions"><button class="btn btn-outline" id="dueCloseBtn2">关闭</button><button class="btn btn-primary" id="dueDownloadBtn">📥 下载提醒列表</button></div></div></div>
     <div class="modal-overlay" id="archiveCheckModal" style="display:none;"><div class="modal" style="max-width:1100px;"><button class="modal-close" onclick="document.getElementById('archiveCheckModal').style.display='none'">×</button><h3>📋 档案完整性检查</h3><div id="archiveCheckContent"></div><div class="modal-actions"><button class="btn btn-outline" onclick="document.getElementById('archiveCheckModal').style.display='none'">关闭</button></div></div></div>
     <div class="toast-container" id="toastContainer"></div>
+<!-- 登录密码验证模态框 -->
+<div class="modal-overlay" id="loginPasswordModal" style="display:none;">
+    <div class="modal" style="max-width:400px;">
+        <h3>🔐 验证登录密码</h3>
+        <div class="form-group">
+            <label>请输入您的登录密码</label>
+            <input type="password" id="loginPasswordInput" onkeydown="if(event.key==='Enter')submitLoginPassword()">
+        </div>
+        <p id="loginPasswordError" style="color:var(--danger);font-size:11px;display:none;">密码错误</p>
+        <div class="modal-actions">
+            <button class="btn btn-outline btn-sm" onclick="closeLoginPasswordModal()">取消</button>
+            <button class="btn btn-primary btn-sm" onclick="submitLoginPassword()">确认</button>
+        </div>
+    </div>
+</div>
+
+
     <script>
         (function() {
             // 微加固：云Key混淆
@@ -346,6 +368,11 @@
             let a_hiddenVisible=false;
             let a_editQueue=[], a_isProcessingQueue=false;
             let a_dataTabClickCount=0, a_dataTabClickTimer=null;
+
+let cachedUsers = null;           // 缓存用户库数据（用于验证登录密码）
+let p_sensitiveVisible = false;   // 人员系统冀时办信息是否可见（电话/冀时办账号/密码）
+let loginPasswordCallback = null; // 登录密码验证回调
+
             const a_encryptFields = ['engName','partyA','engAddress','contractPrice','cooperation','partner','phone'];
             const a_hiddenFields = ['cooperation','partner','phone'];
             const a_dateFields = ['bidDate','startDate','completionDate','signDate'];
@@ -416,6 +443,7 @@ function excelSerialToDate(serial) {
                     const raw=await cloudReadRaw(usersKey);
                     if(!raw) { err.textContent='用户库不存在'; err.style.display='block'; return; }
                     const users=JSON.parse(raw);
+cachedUsers = users;  // 直接赋值给局部变量
                     const found=users.find(u=>u.user===user);
                     if(!found) { err.textContent='用户名或密码错误'; err.style.display='block'; return; }
                     const pwdHash=CryptoJS.SHA256(pwd+USER_PW_SALT).toString();
@@ -1092,7 +1120,28 @@ async function resolvePersonnelConflict(localRaw, remoteRaw) {
                 if (person.validity) { const today = new Date(); const expDate = new Date(person.validity); if (!isNaN(expDate)) { const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24)); if (diffDays < 0) { expireClass = 'expired'; } else if (diffDays <= 50) { expireClass = 'expiring-soon'; } } }
                 html += `<td class="${expireClass}">${person.validity||''}</td>`;
                 html += `<td>${p_getDisplayValue('level',person.level,person.levelOther)}</td>`;
-                html += `<td>${person.issuer||''}</td><td>${person.phone||''}</td><td>${person.jishibanAccount||''}</td><td>${person.jishibanPassword||''}</td>`;
+               
+                html += `<td>${person.issuer||''}</td>`;
+                // 联系电话
+                if (p_sensitiveVisible) {
+                    html += `<td>${escapeHtml(person.phone||'')}</td>`;
+                } else {
+                    html += `<td class="sensitive-star">***</td>`;
+                }
+                // 冀时办账号
+                if (p_sensitiveVisible) {
+                    html += `<td>${escapeHtml(person.jishibanAccount||'')}</td>`;
+                } else {
+                    html += `<td class="sensitive-star">***</td>`;
+                }
+                // 冀时办密码
+                if (p_sensitiveVisible) {
+                    html += `<td>${escapeHtml(person.jishibanPassword||'')}</td>`;
+                } else {
+                    html += `<td class="sensitive-star">***</td>`;
+                }
+
+
                 html += `<td>${person.socialSecurity||''}</td><td>${p_getDisplayValue('company',person.company,person.companyOther)}</td><td>${person.remarks||''}</td>`;
                 tr.innerHTML = html; return tr;
             }
@@ -1174,12 +1223,18 @@ async function resolvePersonnelConflict(localRaw, remoteRaw) {
         return;
     }
 
-    p_activeSearchResults = p_allData.filter(p =>
-        (p.name && p.name.includes(kw)) ||
-        (p.idcard && p.idcard.includes(kw)) ||
-        (p.issuer && p.issuer.includes(kw)) ||
-        (p.remarks && p.remarks.includes(kw))
-    );
+    p_activeSearchResults = p_allData.filter(p => {
+    if (p.name && p.name.includes(kw)) return true;
+    if (p.idcard && p.idcard.includes(kw)) return true;
+    if (p.issuer && p.issuer.includes(kw)) return true;
+    if (p.remarks && p.remarks.includes(kw)) return true;
+    if (p_sensitiveVisible) {
+        if (p.phone && p.phone.includes(kw)) return true;
+        if (p.jishibanAccount && p.jishibanAccount.includes(kw)) return true;
+        if (p.jishibanPassword && p.jishibanPassword.includes(kw)) return true;
+    }
+    return false;
+});
 
 
     p_queryResults = [];
@@ -1232,8 +1287,8 @@ async function resolvePersonnelConflict(localRaw, remoteRaw) {
         const currentRegno = person.regno || '';
         const currentIdcard = person.idcard || '';
         
-        function autoFillFromName() {
-            const nameValue = nameInput.value.trim();
+        const autoFillFromName = function() {
+    const nameValue = nameInput.value.trim();
             if (!nameValue) return;
             
             // 收集所有同名记录（排除自身）
@@ -1461,17 +1516,71 @@ function p_importFromExcel() {
             function p_exportQueryResults() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(p_allFields, (fields) => { const data = p_queryResults.length > 0 ? p_queryResults : (p_activeSearchResults || p_allData); p_exportWithFields(data, '查询结果导出.xlsx', fields); }); }
 
             function p_checkDueDates() {
-                if (suppressAlerts.personnel) return;
-                const now = new Date();
-                const expiredList = [], warningList = [];
-                p_allData.forEach(p => { if (!p.validity) return; const date = new Date(p.validity); if (isNaN(date.getTime())) return; const diff = Math.ceil((date - now) / (1000 * 60 * 60 * 24)); if (diff < 0) { expiredList.push(p); } else if (diff >= 0 && diff < 50) { warningList.push(p); } });
-                if (expiredList.length === 0 && warningList.length === 0) return;
-                let html = '';
-                if (expiredList.length > 0) { html += '<div class="due-section-title">📋 已过期人员表 (' + expiredList.length + '条)</div><div class="table-wrapper"><table><thead><tr><th>序号</th><th>姓名</th><th>身份证</th><th>类别</th><th>岗位</th><th>级别</th><th>注册专业</th><th>有效期</th><th>冀时办账号</th><th>冀时办密码</th><th>所属公司</th></tr></thead><tbody>'; html += expiredList.map(p => `<tr><td>${p.seq}</td><td>${p.name}</td><td>${p.idcard}</td><td>${p_getDisplayValue('category',p.category,p.categoryOther)}</td><td>${p_getDisplayValue('position',p.position,p.positionOther)}</td><td>${p_getDisplayValue('level',p.level,p.levelOther)}</td><td>${p_getDisplayValue('major',p.major,p.majorOther)}</td><td>${p.validity}</td><td>${p.jishibanAccount}</td><td>${p.jishibanPassword}</td><td>${p_getDisplayValue('company',p.company,p.companyOther)}</td></tr>`).join(''); html += '</tbody></table></div>'; }
-                if (warningList.length > 0) { html += '<div class="due-section-title">📋 需续期人员表 (' + warningList.length + '条)</div><div class="table-wrapper"><table><thead><tr><th>序号</th><th>姓名</th><th>身份证</th><th>类别</th><th>岗位</th><th>级别</th><th>注册专业</th><th>有效期</th><th>冀时办账号</th><th>冀时办密码</th><th>所属公司</th></tr></thead><tbody>'; html += warningList.map(p => `<tr><td>${p.seq}</td><td>${p.name}</td><td>${p.idcard}</td><td>${p_getDisplayValue('category',p.category,p.categoryOther)}</td><td>${p_getDisplayValue('position',p.position,p.positionOther)}</td><td>${p_getDisplayValue('level',p.level,p.levelOther)}</td><td>${p_getDisplayValue('major',p.major,p.majorOther)}</td><td>${p.validity}</td><td>${p.jishibanAccount}</td><td>${p.jishibanPassword}</td><td>${p_getDisplayValue('company',p.company,p.companyOther)}</td></tr>`).join(''); html += '</tbody></table></div>'; }
-                const downloadFn = () => { const allDue = [...expiredList, ...warningList]; const expData = allDue.map(p => ({ "序号": p.seq, "姓名": p.name, "身份证": p.idcard, "类别": p_getDisplayValue('category',p.category,p.categoryOther), "岗位": p_getDisplayValue('position',p.position,p.positionOther), "级别": p_getDisplayValue('level',p.level,p.levelOther), "注册专业": p_getDisplayValue('major',p.major,p.majorOther), "有效期": p.validity, "冀时办账号": p.jishibanAccount, "冀时办密码": p.jishibanPassword, "所属公司": p_getDisplayValue('company',p.company,p.companyOther) })); const ws = XLSX.utils.json_to_sheet(expData); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '人员提醒'); XLSX.writeFile(wb, `人员提醒_${new Date().toISOString().slice(0,10)}.xlsx`); showToast('提醒列表已下载', 'success'); };
-                showDueModal(html, 'personnel', downloadFn);
-            }
+    if (suppressAlerts.personnel) return;
+    const now = new Date();
+    const expiredList = [], warningList = [];
+    p_allData.forEach(p => { if (!p.validity) return; const date = new Date(p.validity); if (isNaN(date.getTime())) return; const diff = Math.ceil((date - now) / (1000 * 60 * 60 * 24)); if (diff < 0) { expiredList.push(p); } else if (diff >= 0 && diff < 50) { warningList.push(p); } });
+    if (expiredList.length === 0 && warningList.length === 0) return;
+    let html = '';
+    
+    // 已过期人员表（移除了冀时办账号和密码列）
+    if (expiredList.length > 0) {
+        html += '<div class="due-section-title">📋 已过期人员表 (' + expiredList.length + '条)</div><div class="table-wrapper">';
+        html += '<table><thead><tr><th>序号</th><th>姓名</th><th>身份证</th><th>类别</th><th>岗位</th><th>级别</th><th>注册专业</th><th>有效期</th><th>联系电话</th><th>所属公司</th></tr></thead><tbody>';
+        html += expiredList.map(p => `<tr>
+            <td>${escapeHtml(p.seq||'')}</td>
+            <td>${escapeHtml(p.name||'')}</td>
+            <td>${escapeHtml(p.idcard||'')}</td>
+            <td>${escapeHtml(p_getDisplayValue('category',p.category,p.categoryOther))}</td>
+            <td>${escapeHtml(p_getDisplayValue('position',p.position,p.positionOther))}</td>
+            <td>${escapeHtml(p_getDisplayValue('level',p.level,p.levelOther))}</td>
+            <td>${escapeHtml(p_getDisplayValue('major',p.major,p.majorOther))}</td>
+            <td>${escapeHtml(p.validity||'')}</td>
+<td>${escapeHtml(p.phone||'')}</td>
+<td>${escapeHtml(p_getDisplayValue('company',p.company,p.companyOther))}</td>
+        </tr>`).join('');
+        html += '</tbody></table></div>';
+    }
+    
+    // 需续期人员表（移除了冀时办账号和密码列）
+    if (warningList.length > 0) {
+        html += '<div class="due-section-title">📋 需续期人员表 (' + warningList.length + '条)</div><div class="table-wrapper">';
+        html += '<table><thead><tr><th>序号</th><th>姓名</th><th>身份证</th><th>类别</th><th>岗位</th><th>级别</th><th>注册专业</th><th>有效期</th><th>联系电话</th><th>所属公司</th></td></thead><tbody>';
+        html += warningList.map(p => `<tr>
+            <td>${escapeHtml(p.seq||'')}</td>
+            <td>${escapeHtml(p.name||'')}</td>
+            <td>${escapeHtml(p.idcard||'')}</td>
+            <td>${escapeHtml(p_getDisplayValue('category',p.category,p.categoryOther))}</td>
+            <td>${escapeHtml(p_getDisplayValue('position',p.position,p.positionOther))}</td>
+            <td>${escapeHtml(p_getDisplayValue('level',p.level,p.levelOther))}</td>
+            <td>${escapeHtml(p_getDisplayValue('major',p.major,p.majorOther))}</td>
+            <td>${escapeHtml(p.validity||'')}</td>
+<td>${escapeHtml(p.phone||'')}</td>
+<td>${escapeHtml(p_getDisplayValue('company',p.company,p.companyOther))}</td>
+        </tr>`).join('');
+        html += '</tbody></table></div>';
+    }
+    
+    const downloadFn = () => {
+        const allDue = [...expiredList, ...warningList];
+        const expData = allDue.map(p => ({
+    "序号": p.seq, "姓名": p.name, "身份证": p.idcard,
+    "类别": p_getDisplayValue('category',p.category,p.categoryOther),
+    "岗位": p_getDisplayValue('position',p.position,p.positionOther),
+    "级别": p_getDisplayValue('level',p.level,p.levelOther),
+    "注册专业": p_getDisplayValue('major',p.major,p.majorOther),
+    "有效期": p.validity,
+    "联系电话": p.phone,                    // 新增
+    "所属公司": p_getDisplayValue('company',p.company,p.companyOther)
+}));
+        const ws = XLSX.utils.json_to_sheet(expData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, '人员提醒');
+        XLSX.writeFile(wb, `人员提醒_${new Date().toISOString().slice(0,10)}.xlsx`);
+        showToast('提醒列表已下载', 'success');
+    };
+    showDueModal(html, 'personnel', downloadFn);
+}
 
             // ===================== 报名系统函数 =====================
             function r_getLocalKey() { return deriveLocalKey(currentSensitivePwd); }
@@ -2493,6 +2602,39 @@ async function initAllSystems() {
     r_refreshQueryTable();
 
     updateSyncStatus(false, '本地模式');
+
+// 添加人员系统“显示冀时办信息”按钮
+function initPersonnelSensitiveButton() {
+    const queryActions = document.querySelector('#panel-personnel .query-actions');
+    if (!queryActions) return;
+    // 避免重复添加
+    if (document.getElementById('p_toggleSensitiveBtn')) return;
+    const btn = document.createElement('button');
+    btn.id = 'p_toggleSensitiveBtn';
+    btn.className = 'btn btn-outline btn-sm';
+    btn.textContent = '🔒 显示冀时办信息';
+    btn.onclick = function() {
+        if (!p_sensitiveVisible) {
+            // 需要验证登录密码
+            showLoginPasswordModal((success) => {
+                if (success) {
+                    p_sensitiveVisible = true;
+                    btn.textContent = '🔓 隐藏冀时办信息';
+                    p_refreshQueryTable();
+                    showToast('冀时办信息已显示', 'info');
+                }
+            });
+        } else {
+            p_sensitiveVisible = false;
+            btn.textContent = '🔒 显示冀时办信息';
+            p_refreshQueryTable();
+            showToast('冀时办信息已隐藏', 'info');
+        }
+    };
+    queryActions.appendChild(btn);
+}
+initPersonnelSensitiveButton();
+
     setTimeout(() => a_checkArchives(), 500);  // 本地数据加载后立即检查档案完整性
 
     // ==================== 2. 后台异步获取云端数据并对比（不阻塞界面） ====================
@@ -2576,6 +2718,13 @@ async function initAllSystems() {
             window.performLogin = performLogin; window.logout = logout; window.closePasswordModal = closePasswordModal;
             window.submitPassword = submitPassword; window.closeEditModal = closeEditModal; window.closeExportFieldModal = closeExportFieldModal;
             window.confirmExport = confirmExport;
+
+// 添加以下三行
+window.showLoginPasswordModal = showLoginPasswordModal;
+window.closeLoginPasswordModal = closeLoginPasswordModal;
+window.submitLoginPassword = submitLoginPassword;
+// ... 其他已有内容
+
             window.a_handleHeaderClick = a_handleHeaderClick; window.a_toggleSelectAllQuery = a_toggleSelectAllQuery; window.a_updateSelectAll = a_updateSelectAll;
             window.a_performGlobalSearch = a_performGlobalSearch; window.a_clearGlobalSearch = a_clearGlobalSearch; window.a_clearAdvancedFilter = a_clearAdvancedFilter; window.a_saveFromModal = a_saveFromModal;
             window.p_handleSortClick = p_handleSortClick; window.p_toggleSelectAllQuery = p_toggleSelectAllQuery; window.p_updateSelectAll = p_updateSelectAll;
@@ -2619,7 +2768,57 @@ async function initAllSystems() {
 
             function showPasswordModal(cb) { passwordCallback = cb; document.getElementById('passwordModal').style.display = 'flex'; document.getElementById('passwordInput').value = ''; document.getElementById('passwordError').style.display = 'none'; }
             function closePasswordModal() { document.getElementById('passwordModal').style.display = 'none'; passwordCallback = null; }
-            function submitPassword() { if (verifySensitive(document.getElementById('passwordInput').value)) { document.getElementById('passwordModal').style.display = 'none'; const cb = passwordCallback; passwordCallback = null; if (cb) cb(); } else { document.getElementById('passwordError').style.display = 'block'; } }
+function showLoginPasswordModal(callback) {
+    loginPasswordCallback = callback;
+    const modal = document.getElementById('loginPasswordModal');
+    modal.style.display = 'flex';
+    document.getElementById('loginPasswordInput').value = '';
+    document.getElementById('loginPasswordError').style.display = 'none';
+}
+
+
+function closeLoginPasswordModal() {
+    document.getElementById('loginPasswordModal').style.display = 'none';
+    loginPasswordCallback = null;
+}
+
+function submitLoginPassword() {
+    const inputPwd = document.getElementById('loginPasswordInput').value;
+    if (!inputPwd) {
+        document.getElementById('loginPasswordError').textContent = '请输入密码';
+        document.getElementById('loginPasswordError').style.display = 'block';
+        return;
+    }
+    // 调试：输出缓存用户库和当前用户
+    console.log('cachedUsers:', cachedUsers);
+    console.log('currentUser:', currentUser);
+    
+    if (!cachedUsers) {
+        document.getElementById('loginPasswordError').textContent = '用户库未加载，请重新登录';
+        document.getElementById('loginPasswordError').style.display = 'block';
+        return;
+    }
+    
+    const found = cachedUsers.find(u => u.user === currentUser);
+    if (!found) {
+        document.getElementById('loginPasswordError').textContent = '当前用户信息异常，请重新登录';
+        document.getElementById('loginPasswordError').style.display = 'block';
+        return;
+    }
+    
+    const inputHash = CryptoJS.SHA256(inputPwd + USER_PW_SALT).toString();
+    // 修改 submitLoginPassword 函数中成功验证的部分
+if (inputHash === found.pwd) {
+    const cb = loginPasswordCallback;   // 先保存回调
+    closeLoginPasswordModal();          // 关闭弹窗（此时回调被清空）
+    if (cb) cb(true);                  // 使用之前保存的回调执行
+} else {
+        document.getElementById('loginPasswordError').textContent = '密码错误';
+        document.getElementById('loginPasswordError').style.display = 'block';
+    }
+}
+            
+function submitPassword() { if (verifySensitive(document.getElementById('passwordInput').value)) { document.getElementById('passwordModal').style.display = 'none'; const cb = passwordCallback; passwordCallback = null; if (cb) cb(); } else { document.getElementById('passwordError').style.display = 'block'; } }
         })();
     </script>
 </body>
