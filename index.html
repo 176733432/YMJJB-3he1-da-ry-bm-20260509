@@ -596,10 +596,15 @@ function excelSerialToDate(serial) {
         a_refreshQueryTable(a_allData);
         return;
     }
-    a_activeSearchResults = a_allData.filter(p =>
-        [p.archiveNo, p.engName, p.partyA, p.engAddress, p.projectManager, p.partner, p.phone, p.remark]
-        .some(f => f && f.toLowerCase().includes(kw))
-    );
+    a_activeSearchResults = a_allData.filter(p => {
+        // 基础搜索字段（不含敏感信息）
+        const fields = [p.archiveNo, p.engName, p.partyA, p.engAddress, p.projectManager, p.remark];
+        // 敏感信息显示时，增加合作人和联系电话
+        if (a_hiddenVisible) {
+            fields.push(p.partner, p.phone);
+        }
+        return fields.some(f => f && f.toLowerCase().includes(kw));
+    });
     a_queryResults = [];
     if (a_hasAdvancedFilter()) {
         a_performAdvancedFilter();
@@ -1657,13 +1662,16 @@ function p_importFromExcel() {
         r_refreshQueryTable(r_allData);
         return;
     }
-    r_activeSearchResults = r_allData.filter(p =>
-        (p.projectName && p.projectName.toLowerCase().includes(kw)) ||
-        (p.client && p.client.toLowerCase().includes(kw)) ||
-        (p.projectManager && p.projectManager.toLowerCase().includes(kw)) ||
-        (p.materials && p.materials.toLowerCase().includes(kw)) ||
-        (p.remarks && p.remarks.toLowerCase().includes(kw))
-    );
+    r_activeSearchResults = r_allData.filter(p => {
+        if (p.projectName && p.projectName.toLowerCase().includes(kw)) return true;
+        if (p.client && p.client.toLowerCase().includes(kw)) return true;
+        if (p.projectManager && p.projectManager.toLowerCase().includes(kw)) return true;
+        if (p.materials && p.materials.toLowerCase().includes(kw)) return true;
+        if (p.remarks && p.remarks.toLowerCase().includes(kw)) return true;
+        // 备注2仅在显示敏感信息时参与搜索
+        if (r_remarks2Visible && p.remarks2 && p.remarks2.toLowerCase().includes(kw)) return true;
+        return false;
+    });
     r_queryResults = [];
     if (r_hasAdvancedFilter()) {
         r_performAdvancedFilter();
