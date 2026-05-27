@@ -926,7 +926,22 @@ cachedUsers = users;  // 直接赋值给局部变量
             function a_getExportFields() { if (a_hiddenVisible) return a_allFields; else return a_allFields.filter(f => !a_hiddenFields.includes(f.key)); }
             function a_exportWithFields(dataArray, fileName, fields) { if (!dataArray.length) { showToast('无数据', 'error'); return; } const header = fields.map(k => a_allFields.find(f => f.key === k)?.label || k); const exportData = dataArray.map(p => fields.map(k => p[k] || '')); const ws = XLSX.utils.aoa_to_sheet([header, ...exportData]); ws['!cols'] = header.map(() => ({ wch: 15 })); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '档案'); XLSX.writeFile(wb, fileName); showToast('已导出', 'success'); }
             function a_exportAllData() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(a_getExportFields(), (fields) => a_exportWithFields(a_allData, '正大世拓档案备份_' + getNowString() + '.xlsx', fields)); }
-            function a_exportQueryResults() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(a_getExportFields(), (fields) => { const data = a_queryResults.length > 0 ? a_queryResults : (a_activeSearchResults || a_allData); a_exportWithFields(data, '查询结果_' + getNowString() + '.xlsx', fields); }); }
+            
+function a_exportQueryResults() { 
+    if (!permissions.export) { showToast('无导出权限', 'error'); return; } 
+    openExportFieldModal(a_getExportFields(), (fields) => { 
+        const selectedIndices = a_getSelectedIndices();
+        let data;
+        if (selectedIndices.length > 0) {
+            data = selectedIndices.map(i => a_allData[i]).filter(p => p !== undefined);
+        } else {
+            data = a_queryResults.length > 0 ? a_queryResults : (a_activeSearchResults || a_allData);
+        }
+        a_exportWithFields(data, '查询结果_' + getNowString() + '.xlsx', fields); 
+    }); 
+}
+
+
             function a_toggleHiddenFields() { if (!permissions.showSensitive) { showToast('无显示敏感信息权限', 'error'); return; } if (!a_hiddenVisible) { showPasswordModal(() => { a_hiddenVisible = true; a_refreshQueryTable(); showToast('敏感信息已显示', 'info'); }); } else { a_hiddenVisible = false; a_refreshQueryTable(); showToast('敏感信息已隐藏', 'info'); } }
 
             // ===================== 人员系统函数 =====================
@@ -1513,7 +1528,21 @@ function p_importFromExcel() {
             async function p_clearCloud() { if (!permissions.clearCloud) { showToast('无清除权限', 'error'); return; } if (confirm('确定要彻底清除人员云端数据吗？')) { await cloudUpdateRaw(getPersonnelCloudKey(), ''); showToast('云端人员数据已清除', 'info'); } }
             function p_exportWithFields(dataArray, fileName, fields) { if (!dataArray.length) { showToast('无数据', 'error'); return; } const header = fields.map(k => p_allFields.find(f => f.key === k)?.label || k); const exportData = dataArray.map(p => fields.map(k => { if (k === 'category' || k === 'position' || k === 'major' || k === 'level' || k === 'company') { return p_getDisplayValue(k, p[k], p[k + 'Other']) || ''; } return p[k] || ''; })); const ws = XLSX.utils.aoa_to_sheet([header, ...exportData]); ws['!cols'] = header.map(() => ({ wch: 15 })); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '人员数据'); XLSX.writeFile(wb, fileName); showToast('已导出', 'success'); }
             function p_exportAllData() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(p_allFields, (fields) => p_exportWithFields(p_allData, '人员数据汇总表.xlsx', fields)); }
-            function p_exportQueryResults() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(p_allFields, (fields) => { const data = p_queryResults.length > 0 ? p_queryResults : (p_activeSearchResults || p_allData); p_exportWithFields(data, '查询结果导出.xlsx', fields); }); }
+            
+
+function p_exportQueryResults() { 
+    if (!permissions.export) { showToast('无导出权限', 'error'); return; } 
+    openExportFieldModal(p_allFields, (fields) => { 
+        const selectedIndices = p_getSelectedIndices();
+        let data;
+        if (selectedIndices.length > 0) {
+            data = selectedIndices.map(i => p_allData[i]).filter(p => p !== undefined);
+        } else {
+            data = p_queryResults.length > 0 ? p_queryResults : (p_activeSearchResults || p_allData);
+        }
+        p_exportWithFields(data, '查询结果导出.xlsx', fields); 
+    }); 
+}
 
             function p_checkDueDates() {
     if (suppressAlerts.personnel) return;
@@ -1982,7 +2011,20 @@ function p_importFromExcel() {
             function r_getExportFields() { if (r_remarks2Visible && permissions.showSensitive) { return [...r_allFieldsExport, { key: 'remarks2', label: '备注2' }]; } else { return r_allFieldsExport; } }
             function r_exportWithFields(dataArray, fileName, fields) { if (!dataArray.length) { showToast('无数据', 'error'); return; } const finalFields = fields.filter(k => k !== 'bidOpeningStatus'); const exportData = dataArray.map(p => { const row = {}; finalFields.forEach(k => { if (k === 'bidOpeningDate') { row[k] = formatDateTimeForDisplay(p.bidOpeningDate); } else if (k === 'remarks2') { row[k] = p.remarks2 || ''; } else { row[k] = p[k] || ''; } }); return row; }); const header = finalFields.map(k => { if (k === 'remarks2') return '备注2'; const found = r_allFieldsExport.find(f => f.key === k); return found ? found.label : k; }); const ws = XLSX.utils.json_to_sheet(exportData, { header: finalFields }); XLSX.utils.sheet_add_aoa(ws, [header], { origin: 'A1' }); ws['!cols'] = header.map(() => ({ wch: 16 })); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '报名数据'); XLSX.writeFile(wb, fileName); showToast('已导出', 'success'); }
             function r_exportAllData() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(r_getExportFields(), (fields) => r_exportWithFields(r_allData, '工程报名备份' + getNowString() + '.xlsx', fields)); }
-            function r_exportQueryResults() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(r_getExportFields(), (fields) => { const data = r_queryResults.length > 0 ? r_queryResults : (r_activeSearchResults || r_allData); r_exportWithFields(data, '报名查询结果' + getNowString() + '.xlsx', fields); }); }
+            
+function r_exportQueryResults() { 
+    if (!permissions.export) { showToast('无导出权限', 'error'); return; } 
+    openExportFieldModal(r_getExportFields(), (fields) => { 
+        const selectedIndices = r_getSelectedIndices();
+        let data;
+        if (selectedIndices.length > 0) {
+            data = selectedIndices.map(i => r_allData[i]).filter(p => p !== undefined);
+        } else {
+            data = r_queryResults.length > 0 ? r_queryResults : (r_activeSearchResults || r_allData);
+        }
+        r_exportWithFields(data, '报名查询结果' + getNowString() + '.xlsx', fields); 
+    }); 
+}
 
             function r_checkDueBidOpenings() {
                 if (suppressAlerts.registration) return;
