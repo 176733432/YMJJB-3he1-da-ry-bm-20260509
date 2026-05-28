@@ -1132,7 +1132,9 @@ async function resolvePersonnelConflict(localRaw, remoteRaw) {
                 html += `<td>${p_getDisplayValue('category',person.category,person.categoryOther)}</td><td>${p_getDisplayValue('position',person.position,person.positionOther)}</td>`;
                 html += `<td>${person.regno||''}</td><td>${p_getDisplayValue('major',person.major,person.majorOther)}</td>`;
                 let expireClass = '';
-                if (person.validity) { const today = new Date(); const expDate = new Date(person.validity); if (!isNaN(expDate)) { const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24)); if (diffDays < 0) { expireClass = 'expired'; } else if (diffDays <= 50) { expireClass = 'expiring-soon'; } } }
+                if (person.validity) { const today = new Date(); const expDate = new Date(person.validity); if (!isNaN(expDate)) { const diffDays = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));const positionDisplay = p_getDisplayValue('position', person.position, person.positionOther);
+const maxWarningDays = positionDisplay.includes('水利') ? 180 : 90;
+if (diffDays < 0) { expireClass = 'expired'; } else if (diffDays <= maxWarningDays) { expireClass = 'expiring-soon'; } } }
                 html += `<td class="${expireClass}">${person.validity||''}</td>`;
                 html += `<td>${p_getDisplayValue('level',person.level,person.levelOther)}</td>`;
                
@@ -1221,7 +1223,21 @@ async function resolvePersonnelConflict(localRaw, remoteRaw) {
                     if (f.major) { const displayVal = p_getDisplayValue('major', p.major, p.majorOther).toLowerCase(); if (displayVal.indexOf(f.major.toLowerCase()) === -1) return false; }
                     if (f.company) { const displayVal = p_getDisplayValue('company', p.company, p.companyOther).toLowerCase(); if (displayVal.indexOf(f.company.toLowerCase()) === -1) return false; }
                     if (f.socialSecurity && p.socialSecurity !== f.socialSecurity) return false;
-                    if (f.validity) { if (!p.validity) return false; const expDate = new Date(p.validity); if (isNaN(expDate.getTime())) return false; const diffDays = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24)); if (f.validity === 'expired') { if (diffDays >= 0) return false; } else if (f.validity === 'expiring') { if (diffDays < 0 || diffDays >= 50) return false; } else if (f.validity === 'valid') { if (diffDays < 0) return false; } }
+                    if (f.validity) { 
+    if (!p.validity) return false; 
+    const expDate = new Date(p.validity); 
+    if (isNaN(expDate.getTime())) return false; 
+    const diffDays = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24)); 
+    if (f.validity === 'expired') { 
+        if (diffDays >= 0) return false; 
+    } else if (f.validity === 'expiring') { 
+        const posDisplay = p_getDisplayValue('position', p.position, p.positionOther);
+        const maxDays = posDisplay.includes('水利') ? 180 : 90;
+        if (diffDays < 0 || diffDays >= maxDays) return false; 
+    } else if (f.validity === 'valid') { 
+        if (diffDays < 0) return false; 
+    } 
+}
                     return true;
                 });
                 p_refreshQueryTable(p_queryResults);
@@ -1548,11 +1564,20 @@ function p_exportQueryResults() {
     if (suppressAlerts.personnel) return;
     const now = new Date();
     const expiredList = [], warningList = [];
-    p_allData.forEach(p => { if (!p.validity) return; const date = new Date(p.validity); if (isNaN(date.getTime())) return; const diff = Math.ceil((date - now) / (1000 * 60 * 60 * 24)); if (diff < 0) { expiredList.push(p); } else if (diff >= 0 && diff < 50) { warningList.push(p); } });
+    p_allData.forEach(p => {
+        if (!p.validity) return;
+        const date = new Date(p.validity);
+        if (isNaN(date.getTime())) return;
+        const diff = Math.ceil((date - now) / (1000 * 60 * 60 * 24));
+        const posDisplay = p_getDisplayValue('position', p.position, p.positionOther);
+        const maxDays = posDisplay.includes('水利') ? 180 : 90;
+        if (diff < 0) { expiredList.push(p); }
+        else if (diff >= 0 && diff < maxDays) { warningList.push(p); }
+    });
     if (expiredList.length === 0 && warningList.length === 0) return;
     let html = '';
     
-    // 已过期人员表（移除了冀时办账号和密码列）
+    // 已过期人员表（保持不变）
     if (expiredList.length > 0) {
         html += '<div class="due-section-title">📋 已过期人员表 (' + expiredList.length + '条)</div><div class="table-wrapper">';
         html += '<table><thead><tr><th>序号</th><th>姓名</th><th>身份证</th><th>类别</th><th>岗位</th><th>级别</th><th>注册专业</th><th>有效期</th><th>联系电话</th><th>所属公司</th></tr></thead><tbody>';
@@ -1571,7 +1596,7 @@ function p_exportQueryResults() {
         html += '</tbody></table></div>';
     }
     
-    // 需续期人员表（移除了冀时办账号和密码列）
+    // 需续期人员表（调整提醒阈值）
     if (warningList.length > 0) {
         html += '<div class="due-section-title">📋 需续期人员表 (' + warningList.length + '条)</div><div class="table-wrapper">';
         html += '<table><thead><tr><th>序号</th><th>姓名</th><th>身份证</th><th>类别</th><th>岗位</th><th>级别</th><th>注册专业</th><th>有效期</th><th>联系电话</th><th>所属公司</th></td></thead><tbody>';
@@ -1599,7 +1624,7 @@ function p_exportQueryResults() {
     "级别": p_getDisplayValue('level',p.level,p.levelOther),
     "注册专业": p_getDisplayValue('major',p.major,p.majorOther),
     "有效期": p.validity,
-    "联系电话": p.phone,                    // 新增
+    "联系电话": p.phone,
     "所属公司": p_getDisplayValue('company',p.company,p.companyOther)
 }));
         const ws = XLSX.utils.json_to_sheet(expData);
@@ -1610,7 +1635,6 @@ function p_exportQueryResults() {
     };
     showDueModal(html, 'personnel', downloadFn);
 }
-
             // ===================== 报名系统函数 =====================
             function r_getLocalKey() { return deriveLocalKey(currentSensitivePwd); }
             function r_encryptData(plainObj) { try { return CryptoJS.AES.encrypt(JSON.stringify(plainObj), r_getLocalKey(), { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }).toString(); } catch (e) { return null; } }
