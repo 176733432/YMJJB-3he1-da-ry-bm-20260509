@@ -1865,6 +1865,8 @@ function p_exportQueryResults() {
 
             function r_saveFromModal() {
     const index = parseInt(document.getElementById('re_index').value);
+    const remarks2El = document.getElementById('re_remarks2');
+    const remarks2Value = remarks2El ? remarks2El.value : (index >= 0 && index < r_allData.length ? (r_allData[index].remarks2 || '') : '');
     const person = {
         seq: document.getElementById('re_seq').value,
         projectName: document.getElementById('re_projectName').value,
@@ -1880,7 +1882,7 @@ function p_exportQueryResults() {
         announcementUrl: document.getElementById('re_announcementUrl').value,
         company: document.getElementById('re_company').value,
         remarks: document.getElementById('re_remarks').value,
-        remarks2: document.getElementById('re_remarks2')?.value || ''
+        remarks2: remarks2Value
     };
     if (!person.projectName.trim()) {
         showToast('工程名称不能为空', 'error');
