@@ -790,6 +790,23 @@ cachedUsers = users;  // 直接赋值给局部变量
             }
         }
     }
+
+    // ==================== 档案号重复检测 ====================
+    const archiveNoInput = document.getElementById('ae_archiveNo');
+    if (archiveNoInput) {
+        archiveNoInput.addEventListener('blur', function() {
+            const val = archiveNoInput.value.trim();
+            if (!val) return;
+            const duplicate = a_allData.find((item, idx) => {
+                // 编辑自身时排除当前档案
+                if (index >= 0 && idx === index) return false;
+                return item.archiveNo && item.archiveNo.trim() === val;
+            });
+            if (duplicate) {
+                showToast(`档案号 ${escapeHtml(val)} 已被工程“${escapeHtml(duplicate.engName || '')}”占用`, 'info');
+            }
+        });
+    }
 }
 
             
