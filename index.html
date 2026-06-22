@@ -902,42 +902,54 @@ cachedUsers = users;  // 直接赋值给局部变量
 }
 
             async function a_handleBackupToCloud() {
-                if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
-                const key = prompt('请输入本次备份的随机加密密钥（恢复时需要提供）：');
-                if (!key) return;
-                let success = false;
-                const payload = JSON.stringify(a_allData);
-                const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
-                const batches = [];
-                let startIdx = 0;
-                while (startIdx < encPayload.length) { batches.push(encPayload.slice(startIdx, startIdx + 6000)); startIdx += 6000; }
-                try {
-                    for (let i = 0; i < batches.length; i++) { const res = await cloudUpdateRaw(getArchiveCloudKey() + '_batch' + (i+1), batches[i]); if (!res.success) throw new Error('分片写入失败'); }
-                    await cloudUpdateRaw(getArchiveCloudKey(), JSON.stringify({ batches: batches.length }));
-                    showToast('云端备份成功', 'success'); success = true;
-                } catch (e) { showToast('云端备份失败', 'error'); }
-                const statusText = success ? '备份成功' : '备份失败';
-                const fileName = `档案管理系统_${statusText}_${getNowString()}.xlsx`;
-                const fields = a_hiddenVisible ? a_allFields.map(f => f.key) : a_allFields.filter(f => !a_hiddenFields.includes(f.key)).map(f => f.key);
-                a_exportWithFields(a_allData, fileName, fields);
-            }
+    if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
+    let key = null;
+    while (true) {
+        const firstKey = prompt('请输入本次备份的随机加密密钥（恢复时需要提供）：');
+        if (firstKey === null) { return; }
+        const secondKey = prompt('请再次输入加密密钥以确认：');
+        if (secondKey === null) { return; }
+        if (firstKey === secondKey) {
+            key = firstKey;
+            break;
+        } else {
+            showToast('两次输入的密钥不一致，请重新输入', 'error');
+        }
+    }
+    let success = false;
+    const payload = JSON.stringify(a_allData);
+    const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
+    const batches = [];
+    let startIdx = 0;
+    while (startIdx < encPayload.length) { batches.push(encPayload.slice(startIdx, startIdx + 6000)); startIdx += 6000; }
+    try {
+        for (let i = 0; i < batches.length; i++) { const res = await cloudUpdateRaw(getArchiveCloudKey() + '_batch' + (i+1), batches[i]); if (!res.success) throw new Error('分片写入失败'); }
+        await cloudUpdateRaw(getArchiveCloudKey(), JSON.stringify({ batches: batches.length }));
+        showToast('云端备份成功', 'success'); success = true;
+    } catch (e) { showToast('云端备份失败', 'error'); }
+    const statusText = success ? '备份成功' : '备份失败';
+    const fileName = `档案管理系统_${statusText}_${getNowString()}.xlsx`;
+    const fields = a_hiddenVisible ? a_allFields.map(f => f.key) : a_allFields.filter(f => !a_hiddenFields.includes(f.key)).map(f => f.key);
+    a_exportWithFields(a_allData, fileName, fields);
+}
 
             async function a_handleRestoreFromCloud() {
-                if (!permissions.restore) { showToast('无恢复权限', 'error'); return; }
-                const key = prompt('请输入备份时使用的随机加密密钥：'); if (!key) return;
-                showPasswordModal(async () => {
-                    try {
-                        const metaRaw = await cloudReadRaw(getArchiveCloudKey()); if (!metaRaw) { showToast('云端无数据', 'info'); return; }
-                        const meta = JSON.parse(metaRaw); let fullEnc = '';
-                        for (let i = 1; i <= meta.batches; i++) { const part = await cloudReadRaw(getArchiveCloudKey() + '_batch' + i); if (part) fullEnc += part; }
-                        const decPayload = CryptoJS.AES.decrypt(fullEnc, key).toString(CryptoJS.enc.Utf8);
-                        if (!decPayload) { showToast('解密密钥错误', 'error'); return; }
-                        const cloudData = JSON.parse(decPayload);
-                        if (JSON.stringify(a_allData) === JSON.stringify(cloudData)) { showToast('数据一致', 'info'); return; }
-                        if (confirm(`云端${cloudData.length}条，本地${a_allData.length}条，覆盖？`)) { a_allData = cloudData; a_saveLocal(a_allData); a_activeSearchResults = null; a_refreshQueryTable(); showToast('已恢复', 'success'); }
-                    } catch (e) { showToast('恢复失败，密钥错误或数据格式异常', 'error'); }
-                });
-            }
+    if (!permissions.restore) { showToast('无恢复权限', 'error'); return; }
+    const key = prompt('请输入备份时使用的随机加密密钥：'); if (!key) return;
+    showLoginPasswordModal(async (success) => {
+        if (!success) return;
+        try {
+            const metaRaw = await cloudReadRaw(getArchiveCloudKey()); if (!metaRaw) { showToast('云端无数据', 'info'); return; }
+            const meta = JSON.parse(metaRaw); let fullEnc = '';
+            for (let i = 1; i <= meta.batches; i++) { const part = await cloudReadRaw(getArchiveCloudKey() + '_batch' + i); if (part) fullEnc += part; }
+            const decPayload = CryptoJS.AES.decrypt(fullEnc, key).toString(CryptoJS.enc.Utf8);
+            if (!decPayload) { showToast('解密密钥错误', 'error'); return; }
+            const cloudData = JSON.parse(decPayload);
+            if (JSON.stringify(a_allData) === JSON.stringify(cloudData)) { showToast('数据一致', 'info'); return; }
+            if (confirm(`云端${cloudData.length}条，本地${a_allData.length}条，覆盖？`)) { a_allData = cloudData; a_saveLocal(a_allData); a_activeSearchResults = null; a_refreshQueryTable(); showToast('已恢复', 'success'); }
+        } catch (e) { showToast('恢复失败，密钥错误或数据格式异常', 'error'); }
+    });
+}
 
             async function a_clearCloud() { if (!permissions.clearCloud) { showToast('无清除权限', 'error'); return; } if (confirm('确定要彻底清除档案云端数据吗？')) { await cloudUpdateRaw(getArchiveCloudKey(), ''); showToast('云端档案数据已清除', 'info'); } }
             function a_getExportFields() { if (a_hiddenVisible) return a_allFields; else return a_allFields.filter(f => !a_hiddenFields.includes(f.key)); }
@@ -1543,21 +1555,79 @@ function p_importFromExcel() {
 }
 
             async function p_handleBackupToCloud() {
-                if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
-                const key = prompt('请输入本次备份的随机加密密钥（恢复时需要提供）：'); if (!key) return;
-                let success = false;
-                const cloudArray = p_allData.map(item => ({ "序号": parseInt(item.seq) || 0, "姓名": item.name, "身份证": item.idcard, "类别": p_getDisplayValue('category', item.category, item.categoryOther), "岗位": p_getDisplayValue('position', item.position, item.positionOther), "注册号": item.regno, "注册专业": p_getDisplayValue('major', item.major, item.majorOther), "有效期": item.validity ? (() => { const d = new Date(item.validity); return Math.round((d.getTime() - new Date(1899, 11, 30).getTime()) / 86400000); })() : "", "级别": p_getDisplayValue('level', item.level, item.levelOther), "发证单位": item.issuer, "联系电话": item.phone, "冀时办账号": item.jishibanAccount, "冀时办密码": item.jishibanPassword, "社保": item.socialSecurity, "所属公司": p_getDisplayValue('company', item.company, item.companyOther), "备注": item.remarks, "类别自定义": "", "岗位自定义": "", "注册专业自定义": "", "级别自定义": "", "所属公司自定义": "" }));
-                const payload = JSON.stringify(cloudArray);
-                const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
-                const batches = []; let startIdx = 0; while (startIdx < encPayload.length) { batches.push(encPayload.slice(startIdx, startIdx + 6000)); startIdx += 6000; }
-                try { for (let i = 0; i < batches.length; i++) { const res = await cloudUpdateRaw(getPersonnelCloudKey() + '_batch' + (i+1), batches[i]); if (!res.success) throw new Error('分片写入失败'); } await cloudUpdateRaw(getPersonnelCloudKey(), JSON.stringify({ batches: batches.length })); showToast('云端备份成功', 'success'); success = true; } catch (e) { showToast('云端备份失败', 'error'); }
-                const statusText = success ? '备份成功' : '备份失败';
-                const fileName = `人员管理系统_${statusText}_${getNowString()}.xlsx`;
-                const fields = p_allFields.map(f => f.key);
-                p_exportWithFields(p_allData, fileName, fields);
-            }
+    if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
+    let key = null;
+    while (true) {
+        const firstKey = prompt('请输入本次备份的随机加密密钥（恢复时需要提供）：');
+        if (firstKey === null) { return; }
+        const secondKey = prompt('请再次输入加密密钥以确认：');
+        if (secondKey === null) { return; }
+        if (firstKey === secondKey) {
+            key = firstKey;
+            break;
+        } else {
+            showToast('两次输入的密钥不一致，请重新输入', 'error');
+        }
+    }
+    let success = false;
+    const cloudArray = p_allData.map(item => ({
+        "序号": parseInt(item.seq) || 0,
+        "姓名": item.name,
+        "身份证": item.idcard,
+        "类别": p_getDisplayValue('category', item.category, item.categoryOther),
+        "岗位": p_getDisplayValue('position', item.position, item.positionOther),
+        "注册号": item.regno,
+        "注册专业": p_getDisplayValue('major', item.major, item.majorOther),
+        "有效期": item.validity ? (() => { const d = new Date(item.validity); return Math.round((d.getTime() - new Date(1899, 11, 30).getTime()) / 86400000); })() : "",
+        "级别": p_getDisplayValue('level', item.level, item.levelOther),
+        "发证单位": item.issuer,
+        "联系电话": item.phone,
+        "冀时办账号": item.jishibanAccount,
+        "冀时办密码": item.jishibanPassword,
+        "社保": item.socialSecurity,
+        "所属公司": p_getDisplayValue('company', item.company, item.companyOther),
+        "备注": item.remarks,
+        "类别自定义": "", "岗位自定义": "", "注册专业自定义": "", "级别自定义": "", "所属公司自定义": ""
+    }));
+    const payload = JSON.stringify(cloudArray);
+    const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
+    const batches = [];
+    let startIdx = 0;
+    while (startIdx < encPayload.length) { batches.push(encPayload.slice(startIdx, startIdx + 6000)); startIdx += 6000; }
+    try {
+        for (let i = 0; i < batches.length; i++) { const res = await cloudUpdateRaw(getPersonnelCloudKey() + '_batch' + (i+1), batches[i]); if (!res.success) throw new Error('分片写入失败'); }
+        await cloudUpdateRaw(getPersonnelCloudKey(), JSON.stringify({ batches: batches.length }));
+        showToast('云端备份成功', 'success'); success = true;
+    } catch (e) { showToast('云端备份失败', 'error'); }
+    const statusText = success ? '备份成功' : '备份失败';
+    const fileName = `人员管理系统_${statusText}_${getNowString()}.xlsx`;
+    const fields = p_allFields.map(f => f.key);
+    p_exportWithFields(p_allData, fileName, fields);
+}
 
-            async function p_handleRestoreFromCloud() { if (!permissions.restore) { showToast('无恢复权限', 'error'); return; } const key = prompt('请输入备份时使用的随机加密密钥：'); if (!key) return; showPasswordModal(async () => { try { const metaRaw = await cloudReadRaw(getPersonnelCloudKey()); if (!metaRaw) { showToast('云端无数据', 'info'); return; } const meta = JSON.parse(metaRaw); let fullEnc = ''; for (let i = 1; i <= meta.batches; i++) { const part = await cloudReadRaw(getPersonnelCloudKey() + '_batch' + i); if (part) fullEnc += part; } const decPayload = CryptoJS.AES.decrypt(fullEnc, key).toString(CryptoJS.enc.Utf8); if (!decPayload) { showToast('解密密钥错误', 'error'); return; } const cloudArray = JSON.parse(decPayload); const cloudData = cloudArray.map(item => ({ seq: String(item["序号"] || ""), name: item["姓名"] || "", idcard: item["身份证"] || "", category: item["类别"] || "", position: item["岗位"] || "", regno: item["注册号"] || "", major: item["注册专业"] || "", validity: item["有效期"] ? excelSerialToDate(parseInt(item["有效期"])) : "", level: item["级别"] || "", issuer: item["发证单位"] || "", phone: item["联系电话"] || "", jishibanAccount: item["冀时办账号"] || "", jishibanPassword: item["冀时办密码"] || "", socialSecurity: item["社保"] || "", company: item["所属公司"] || "", remarks: item["备注"] || "", categoryOther: item["类别自定义"] || "", positionOther: item["岗位自定义"] || "", majorOther: item["注册专业自定义"] || "", levelOther: item["级别自定义"] || "", companyOther: item["所属公司自定义"] || "" })); if (JSON.stringify(p_allData) === JSON.stringify(cloudData)) { showToast('数据一致', 'info'); return; } if (confirm(`云端${cloudData.length}条，本地${p_allData.length}条，覆盖？`)) { p_allData = cloudData; p_saveLocal(p_allData); p_activeSearchResults = null; p_refreshQueryTable(); showToast('已恢复', 'success'); } } catch (e) { showToast('恢复失败，密钥错误或数据格式异常', 'error'); } }); }
+
+            
+            async function p_handleRestoreFromCloud() {
+    if (!permissions.restore) { showToast('无恢复权限', 'error'); return; }
+    const key = prompt('请输入备份时使用的随机加密密钥：'); if (!key) return;
+    showLoginPasswordModal(async (success) => {
+        if (!success) return;
+        try {
+            const metaRaw = await cloudReadRaw(getPersonnelCloudKey()); if (!metaRaw) { showToast('云端无数据', 'info'); return; }
+            const meta = JSON.parse(metaRaw); let fullEnc = '';
+            for (let i = 1; i <= meta.batches; i++) { const part = await cloudReadRaw(getPersonnelCloudKey() + '_batch' + i); if (part) fullEnc += part; }
+            const decPayload = CryptoJS.AES.decrypt(fullEnc, key).toString(CryptoJS.enc.Utf8);
+            if (!decPayload) { showToast('解密密钥错误', 'error'); return; }
+            const cloudArray = JSON.parse(decPayload);
+            const cloudData = cloudArray.map(item => ({
+                seq: String(item["序号"] || ""), name: item["姓名"] || "", idcard: item["身份证"] || "", category: item["类别"] || "", position: item["岗位"] || "", regno: item["注册号"] || "", major: item["注册专业"] || "", validity: item["有效期"] ? excelSerialToDate(parseInt(item["有效期"])) : "", level: item["级别"] || "", issuer: item["发证单位"] || "", phone: item["联系电话"] || "", jishibanAccount: item["冀时办账号"] || "", jishibanPassword: item["冀时办密码"] || "", socialSecurity: item["社保"] || "", company: item["所属公司"] || "", remarks: item["备注"] || "", categoryOther: item["类别自定义"] || "", positionOther: item["岗位自定义"] || "", majorOther: item["注册专业自定义"] || "", levelOther: item["级别自定义"] || "", companyOther: item["所属公司自定义"] || ""
+            }));
+            if (JSON.stringify(p_allData) === JSON.stringify(cloudData)) { showToast('数据一致', 'info'); return; }
+            if (confirm(`云端${cloudData.length}条，本地${p_allData.length}条，覆盖？`)) { p_allData = cloudData; p_saveLocal(p_allData); p_activeSearchResults = null; p_refreshQueryTable(); showToast('已恢复', 'success'); }
+        } catch (e) { showToast('恢复失败，密钥错误或数据格式异常', 'error'); }
+    });
+}
+
             async function p_clearCloud() { if (!permissions.clearCloud) { showToast('无清除权限', 'error'); return; } if (confirm('确定要彻底清除人员云端数据吗？')) { await cloudUpdateRaw(getPersonnelCloudKey(), ''); showToast('云端人员数据已清除', 'info'); } }
             function p_exportWithFields(dataArray, fileName, fields) { if (!dataArray.length) { showToast('无数据', 'error'); return; } const header = fields.map(k => p_allFields.find(f => f.key === k)?.label || k); const exportData = dataArray.map(p => fields.map(k => { if (k === 'category' || k === 'position' || k === 'major' || k === 'level' || k === 'company') { return p_getDisplayValue(k, p[k], p[k + 'Other']) || ''; } return p[k] || ''; })); const ws = XLSX.utils.aoa_to_sheet([header, ...exportData]); ws['!cols'] = header.map(() => ({ wch: 15 })); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '人员数据'); XLSX.writeFile(wb, fileName); showToast('已导出', 'success'); }
             function p_exportAllData() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(p_allFields, (fields) => p_exportWithFields(p_allData, '人员数据汇总表.xlsx', fields)); }
@@ -2035,22 +2105,78 @@ function p_exportQueryResults() {
 }
 
             async function r_handleBackupToCloud() {
-                if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
-                const key = prompt('请输入本次备份的随机加密密钥（恢复时需要提供）：'); if (!key) return;
-                let success = false;
-                const cloudArray = r_allData.map(item => ({ "序号": item.seq, "工程名称": item.projectName, "委托人": item.client, "项目经理": item.projectManager, "资料": item.materials, "报名日期": item.registrationDate, "开标方式": item.bidOpeningMethod, "开标地址": item.bidOpeningAddress, "开标日期": item.bidOpeningDate, "保证金": item.deposit, "最高限价": item.maxPrice, "公告地址": item.announcementUrl, "所属公司": item.company, "备注": item.remarks, "备注2": item.remarks2 || '' }));
-                const payload = JSON.stringify(cloudArray);
-                const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
-                const batches = []; let startIdx = 0; while (startIdx < encPayload.length) { batches.push(encPayload.slice(startIdx, startIdx + 6000)); startIdx += 6000; }
-                try { for (let i = 0; i < batches.length; i++) { const res = await cloudUpdateRaw(getRegCloudKey() + '_batch' + (i+1), batches[i]); if (!res.success) throw new Error('分片写入失败'); } await cloudUpdateRaw(getRegCloudKey(), JSON.stringify({ batches: batches.length })); showToast('云端备份成功', 'success'); success = true; } catch (e) { showToast('云端备份失败', 'error'); }
-                const statusText = success ? '备份成功' : '备份失败';
-                const fileName = `报名管理系统_${statusText}_${getNowString()}.xlsx`;
-                const fields = (r_remarks2Visible && permissions.showSensitive) ? [...r_allFieldsExport.map(f => f.key), 'remarks2'] : r_allFieldsExport.map(f => f.key);
-                r_exportWithFields(r_allData, fileName, fields);
-            }
+    if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
+    let key = null;
+    while (true) {
+        const firstKey = prompt('请输入本次备份的随机加密密钥（恢复时需要提供）：');
+        if (firstKey === null) { return; }
+        const secondKey = prompt('请再次输入加密密钥以确认：');
+        if (secondKey === null) { return; }
+        if (firstKey === secondKey) {
+            key = firstKey;
+            break;
+        } else {
+            showToast('两次输入的密钥不一致，请重新输入', 'error');
+        }
+    }
+    let success = false;
+    const cloudArray = r_allData.map(item => ({
+        "序号": item.seq,
+        "工程名称": item.projectName,
+        "委托人": item.client,
+        "项目经理": item.projectManager,
+        "资料": item.materials,
+        "报名日期": item.registrationDate,
+        "开标方式": item.bidOpeningMethod,
+        "开标地址": item.bidOpeningAddress,
+        "开标日期": item.bidOpeningDate,
+        "保证金": item.deposit,
+        "最高限价": item.maxPrice,
+        "公告地址": item.announcementUrl,
+        "所属公司": item.company,
+        "备注": item.remarks,
+        "备注2": item.remarks2 || ''
+    }));
+    const payload = JSON.stringify(cloudArray);
+    const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
+    const batches = [];
+    let startIdx = 0;
+    while (startIdx < encPayload.length) { batches.push(encPayload.slice(startIdx, startIdx + 6000)); startIdx += 6000; }
+    try {
+        for (let i = 0; i < batches.length; i++) { const res = await cloudUpdateRaw(getRegCloudKey() + '_batch' + (i+1), batches[i]); if (!res.success) throw new Error('分片写入失败'); }
+        await cloudUpdateRaw(getRegCloudKey(), JSON.stringify({ batches: batches.length }));
+        showToast('云端备份成功', 'success'); success = true;
+    } catch (e) { showToast('云端备份失败', 'error'); }
+    const statusText = success ? '备份成功' : '备份失败';
+    const fileName = `报名管理系统_${statusText}_${getNowString()}.xlsx`;
+    const fields = (r_remarks2Visible && permissions.showSensitive) ? [...r_allFieldsExport.map(f => f.key), 'remarks2'] : r_allFieldsExport.map(f => f.key);
+    r_exportWithFields(r_allData, fileName, fields);
+}
 
-            async function r_handleRestoreFromCloud() { if (!permissions.restore) { showToast('无恢复权限', 'error'); return; } const key = prompt('请输入备份时使用的随机加密密钥：'); if (!key) return; showPasswordModal(async () => { try { const metaRaw = await cloudReadRaw(getRegCloudKey()); if (!metaRaw) { showToast('云端无数据', 'info'); return; } const meta = JSON.parse(metaRaw); let fullEnc = ''; for (let i = 1; i <= meta.batches; i++) { const part = await cloudReadRaw(getRegCloudKey() + '_batch' + i); if (part) fullEnc += part; } const decPayload = CryptoJS.AES.decrypt(fullEnc, key).toString(CryptoJS.enc.Utf8); if (!decPayload) { showToast('解密密钥错误', 'error'); return; } const cloudArray = JSON.parse(decPayload); const cloudData = cloudArray.map(item => ({ seq: String(item["序号"] || ""), projectName: item["工程名称"] || "", client: item["委托人"] || "", projectManager: item["项目经理"] || "", materials: item["资料"] || "", registrationDate: item["报名日期"] || "", bidOpeningMethod: item["开标方式"] || "", bidOpeningAddress: item["开标地址"] || "", bidOpeningDate: item["开标日期"] || "", deposit: item["保证金"] || "", maxPrice: item["最高限价"] || "", announcementUrl: item["公告地址"] || "", company: item["所属公司"] || "", remarks: item["备注"] || "", remarks2: item["备注2"] || "" })); if (JSON.stringify(r_allData) === JSON.stringify(cloudData)) { showToast('数据一致', 'info'); return; } if (confirm(`云端${cloudData.length}条，本地${r_allData.length}条，覆盖？`)) { r_allData = cloudData; r_saveLocal(r_allData); r_activeSearchResults = null; r_refreshQueryTable(); showToast('已恢复', 'success'); } } catch (e) { showToast('恢复失败，密钥错误或数据格式异常', 'error'); } }); }
-            async function r_clearCloud() { if (!permissions.clearCloud) { showToast('无清除权限', 'error'); return; } if (confirm('确定要彻底清除报名云端数据吗？')) { await cloudUpdateRaw(getRegCloudKey(), ''); showToast('云端报名数据已清除', 'info'); } }
+
+       async function r_handleRestoreFromCloud() {
+    if (!permissions.restore) { showToast('无恢复权限', 'error'); return; }
+    const key = prompt('请输入备份时使用的随机加密密钥：'); if (!key) return;
+    showLoginPasswordModal(async (success) => {
+        if (!success) return;
+        try {
+            const metaRaw = await cloudReadRaw(getRegCloudKey()); if (!metaRaw) { showToast('云端无数据', 'info'); return; }
+            const meta = JSON.parse(metaRaw); let fullEnc = '';
+            for (let i = 1; i <= meta.batches; i++) { const part = await cloudReadRaw(getRegCloudKey() + '_batch' + i); if (part) fullEnc += part; }
+            const decPayload = CryptoJS.AES.decrypt(fullEnc, key).toString(CryptoJS.enc.Utf8);
+            if (!decPayload) { showToast('解密密钥错误', 'error'); return; }
+            const cloudArray = JSON.parse(decPayload);
+            const cloudData = cloudArray.map(item => ({
+                seq: String(item["序号"] || ""), projectName: item["工程名称"] || "", client: item["委托人"] || "", projectManager: item["项目经理"] || "", materials: item["资料"] || "", registrationDate: item["报名日期"] || "", bidOpeningMethod: item["开标方式"] || "", bidOpeningAddress: item["开标地址"] || "", bidOpeningDate: item["开标日期"] || "", deposit: item["保证金"] || "", maxPrice: item["最高限价"] || "", announcementUrl: item["公告地址"] || "", company: item["所属公司"] || "", remarks: item["备注"] || "", remarks2: item["备注2"] || ""
+            }));
+            if (JSON.stringify(r_allData) === JSON.stringify(cloudData)) { showToast('数据一致', 'info'); return; }
+            if (confirm(`云端${cloudData.length}条，本地${r_allData.length}条，覆盖？`)) { r_allData = cloudData; r_saveLocal(r_allData); r_activeSearchResults = null; r_refreshQueryTable(); showToast('已恢复', 'success'); }
+        } catch (e) { showToast('恢复失败，密钥错误或数据格式异常', 'error'); }
+    });
+}
+     
+
+ async function r_clearCloud() { if (!permissions.clearCloud) { showToast('无清除权限', 'error'); return; } if (confirm('确定要彻底清除报名云端数据吗？')) { await cloudUpdateRaw(getRegCloudKey(), ''); showToast('云端报名数据已清除', 'info'); } }
             function r_getExportFields() { if (r_remarks2Visible && permissions.showSensitive) { return [...r_allFieldsExport, { key: 'remarks2', label: '备注2' }]; } else { return r_allFieldsExport; } }
             function r_exportWithFields(dataArray, fileName, fields) { if (!dataArray.length) { showToast('无数据', 'error'); return; } const finalFields = fields.filter(k => k !== 'bidOpeningStatus'); const exportData = dataArray.map(p => { const row = {}; finalFields.forEach(k => { if (k === 'bidOpeningDate') { row[k] = formatDateTimeForDisplay(p.bidOpeningDate); } else if (k === 'remarks2') { row[k] = p.remarks2 || ''; } else { row[k] = p[k] || ''; } }); return row; }); const header = finalFields.map(k => { if (k === 'remarks2') return '备注2'; const found = r_allFieldsExport.find(f => f.key === k); return found ? found.label : k; }); const ws = XLSX.utils.json_to_sheet(exportData, { header: finalFields }); XLSX.utils.sheet_add_aoa(ws, [header], { origin: 'A1' }); ws['!cols'] = header.map(() => ({ wch: 16 })); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '报名数据'); XLSX.writeFile(wb, fileName); showToast('已导出', 'success'); }
             function r_exportAllData() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(r_getExportFields(), (fields) => r_exportWithFields(r_allData, '工程报名备份' + getNowString() + '.xlsx', fields)); }
