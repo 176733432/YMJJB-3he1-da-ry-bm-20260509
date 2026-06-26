@@ -1044,13 +1044,25 @@ async function resolvePersonnelConflict(localRaw, remoteRaw) {
 
     const localMap = new Map();
     const remoteMap = new Map();
+
+    // 构建键的函数：优先 regno+idcard，若均为空则使用 seq
+    function getKey(item) {
+        const regno = item.regno || '';
+        const idcard = item.idcard || '';
+        if (regno || idcard) {
+            return regno + '|||' + idcard;
+        }
+        // 如果 regno 和 idcard 都为空，使用 seq 作为键（seq 应唯一）
+        return 'seq:' + (item.seq || '');
+    }
+
     localNorm.forEach((item, idx) => {
-        const key = (item.regno || '') + '|||' + (item.idcard || '');
-        if (key !== '|||') localMap.set(key, { norm: item, raw: localRaw[idx] });
+        const key = getKey(item);
+        localMap.set(key, { norm: item, raw: localRaw[idx] });
     });
     remoteNorm.forEach((item, idx) => {
-        const key = (item.regno || '') + '|||' + (item.idcard || '');
-        if (key !== '|||') remoteMap.set(key, { norm: item, raw: remoteRaw[idx] });
+        const key = getKey(item);
+        remoteMap.set(key, { norm: item, raw: remoteRaw[idx] });
     });
 
     // 增量添加
@@ -1075,14 +1087,14 @@ async function resolvePersonnelConflict(localRaw, remoteRaw) {
             const remoteNormItem = remoteObj.norm;
             const allKeys = new Set([...Object.keys(localNormItem), ...Object.keys(remoteNormItem)]);
             for (let field of allKeys) {
-                if (field === 'seq') continue;                    // 忽略序号
+                if (field === 'seq') continue;
                 if (field === 'categoryOther' || field === 'positionOther' || field === 'majorOther' || field === 'levelOther' || field === 'companyOther') continue;
                 const lv = localNormItem[field] ?? '';
                 const rv = remoteNormItem[field] ?? '';
                 if (lv != rv) {
                     const fieldLabel = p_fieldLabelMap.get(field) || field;
                     const nameValue = localObj.raw.name || remoteObj.raw.name || '-';
-                    const matchValue = localObj.raw.regno || remoteObj.raw.regno || localObj.raw.idcard || remoteObj.raw.idcard || '-';
+                    const matchValue = localObj.raw.regno || remoteObj.raw.regno || localObj.raw.idcard || remoteObj.raw.idcard || (localObj.raw.seq || '');
                     diffRows.push({
                         nameValue, matchValue,
                         fieldLabel, remoteVal: String(rv), localVal: String(lv)
