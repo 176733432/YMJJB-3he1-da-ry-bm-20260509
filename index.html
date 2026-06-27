@@ -129,6 +129,20 @@
     font-family: monospace;
     letter-spacing: 2px;
 }
+/* 离职人员行背景色（淡红色） */
+.p-resigned-row td {
+    background-color: #fdd !important;
+}
+.p-resigned-row td:first-child {
+    background-color: #fdd !important;
+}
+.p-resigned-row td:last-child {
+    background-color: #fdd !important;
+}
+.p-resigned-row:hover td {
+    background-color: #fcc !important;
+}
+
         /* 新增：查询结果标题行的按钮容器 */
         .query-actions { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-left: auto; }
         .query-title-row { display: flex; align-items: center; justify-content: space-between; width: 100%; }
@@ -249,7 +263,12 @@
                 </div>
                 <div class="card">
                     <div class="query-title-row">
-                        <div class="card-title" id="personnelQueryResultTitle" style="margin-bottom:0; cursor:pointer;">查询结果 <span class="badge-count" id="p_queryCount">0</span></div>
+                        <div class="card-title" id="personnelQueryResultTitle" style="margin-bottom:0; cursor:pointer;">
+    查询结果 <span class="badge-count" id="p_queryCount">0</span>
+    <label class="hide-check" style="margin-left:15px; font-weight:normal; font-size:13px; cursor:pointer;">
+        <input type="checkbox" id="p_showResigned" style="margin-right:4px; cursor:pointer;"> 离职数据
+    </label>
+</div>
                         <div class="query-actions">
                             <button class="btn btn-outline btn-sm" id="p_btnImportExcel">📂 从EXCEL导入</button>
                             <button class="btn btn-primary btn-sm" id="p_btnAddPerson">➕ 新增人员</button>
@@ -371,6 +390,7 @@
 
 let cachedUsers = null;           // 缓存用户库数据（用于验证登录密码）
 let p_sensitiveVisible = false;   // 人员系统冀时办信息是否可见（电话/冀时办账号/密码）
+let p_showResigned = false;   // 是否显示离职数据
 let loginPasswordCallback = null; // 登录密码验证回调
 
             const a_encryptFields = ['engName','partyA','engAddress','contractPrice','cooperation','partner','phone'];
@@ -1167,7 +1187,11 @@ async function resolvePersonnelConflict(localRaw, remoteRaw) {
             }
 
             function p_buildTableRow(person, index) {
-                const tr = document.createElement('tr'); tr.setAttribute('data-index', index);
+    const tr = document.createElement('tr'); tr.setAttribute('data-index', index);
+    // ========== 离职人员行背景色 ==========
+    if (person.remarks && person.remarks.toLowerCase().includes('离职')) {
+        tr.classList.add('p-resigned-row');
+    }
                 let html = `<td class="checkbox-cell"><input type="checkbox" class="p_row-checkbox-query" data-index="${index}" onclick="event.stopPropagation();"></td>`;
                 html += `<td>${person.seq||''}</td><td>${escapeHtml(person.name||'')}</td><td>${escapeHtml(person.idcard||'')}</td>`;
                 html += `<td>${p_getDisplayValue('category',person.category,person.categoryOther)}</td><td>${p_getDisplayValue('position',person.position,person.positionOther)}</td>`;
@@ -1206,18 +1230,25 @@ if (diffDays < 0) { expireClass = 'expired'; } else if (diffDays <= maxWarningDa
 
             function p_refreshQueryTable(results) {
     let resolved = results !== undefined ? results : (p_queryResults.length > 0 ? p_queryResults : (p_activeSearchResults || p_allData));
+    
+    // ========== 离职数据过滤 ==========
+    if (!p_showResigned) {
+        resolved = resolved.filter(p => {
+            const remark = (p.remarks || '').toLowerCase();
+            return !remark.includes('离职');
+        });
+    }
+    
     resolved = p_sortData(resolved, p_querySortKey, p_querySortAsc);
     const table = document.getElementById('p_queryTable');
     table.innerHTML = '';
     table.appendChild(p_buildTableHeader());
     const tbody = document.createElement('tbody');
     tbody.id = 'p_queryTbody';
-    // 获取当前搜索关键词
     const searchKw = document.getElementById('p_quickSearch').value.trim().toLowerCase();
     resolved.forEach((p, idx) => {
         const orig = p_allData.indexOf(p);
         const tr = p_buildTableRow(p, orig >= 0 ? orig : idx);
-        // 高亮处理：遍历所有数据单元格（跳过复选框列）
         const cells = tr.querySelectorAll('td:not(.checkbox-cell)');
         cells.forEach(cell => {
             let originalHtml = cell.innerHTML;
@@ -1251,39 +1282,52 @@ if (diffDays < 0) { expireClass = 'expired'; } else if (diffDays <= maxWarningDa
             function p_hasAdvancedFilter() { const selectIds = ['p_f_category', 'p_f_position', 'p_f_level', 'p_f_major', 'p_f_company', 'p_f_socialSecurity', 'p_f_validity']; const customIds = ['p_f_category_custom', 'p_f_position_custom', 'p_f_level_custom', 'p_f_major_custom', 'p_f_company_custom']; return selectIds.some(id => document.getElementById(id)?.value !== '') || customIds.some(id => { const el = document.getElementById(id); return el && !el.disabled && el.value.trim() !== ''; }); }
 
             function p_performAdvancedFilter() {
-                const base = p_activeSearchResults || p_allData;
-                if (!p_hasAdvancedFilter()) { p_queryResults = []; p_refreshQueryTable(base); return; }
-                const getVal = (id) => document.getElementById(id)?.value || '';
-                const getCustomVal = (selectId, customId) => { const selectEl = document.getElementById(selectId); const customEl = document.getElementById(customId); if (selectEl && selectEl.value === '其他' && customEl && !customEl.disabled) { return customEl.value.trim(); } return selectEl ? selectEl.value : ''; };
-                const f = { category: getCustomVal('p_f_category', 'p_f_category_custom'), position: getCustomVal('p_f_position', 'p_f_position_custom'), level: getCustomVal('p_f_level', 'p_f_level_custom'), major: getCustomVal('p_f_major', 'p_f_major_custom'), company: getCustomVal('p_f_company', 'p_f_company_custom'), socialSecurity: getVal('p_f_socialSecurity'), validity: getVal('p_f_validity') };
-                const now = new Date();
-                p_queryResults = base.filter(p => {
-                    if (f.category) { const displayVal = p_getDisplayValue('category', p.category, p.categoryOther).toLowerCase(); if (displayVal.indexOf(f.category.toLowerCase()) === -1) return false; }
-                    if (f.position) { const displayVal = p_getDisplayValue('position', p.position, p.positionOther).toLowerCase(); if (displayVal.indexOf(f.position.toLowerCase()) === -1) return false; }
-                    if (f.level) { const displayVal = p_getDisplayValue('level', p.level, p.levelOther).toLowerCase(); if (displayVal.indexOf(f.level.toLowerCase()) === -1) return false; }
-                    if (f.major) { const displayVal = p_getDisplayValue('major', p.major, p.majorOther).toLowerCase(); if (displayVal.indexOf(f.major.toLowerCase()) === -1) return false; }
-                    if (f.company) { const displayVal = p_getDisplayValue('company', p.company, p.companyOther).toLowerCase(); if (displayVal.indexOf(f.company.toLowerCase()) === -1) return false; }
-                    if (f.socialSecurity && p.socialSecurity !== f.socialSecurity) return false;
-                    if (f.validity) { 
-    if (!p.validity) return false; 
-    const expDate = new Date(p.validity); 
-    if (isNaN(expDate.getTime())) return false; 
-    const diffDays = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24)); 
-    if (f.validity === 'expired') { 
-        if (diffDays >= 0) return false; 
-    } else if (f.validity === 'expiring') { 
-        const posDisplay = p_getDisplayValue('position', p.position, p.positionOther);
-        const maxDays = posDisplay.includes('水利') ? 180 : 90;
-        if (diffDays < 0 || diffDays >= maxDays) return false; 
-    } else if (f.validity === 'valid') { 
-        if (diffDays < 0) return false; 
-    } 
-}
-                    return true;
-                });
-                p_refreshQueryTable(p_queryResults);
+    const base = p_activeSearchResults || p_allData;
+    if (!p_hasAdvancedFilter()) {
+        p_queryResults = [];
+        p_refreshQueryTable(base);
+        return;
+    }
+    const getVal = (id) => document.getElementById(id)?.value || '';
+    const getCustomVal = (selectId, customId) => { const selectEl = document.getElementById(selectId); const customEl = document.getElementById(customId); if (selectEl && selectEl.value === '其他' && customEl && !customEl.disabled) { return customEl.value.trim(); } return selectEl ? selectEl.value : ''; };
+    const f = { category: getCustomVal('p_f_category', 'p_f_category_custom'), position: getCustomVal('p_f_position', 'p_f_position_custom'), level: getCustomVal('p_f_level', 'p_f_level_custom'), major: getCustomVal('p_f_major', 'p_f_major_custom'), company: getCustomVal('p_f_company', 'p_f_company_custom'), socialSecurity: getVal('p_f_socialSecurity'), validity: getVal('p_f_validity') };
+    const now = new Date();
+    let filtered = base.filter(p => {
+        if (f.category) { const displayVal = p_getDisplayValue('category', p.category, p.categoryOther).toLowerCase(); if (displayVal.indexOf(f.category.toLowerCase()) === -1) return false; }
+        if (f.position) { const displayVal = p_getDisplayValue('position', p.position, p.positionOther).toLowerCase(); if (displayVal.indexOf(f.position.toLowerCase()) === -1) return false; }
+        if (f.level) { const displayVal = p_getDisplayValue('level', p.level, p.levelOther).toLowerCase(); if (displayVal.indexOf(f.level.toLowerCase()) === -1) return false; }
+        if (f.major) { const displayVal = p_getDisplayValue('major', p.major, p.majorOther).toLowerCase(); if (displayVal.indexOf(f.major.toLowerCase()) === -1) return false; }
+        if (f.company) { const displayVal = p_getDisplayValue('company', p.company, p.companyOther).toLowerCase(); if (displayVal.indexOf(f.company.toLowerCase()) === -1) return false; }
+        if (f.socialSecurity && p.socialSecurity !== f.socialSecurity) return false;
+        if (f.validity) {
+            if (!p.validity) return false;
+            const expDate = new Date(p.validity);
+            if (isNaN(expDate.getTime())) return false;
+            const diffDays = Math.ceil((expDate - now) / (1000 * 60 * 60 * 24));
+            if (f.validity === 'expired') {
+                if (diffDays >= 0) return false;
+            } else if (f.validity === 'expiring') {
+                const posDisplay = p_getDisplayValue('position', p.position, p.positionOther);
+                const maxDays = posDisplay.includes('水利') ? 180 : 90;
+                if (diffDays < 0 || diffDays >= maxDays) return false;
+            } else if (f.validity === 'valid') {
+                if (diffDays < 0) return false;
             }
+        }
+        return true;
+    });
 
+    // ========== 离职数据过滤（未勾选时排除） ==========
+    if (!p_showResigned) {
+        filtered = filtered.filter(p => {
+            const remark = (p.remarks || '').toLowerCase();
+            return !remark.includes('离职');
+        });
+    }
+
+    p_queryResults = filtered;
+    p_refreshQueryTable(p_queryResults);
+}
             function p_clearAdvancedFilter() { ['p_f_category', 'p_f_position', 'p_f_level', 'p_f_major', 'p_f_company', 'p_f_socialSecurity', 'p_f_validity'].forEach(id => { const el = document.getElementById(id); if (el) el.value = ''; }); ['p_f_category_custom', 'p_f_position_custom', 'p_f_level_custom', 'p_f_major_custom', 'p_f_company_custom'].forEach(id => { const el = document.getElementById(id); if (el) { el.value = ''; el.disabled = true; } }); p_queryResults = []; p_activeSearchResults = null; p_refreshQueryTable(p_allData); }
             function p_clearQuickSearch() { document.getElementById('p_quickSearch').value = ''; p_activeSearchResults = null; p_queryResults = []; p_refreshQueryTable(p_allData); }
             function p_performQuickSearch() {
@@ -1295,20 +1339,29 @@ if (diffDays < 0) { expireClass = 'expired'; } else if (diffDays <= maxWarningDa
         return;
     }
 
-    p_activeSearchResults = p_allData.filter(p => {
-    if (p.name && p.name.includes(kw)) return true;
-    if (p.idcard && p.idcard.includes(kw)) return true;
-    if (p.issuer && p.issuer.includes(kw)) return true;
-    if (p.remarks && p.remarks.includes(kw)) return true;
-    if (p_sensitiveVisible) {
-        if (p.phone && p.phone.includes(kw)) return true;
-        if (p.jishibanAccount && p.jishibanAccount.includes(kw)) return true;
-        if (p.jishibanPassword && p.jishibanPassword.includes(kw)) return true;
+    // 先筛选出匹配关键词的数据（包含所有数据）
+    let matched = p_allData.filter(p => {
+        if (p.name && p.name.toLowerCase().includes(kw)) return true;
+        if (p.idcard && p.idcard.toLowerCase().includes(kw)) return true;
+        if (p.issuer && p.issuer.toLowerCase().includes(kw)) return true;
+        if (p.remarks && p.remarks.toLowerCase().includes(kw)) return true;
+        if (p_sensitiveVisible) {
+            if (p.phone && p.phone.toLowerCase().includes(kw)) return true;
+            if (p.jishibanAccount && p.jishibanAccount.toLowerCase().includes(kw)) return true;
+            if (p.jishibanPassword && p.jishibanPassword.toLowerCase().includes(kw)) return true;
+        }
+        return false;
+    });
+
+    // ========== 离职数据过滤（未勾选时排除） ==========
+    if (!p_showResigned) {
+        matched = matched.filter(p => {
+            const remark = (p.remarks || '').toLowerCase();
+            return !remark.includes('离职');
+        });
     }
-    return false;
-});
 
-
+    p_activeSearchResults = matched;
     p_queryResults = [];
     if (p_hasAdvancedFilter()) {
         p_performAdvancedFilter();
@@ -3039,6 +3092,23 @@ window.submitLoginPassword = submitLoginPassword;
             document.getElementById('r_btnExportQuery')?.addEventListener('click', r_exportQueryResults);
 
             document.getElementById('r_hideCompletedQuery')?.addEventListener('change', r_onHideQueryChange);
+
+            // ========== 离职数据复选框事件 ==========
+document.getElementById('p_showResigned')?.addEventListener('change', function() {
+    p_showResigned = this.checked;
+    // 清空搜索和筛选缓存，重新刷新
+    p_activeSearchResults = null;
+    p_queryResults = [];
+    // 如果当前有搜索关键词，重新执行搜索
+    const kw = document.getElementById('p_quickSearch').value.trim();
+    if (kw) {
+        p_performQuickSearch();
+    } else if (p_hasAdvancedFilter()) {
+        p_performAdvancedFilter();
+    } else {
+        p_refreshQueryTable(p_allData);
+    }
+});
 
             function showPasswordModal(cb) { passwordCallback = cb; document.getElementById('passwordModal').style.display = 'flex'; document.getElementById('passwordInput').value = ''; document.getElementById('passwordError').style.display = 'none'; }
             function closePasswordModal() { document.getElementById('passwordModal').style.display = 'none'; passwordCallback = null; }
