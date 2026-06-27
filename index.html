@@ -2778,7 +2778,7 @@ function getSortKeysForSystem(systemName) {
 
 async function initAllSystems() {
     // ==================== 1. 立即加载本地数据并显示（同步） ====================
-    
+
     // ---------- 档案系统 ----------
     let a_local = a_loadLocal();
     if (!a_local || !a_local.length) { migrateArchive(); a_local = a_loadLocal(); }
@@ -2804,6 +2804,7 @@ async function initAllSystems() {
     a_allData = a_local;
     a_saveLocal(a_allData);
     a_activeSearchResults = null;
+    a_queryResults = [];
     a_refreshQueryTable();
 
     // ---------- 人员系统 ----------
@@ -2813,6 +2814,7 @@ async function initAllSystems() {
     p_allData = p_local;
     p_saveLocal(p_allData);
     p_activeSearchResults = null;
+    p_queryResults = [];
     p_refreshQueryTable();
 
     // ---------- 报名系统 ----------
@@ -2822,87 +2824,136 @@ async function initAllSystems() {
     r_allData = r_local;
     r_saveLocal(r_allData);
     r_activeSearchResults = null;
+    r_queryResults = [];
     r_refreshQueryTable();
 
     updateSyncStatus(false, '本地模式');
 
-// 添加人员系统“显示冀时办信息”按钮
-function initPersonnelSensitiveButton() {
-    const queryActions = document.querySelector('#panel-personnel .query-actions');
-    if (!queryActions) return;
-    // 避免重复添加
-    if (document.getElementById('p_toggleSensitiveBtn')) return;
-    const btn = document.createElement('button');
-    btn.id = 'p_toggleSensitiveBtn';
-    btn.className = 'btn btn-outline btn-sm';
-    btn.textContent = '🔒 显示冀时办信息';
-    btn.onclick = function() {
-        if (!p_sensitiveVisible) {
-            // 需要验证登录密码
-            showLoginPasswordModal((success) => {
-                if (success) {
-                    p_sensitiveVisible = true;
-                    btn.textContent = '🔓 隐藏冀时办信息';
-                    p_refreshQueryTable();
-                    showToast('冀时办信息已显示', 'info');
-                }
-            });
-        } else {
-            p_sensitiveVisible = false;
-            btn.textContent = '🔒 显示冀时办信息';
-            p_refreshQueryTable();
-            showToast('冀时办信息已隐藏', 'info');
-        }
-    };
-    queryActions.appendChild(btn);
-}
-initPersonnelSensitiveButton();
+    // 添加人员系统"显示冀时办信息"按钮
+    function initPersonnelSensitiveButton() {
+        const queryActions = document.querySelector('#panel-personnel .query-actions');
+        if (!queryActions) return;
+        if (document.getElementById('p_toggleSensitiveBtn')) return;
+        const btn = document.createElement('button');
+        btn.id = 'p_toggleSensitiveBtn';
+        btn.className = 'btn btn-outline btn-sm';
+        btn.textContent = '🔒 显示冀时办信息';
+        btn.onclick = function() {
+            if (!p_sensitiveVisible) {
+                showLoginPasswordModal((success) => {
+                    if (success) {
+                        p_sensitiveVisible = true;
+                        btn.textContent = '🔓 隐藏冀时办信息';
+                        p_refreshQueryTable();
+                        showToast('冀时办信息已显示', 'info');
+                    }
+                });
+            } else {
+                p_sensitiveVisible = false;
+                btn.textContent = '🔒 显示冀时办信息';
+                p_refreshQueryTable();
+                showToast('冀时办信息已隐藏', 'info');
+            }
+        };
+        queryActions.appendChild(btn);
+    }
+    initPersonnelSensitiveButton();
 
-    setTimeout(() => a_checkArchives(), 500);  // 本地数据加载后立即检查档案完整性
+    setTimeout(() => a_checkArchives(), 500);
 
     // ==================== 2. 后台异步获取云端数据并对比（不阻塞界面） ====================
     (async () => {
-        // 档案系统云端对比
+        // ---------- 档案系统 ----------
         const a_remote = await fetchArchiveCloudData(currentProjectCode);
         if (a_remote) {
-            const a_final = await resolveDataConflict(a_local, a_remote, '档案');
-            if (a_final !== a_local) {   // 用户选择了云端数据
-                a_allData = a_final;
+            // 若本地无数据，直接覆盖（避免合并时的键冲突）
+            if (a_local.length === 0) {
+                a_allData = a_remote;
                 a_saveLocal(a_allData);
                 a_activeSearchResults = null;
+                a_queryResults = [];
                 a_refreshQueryTable();
-                showToast('档案数据已更新为云端版本', 'success');
+                showToast(`档案数据已从云端加载 ${a_allData.length} 条`, 'success');
+            } else {
+                const a_final = await resolveDataConflict(a_local, a_remote, '档案');
+                if (a_final !== a_local) {
+                    a_allData = a_final;
+                    a_saveLocal(a_allData);
+                    a_activeSearchResults = null;
+                    a_queryResults = [];
+                    a_refreshQueryTable();
+                    showToast('档案数据已更新为云端版本', 'success');
+                }
             }
         }
 
-        // 人员系统云端对比（使用专用冲突函数）
+        // ---------- 人员系统 ----------
         const p_remote = await fetchPersonnelCloudData(currentProjectCode);
         if (p_remote) {
-            const p_final = await resolvePersonnelConflict(p_local, p_remote);
-            if (p_final !== p_local) {
-                p_allData = p_final;
+            // 若本地无数据，直接覆盖（避免 resolvePersonnelConflict 中键冲突导致丢失）
+            if (p_local.length === 0) {
+                p_allData = p_remote;
                 p_saveLocal(p_allData);
                 p_activeSearchResults = null;
+                p_queryResults = [];
                 p_refreshQueryTable();
-                showToast('人员数据已更新为云端版本', 'success');
+                showToast(`人员数据已从云端加载 ${p_allData.length} 条`, 'success');
+            } else {
+                const p_final = await resolvePersonnelConflict(p_local, p_remote);
+                if (p_final !== p_local) {
+                    p_allData = p_final;
+                    p_saveLocal(p_allData);
+                    p_activeSearchResults = null;
+                    p_queryResults = [];
+                    p_refreshQueryTable();
+                    showToast('人员数据已更新为云端版本', 'success');
+                } else {
+                    // 即使没有差异，也要清空查询缓存并刷新（确保界面同步）
+                    p_queryResults = [];
+                    p_refreshQueryTable();
+                }
             }
         }
 
-        // 报名系统云端对比
+        // ---------- 报名系统 ----------
         const r_remote = await fetchRegistrationCloudData(currentProjectCode);
         if (r_remote) {
-            const r_final = await resolveDataConflict(r_local, r_remote, '报名');
-            if (r_final !== r_local) {
-                r_allData = r_final;
+            if (r_local.length === 0) {
+                r_allData = r_remote;
                 r_saveLocal(r_allData);
                 r_activeSearchResults = null;
+                r_queryResults = [];
                 r_refreshQueryTable();
-                showToast('报名数据已更新为云端版本', 'success');
+                showToast(`报名数据已从云端加载 ${r_allData.length} 条`, 'success');
+            } else {
+                const r_final = await resolveDataConflict(r_local, r_remote, '报名');
+                if (r_final !== r_local) {
+                    r_allData = r_final;
+                    r_saveLocal(r_allData);
+                    r_activeSearchResults = null;
+                    r_queryResults = [];
+                    r_refreshQueryTable();
+                    showToast('报名数据已更新为云端版本', 'success');
+                }
             }
         }
-    })();  // 立即执行后台任务，但不等待
-}
 
+        // ========== 最终强制刷新：确保所有系统显示最新数据 ==========
+        a_queryResults = [];
+        p_queryResults = [];
+        r_queryResults = [];
+        a_refreshQueryTable();
+        p_refreshQueryTable();
+        r_refreshQueryTable();
+        // 额外延迟再次刷新，确保 DOM 完全更新
+        setTimeout(() => {
+            a_refreshQueryTable();
+            p_refreshQueryTable();
+            r_refreshQueryTable();
+        }, 150);
+
+    })();  // 立即执行，但不等待
+}
             // 事件绑定区域
             document.getElementById('mainTabNav').addEventListener('click', function(e) { const btn = e.target.closest('.main-tab-btn'); if (!btn) return; const systemId = btn.getAttribute('data-main')?.replace('panel-', ''); if (systemId) switchMainTab(systemId); });
 
