@@ -923,11 +923,182 @@ cachedUsers = users;  // 直接赋值给局部变量
 
             async function a_handleBackupToCloud() {
     if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
+
+    // 1. 获取云端数据（需解密）
+    let remoteData = null;
+    const metaRaw = await cloudReadRaw(getArchiveCloudKey());
+    if (metaRaw) {
+        const decryptKey = prompt('请输入云端备份的解密密钥（用于查看云端数据，若不知道可取消）：');
+        if (decryptKey === null) {
+            if (!confirm('未提供解密密钥，将直接备份本地数据覆盖云端，确定继续？')) return;
+        } else {
+            try {
+                const meta = JSON.parse(metaRaw);
+                let fullEnc = '';
+                for (let i = 1; i <= meta.batches; i++) {
+                    const part = await cloudReadRaw(getArchiveCloudKey() + '_batch' + i);
+                    if (part) fullEnc += part;
+                }
+                const decPayload = CryptoJS.AES.decrypt(fullEnc, decryptKey).toString(CryptoJS.enc.Utf8);
+                if (!decPayload) throw new Error('解密失败');
+                remoteData = JSON.parse(decPayload);
+            } catch (e) {
+                showToast('解密密钥错误，无法查看云端数据', 'error');
+                if (!confirm('解密失败，是否直接备份本地数据覆盖云端？')) return;
+            }
+        }
+    } else {
+        showToast('云端无数据，将直接备份', 'info');
+    }
+
+    // 2. 若有云端数据，进行对比
+    if (remoteData && remoteData.length > 0) {
+        // 构建映射（档案用 archiveNo 匹配）
+        const localMap = new Map();
+        const remoteMap = new Map();
+        a_allData.forEach(item => {
+            const key = item.archiveNo || '';
+            if (key) localMap.set(key, item);
+        });
+        remoteData.forEach(item => {
+            const key = item.archiveNo || '';
+            if (key) remoteMap.set(key, item);
+        });
+
+        // 云端有本地无 → 直接新增
+        let addedCount = 0;
+        for (let [key, remoteItem] of remoteMap) {
+            if (!localMap.has(key)) {
+                a_allData.push(remoteItem);
+                addedCount++;
+                localMap.set(key, remoteItem);
+            }
+        }
+        if (addedCount > 0) {
+            showToast(`云端新增 ${addedCount} 条记录已自动添加到本地`, 'success');
+        }
+
+        // 收集差异（双方都存在且字段值不同）
+        const diffItems = [];
+        for (let [key, remoteItem] of remoteMap) {
+            if (localMap.has(key)) {
+                const localItem = localMap.get(key);
+                const diffFields = [];
+                const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
+                for (let field of allKeys) {
+                    // 主键不参与覆盖
+                    if (field === 'archiveNo') continue;
+                    const localVal = localItem[field] ?? '';
+                    const remoteVal = remoteItem[field] ?? '';
+                    if (localVal != remoteVal) {
+                        const label = a_fieldLabelMap.get(field) || field;
+                        diffFields.push({ field, label, localVal: String(localVal), remoteVal: String(remoteVal) });
+                    }
+                }
+                if (diffFields.length > 0) {
+                    diffItems.push({
+                        recordKey: key,
+                        nameValue: localItem.engName || remoteItem.engName || '-',
+                        matchValue: key,
+                        fields: diffFields
+                    });
+                }
+            }
+        }
+
+        if (diffItems.length > 0) {
+            // 构建差异表格
+            let diffHtml = '<div class="table-wrapper"><table><thead><tr><th style="width:30px;"><input type="checkbox" id="aBackupSelectAll" checked></th><th>序号</th><th>工程名称</th><th>档案号</th><th>差异字段</th><th>云端值</th><th>本地值</th></tr></thead><tbody>';
+            let idx = 1;
+            for (let item of diffItems) {
+                const rowspan = item.fields.length;
+                for (let fIdx = 0; fIdx < rowspan; fIdx++) {
+                    const field = item.fields[fIdx];
+                    diffHtml += `<tr>`;
+                    if (fIdx === 0) {
+                        diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;"><input type="checkbox" class="aBackupCheckbox" data-key="${escapeHtml(item.recordKey)}" checked></td>`;
+                        diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${idx}</td>`;
+                        diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${escapeHtml(item.nameValue)}</td>`;
+                        diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${escapeHtml(item.matchValue)}</td>`;
+                    }
+                    diffHtml += `<td>${escapeHtml(field.label)}</td>`;
+                    diffHtml += `<td>${escapeHtml(field.remoteVal)}</td>`;
+                    diffHtml += `<td>${escapeHtml(field.localVal)}</td>`;
+                    diffHtml += `</tr>`;
+                }
+                idx++;
+            }
+            diffHtml += '</tbody></table></div>';
+
+            // 弹出对话框
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.style.display = 'flex';
+            overlay.innerHTML = `<div class="modal" style="max-width:1000px;">
+                <h3>档案数据差异对比（备份前）</h3>
+                <p>勾选您希望用<strong>云端数据覆盖本地</strong>的行，未勾选则保留本地数据。</p>
+                ${diffHtml}
+                <div class="modal-actions">
+                    <button class="btn btn-outline" id="aBackupIgnoreBtn">忽略差异，保留本地</button>
+                    <button class="btn btn-primary" id="aBackupUpdateBtn">覆盖选中项</button>
+                </div>
+            </div>`;
+            document.body.appendChild(overlay);
+
+            overlay.querySelector('#aBackupSelectAll').addEventListener('change', function() {
+                const cbs = overlay.querySelectorAll('.aBackupCheckbox');
+                cbs.forEach(cb => cb.checked = this.checked);
+            });
+
+            // 等待用户选择
+            const result = await new Promise((resolve) => {
+                overlay.querySelector('#aBackupIgnoreBtn').onclick = () => {
+                    document.body.removeChild(overlay);
+                    resolve('ignore');
+                };
+                overlay.querySelector('#aBackupUpdateBtn').onclick = () => {
+                    const selectedKeys = [];
+                    overlay.querySelectorAll('.aBackupCheckbox:checked').forEach(cb => {
+                        selectedKeys.push(cb.dataset.key);
+                    });
+                    if (selectedKeys.length === 0) {
+                        showToast('请至少勾选一条记录', 'error');
+                        return;
+                    }
+                    // 更新本地数据（仅覆盖选中记录）
+                    for (let [key, remoteItem] of remoteMap) {
+                        if (selectedKeys.includes(key) && localMap.has(key)) {
+                            const localItem = localMap.get(key);
+                            const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
+                            for (let field of allKeys) {
+                                if (field === 'archiveNo') continue;
+                                localItem[field] = remoteItem[field];
+                            }
+                        }
+                    }
+                    document.body.removeChild(overlay);
+                    resolve('update');
+                };
+            });
+
+            if (result === 'ignore') {
+                showToast('已忽略差异，保留本地数据', 'info');
+            } else {
+                showToast('已更新选中记录', 'success');
+                a_saveLocal(a_allData);
+                a_refreshQueryTable();
+            }
+        } else {
+            showToast('本地与云端数据无差异', 'info');
+        }
+    }
+
+    // 3. 执行备份上传（使用新的加密密钥）
     let key = null;
     while (true) {
-        const firstKey = prompt('请输入本次备份的随机加密密钥（恢复时需要提供）：');
+        const firstKey = prompt('请输入本次备份的加密密钥（用于恢复）：');
         if (firstKey === null) { return; }
-        const secondKey = prompt('请再次输入加密密钥以确认：');
+        const secondKey = prompt('请再次输入加密密钥确认：');
         if (secondKey === null) { return; }
         if (firstKey === secondKey) {
             key = firstKey;
@@ -936,17 +1107,28 @@ cachedUsers = users;  // 直接赋值给局部变量
             showToast('两次输入的密钥不一致，请重新输入', 'error');
         }
     }
+
     let success = false;
     const payload = JSON.stringify(a_allData);
     const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
     const batches = [];
     let startIdx = 0;
-    while (startIdx < encPayload.length) { batches.push(encPayload.slice(startIdx, startIdx + 6000)); startIdx += 6000; }
+    while (startIdx < encPayload.length) {
+        batches.push(encPayload.slice(startIdx, startIdx + 6000));
+        startIdx += 6000;
+    }
     try {
-        for (let i = 0; i < batches.length; i++) { const res = await cloudUpdateRaw(getArchiveCloudKey() + '_batch' + (i+1), batches[i]); if (!res.success) throw new Error('分片写入失败'); }
+        for (let i = 0; i < batches.length; i++) {
+            const res = await cloudUpdateRaw(getArchiveCloudKey() + '_batch' + (i + 1), batches[i]);
+            if (!res.success) throw new Error('分片写入失败');
+        }
         await cloudUpdateRaw(getArchiveCloudKey(), JSON.stringify({ batches: batches.length }));
-        showToast('云端备份成功', 'success'); success = true;
-    } catch (e) { showToast('云端备份失败', 'error'); }
+        showToast('云端备份成功', 'success');
+        success = true;
+    } catch (e) {
+        showToast('云端备份失败', 'error');
+    }
+    // 导出本地文件作为本地备份
     const statusText = success ? '备份成功' : '备份失败';
     const fileName = `档案管理系统_${statusText}_${getNowString()}.xlsx`;
     const fields = a_hiddenVisible ? a_allFields.map(f => f.key) : a_allFields.filter(f => !a_hiddenFields.includes(f.key)).map(f => f.key);
@@ -1658,11 +1840,188 @@ function p_importFromExcel() {
 
             async function p_handleBackupToCloud() {
     if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
+
+    // 1. 获取云端数据
+    let remoteData = null;
+    const metaRaw = await cloudReadRaw(getPersonnelCloudKey());
+    if (metaRaw) {
+        const decryptKey = prompt('请输入云端备份的解密密钥（用于查看云端数据，若不知道可取消）：');
+        if (decryptKey === null) {
+            if (!confirm('未提供解密密钥，将直接备份本地数据覆盖云端，确定继续？')) return;
+        } else {
+            try {
+                const meta = JSON.parse(metaRaw);
+                let fullEnc = '';
+                for (let i = 1; i <= meta.batches; i++) {
+                    const part = await cloudReadRaw(getPersonnelCloudKey() + '_batch' + i);
+                    if (part) fullEnc += part;
+                }
+                const decPayload = CryptoJS.AES.decrypt(fullEnc, decryptKey).toString(CryptoJS.enc.Utf8);
+                if (!decPayload) throw new Error('解密失败');
+                remoteData = JSON.parse(decPayload);
+            } catch (e) {
+                showToast('解密密钥错误，无法查看云端数据', 'error');
+                if (!confirm('解密失败，是否直接备份本地数据覆盖云端？')) return;
+            }
+        }
+    } else {
+        showToast('云端无数据，将直接备份', 'info');
+    }
+
+    // 2. 对比差异
+    if (remoteData && remoteData.length > 0) {
+        // 构建映射（人员用 regno+idcard 组合，若为空则用 seq）
+        const localMap = new Map();
+        const remoteMap = new Map();
+        const getKey = (item, fallbackIdx) => {
+            const regno = (item.regno || '').trim();
+            const idcard = (item.idcard || '').trim();
+            if (regno || idcard) return regno + '|||' + idcard;
+            const seq = (item.seq || '').trim();
+            if (seq) return 'seq:' + seq;
+            return 'empty:' + (item.name || 'unknown') + ':' + fallbackIdx;
+        };
+        p_allData.forEach((item, idx) => {
+            const key = getKey(item, idx);
+            localMap.set(key, item);
+        });
+        remoteData.forEach((item, idx) => {
+            const key = getKey(item, idx);
+            remoteMap.set(key, item);
+        });
+
+        // 云端有本地无 → 新增
+        let addedCount = 0;
+        for (let [key, remoteItem] of remoteMap) {
+            if (!localMap.has(key)) {
+                p_allData.push(remoteItem);
+                addedCount++;
+                localMap.set(key, remoteItem);
+            }
+        }
+        if (addedCount > 0) {
+            showToast(`云端新增 ${addedCount} 条记录已自动添加到本地`, 'success');
+        }
+
+        // 收集差异
+        const diffItems = [];
+        for (let [key, remoteItem] of remoteMap) {
+            if (localMap.has(key)) {
+                const localItem = localMap.get(key);
+                const diffFields = [];
+                const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
+                for (let field of allKeys) {
+                    if (field === 'seq') continue;
+                    if (field === 'categoryOther' || field === 'positionOther' || field === 'majorOther' || field === 'levelOther' || field === 'companyOther') continue;
+                    const localVal = localItem[field] ?? '';
+                    const remoteVal = remoteItem[field] ?? '';
+                    if (localVal != remoteVal) {
+                        const label = p_fieldLabelMap.get(field) || field;
+                        diffFields.push({ field, label, localVal: String(localVal), remoteVal: String(remoteVal) });
+                    }
+                }
+                if (diffFields.length > 0) {
+                    const nameValue = localItem.name || remoteItem.name || '-';
+                    const matchValue = localItem.regno || remoteItem.regno || localItem.idcard || remoteItem.idcard || (localItem.seq || '');
+                    diffItems.push({
+                        recordKey: key,
+                        nameValue: nameValue,
+                        matchValue: matchValue,
+                        fields: diffFields
+                    });
+                }
+            }
+        }
+
+        if (diffItems.length > 0) {
+            let diffHtml = '<div class="table-wrapper"><table><thead><tr><th style="width:30px;"><input type="checkbox" id="pBackupSelectAll" checked></th><th>序号</th><th>姓名</th><th>匹配项</th><th>差异字段</th><th>云端值</th><th>本地值</th></tr></thead><tbody>';
+            let idx = 1;
+            for (let item of diffItems) {
+                const rowspan = item.fields.length;
+                for (let fIdx = 0; fIdx < rowspan; fIdx++) {
+                    const field = item.fields[fIdx];
+                    diffHtml += `<tr>`;
+                    if (fIdx === 0) {
+                        diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;"><input type="checkbox" class="pBackupCheckbox" data-key="${escapeHtml(item.recordKey)}" checked></td>`;
+                        diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${idx}</td>`;
+                        diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${escapeHtml(item.nameValue)}</td>`;
+                        diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${escapeHtml(item.matchValue)}</td>`;
+                    }
+                    diffHtml += `<td>${escapeHtml(field.label)}</td>`;
+                    diffHtml += `<td>${escapeHtml(field.remoteVal)}</td>`;
+                    diffHtml += `<td>${escapeHtml(field.localVal)}</td>`;
+                    diffHtml += `</tr>`;
+                }
+                idx++;
+            }
+            diffHtml += '</tbody></table></div>';
+
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.style.display = 'flex';
+            overlay.innerHTML = `<div class="modal" style="max-width:1000px;">
+                <h3>人员数据差异对比（备份前）</h3>
+                <p>勾选您希望用<strong>云端数据覆盖本地</strong>的行，未勾选则保留本地数据。</p>
+                ${diffHtml}
+                <div class="modal-actions">
+                    <button class="btn btn-outline" id="pBackupIgnoreBtn">忽略差异，保留本地</button>
+                    <button class="btn btn-primary" id="pBackupUpdateBtn">覆盖选中项</button>
+                </div>
+            </div>`;
+            document.body.appendChild(overlay);
+
+            overlay.querySelector('#pBackupSelectAll').addEventListener('change', function() {
+                const cbs = overlay.querySelectorAll('.pBackupCheckbox');
+                cbs.forEach(cb => cb.checked = this.checked);
+            });
+
+            const result = await new Promise((resolve) => {
+                overlay.querySelector('#pBackupIgnoreBtn').onclick = () => {
+                    document.body.removeChild(overlay);
+                    resolve('ignore');
+                };
+                overlay.querySelector('#pBackupUpdateBtn').onclick = () => {
+                    const selectedKeys = [];
+                    overlay.querySelectorAll('.pBackupCheckbox:checked').forEach(cb => {
+                        selectedKeys.push(cb.dataset.key);
+                    });
+                    if (selectedKeys.length === 0) {
+                        showToast('请至少勾选一条记录', 'error');
+                        return;
+                    }
+                    for (let [key, remoteItem] of remoteMap) {
+                        if (selectedKeys.includes(key) && localMap.has(key)) {
+                            const localItem = localMap.get(key);
+                            const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
+                            for (let field of allKeys) {
+                                if (field === 'seq') continue;
+                                localItem[field] = remoteItem[field];
+                            }
+                        }
+                    }
+                    document.body.removeChild(overlay);
+                    resolve('update');
+                };
+            });
+
+            if (result === 'ignore') {
+                showToast('已忽略差异，保留本地数据', 'info');
+            } else {
+                showToast('已更新选中记录', 'success');
+                p_saveLocal(p_allData);
+                p_refreshQueryTable();
+            }
+        } else {
+            showToast('本地与云端数据无差异', 'info');
+        }
+    }
+
+    // 3. 执行备份上传
     let key = null;
     while (true) {
-        const firstKey = prompt('请输入本次备份的随机加密密钥（恢复时需要提供）：');
+        const firstKey = prompt('请输入本次备份的加密密钥（用于恢复）：');
         if (firstKey === null) { return; }
-        const secondKey = prompt('请再次输入加密密钥以确认：');
+        const secondKey = prompt('请再次输入加密密钥确认：');
         if (secondKey === null) { return; }
         if (firstKey === secondKey) {
             key = firstKey;
@@ -1671,36 +2030,49 @@ function p_importFromExcel() {
             showToast('两次输入的密钥不一致，请重新输入', 'error');
         }
     }
+
     let success = false;
-    const cloudArray = p_allData.map(item => ({
-        "序号": parseInt(item.seq) || 0,
-        "姓名": item.name,
-        "身份证": item.idcard,
-        "类别": p_getDisplayValue('category', item.category, item.categoryOther),
-        "岗位": p_getDisplayValue('position', item.position, item.positionOther),
-        "注册号": item.regno,
-        "注册专业": p_getDisplayValue('major', item.major, item.majorOther),
-        "有效期": item.validity ? (() => { const d = new Date(item.validity); return Math.round((d.getTime() - new Date(1899, 11, 30).getTime()) / 86400000); })() : "",
-        "级别": p_getDisplayValue('level', item.level, item.levelOther),
-        "发证单位": item.issuer,
-        "联系电话": item.phone,
-        "冀时办账号": item.jishibanAccount,
-        "冀时办密码": item.jishibanPassword,
-        "社保": item.socialSecurity,
-        "所属公司": p_getDisplayValue('company', item.company, item.companyOther),
-        "备注": item.remarks,
-        "类别自定义": "", "岗位自定义": "", "注册专业自定义": "", "级别自定义": "", "所属公司自定义": ""
-    }));
+    const cloudArray = p_allData.map((item, idx) => {
+        const seqValue = (item.seq || '').trim() || String(idx + 1);
+        return {
+            "序号": seqValue,
+            "姓名": item.name,
+            "身份证": item.idcard,
+            "类别": p_getDisplayValue('category', item.category, item.categoryOther),
+            "岗位": p_getDisplayValue('position', item.position, item.positionOther),
+            "注册号": item.regno,
+            "注册专业": p_getDisplayValue('major', item.major, item.majorOther),
+            "有效期": item.validity ? (() => { const d = new Date(item.validity); return Math.round((d.getTime() - new Date(1899, 11, 30).getTime()) / 86400000); })() : "",
+            "级别": p_getDisplayValue('level', item.level, item.levelOther),
+            "发证单位": item.issuer,
+            "联系电话": item.phone,
+            "冀时办账号": item.jishibanAccount,
+            "冀时办密码": item.jishibanPassword,
+            "社保": item.socialSecurity,
+            "所属公司": p_getDisplayValue('company', item.company, item.companyOther),
+            "备注": item.remarks,
+            "类别自定义": "", "岗位自定义": "", "注册专业自定义": "", "级别自定义": "", "所属公司自定义": ""
+        };
+    });
     const payload = JSON.stringify(cloudArray);
     const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
     const batches = [];
     let startIdx = 0;
-    while (startIdx < encPayload.length) { batches.push(encPayload.slice(startIdx, startIdx + 6000)); startIdx += 6000; }
+    while (startIdx < encPayload.length) {
+        batches.push(encPayload.slice(startIdx, startIdx + 6000));
+        startIdx += 6000;
+    }
     try {
-        for (let i = 0; i < batches.length; i++) { const res = await cloudUpdateRaw(getPersonnelCloudKey() + '_batch' + (i+1), batches[i]); if (!res.success) throw new Error('分片写入失败'); }
+        for (let i = 0; i < batches.length; i++) {
+            const res = await cloudUpdateRaw(getPersonnelCloudKey() + '_batch' + (i + 1), batches[i]);
+            if (!res.success) throw new Error('分片写入失败');
+        }
         await cloudUpdateRaw(getPersonnelCloudKey(), JSON.stringify({ batches: batches.length }));
-        showToast('云端备份成功', 'success'); success = true;
-    } catch (e) { showToast('云端备份失败', 'error'); }
+        showToast('云端备份成功', 'success');
+        success = true;
+    } catch (e) {
+        showToast('云端备份失败', 'error');
+    }
     const statusText = success ? '备份成功' : '备份失败';
     const fileName = `人员管理系统_${statusText}_${getNowString()}.xlsx`;
     const fields = p_allFields.map(f => f.key);
@@ -2208,11 +2580,178 @@ function p_exportQueryResults() {
 
             async function r_handleBackupToCloud() {
     if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
+
+    // 1. 获取云端数据
+    let remoteData = null;
+    const metaRaw = await cloudReadRaw(getRegCloudKey());
+    if (metaRaw) {
+        const decryptKey = prompt('请输入云端备份的解密密钥（用于查看云端数据，若不知道可取消）：');
+        if (decryptKey === null) {
+            if (!confirm('未提供解密密钥，将直接备份本地数据覆盖云端，确定继续？')) return;
+        } else {
+            try {
+                const meta = JSON.parse(metaRaw);
+                let fullEnc = '';
+                for (let i = 1; i <= meta.batches; i++) {
+                    const part = await cloudReadRaw(getRegCloudKey() + '_batch' + i);
+                    if (part) fullEnc += part;
+                }
+                const decPayload = CryptoJS.AES.decrypt(fullEnc, decryptKey).toString(CryptoJS.enc.Utf8);
+                if (!decPayload) throw new Error('解密失败');
+                remoteData = JSON.parse(decPayload);
+            } catch (e) {
+                showToast('解密密钥错误，无法查看云端数据', 'error');
+                if (!confirm('解密失败，是否直接备份本地数据覆盖云端？')) return;
+            }
+        }
+    } else {
+        showToast('云端无数据，将直接备份', 'info');
+    }
+
+    // 2. 对比差异
+    if (remoteData && remoteData.length > 0) {
+        // 报名用 seq 作为匹配键
+        const localMap = new Map();
+        const remoteMap = new Map();
+        r_allData.forEach(item => {
+            const key = item.seq || '';
+            if (key) localMap.set(key, item);
+        });
+        remoteData.forEach(item => {
+            const key = item.seq || '';
+            if (key) remoteMap.set(key, item);
+        });
+
+        // 云端有本地无 → 新增
+        let addedCount = 0;
+        for (let [key, remoteItem] of remoteMap) {
+            if (!localMap.has(key)) {
+                r_allData.push(remoteItem);
+                addedCount++;
+                localMap.set(key, remoteItem);
+            }
+        }
+        if (addedCount > 0) {
+            showToast(`云端新增 ${addedCount} 条记录已自动添加到本地`, 'success');
+        }
+
+        // 收集差异
+        const diffItems = [];
+        for (let [key, remoteItem] of remoteMap) {
+            if (localMap.has(key)) {
+                const localItem = localMap.get(key);
+                const diffFields = [];
+                const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
+                for (let field of allKeys) {
+                    if (field === 'seq') continue;
+                    const localVal = localItem[field] ?? '';
+                    const remoteVal = remoteItem[field] ?? '';
+                    if (localVal != remoteVal) {
+                        const label = r_fieldLabelMap.get(field) || field;
+                        diffFields.push({ field, label, localVal: String(localVal), remoteVal: String(remoteVal) });
+                    }
+                }
+                if (diffFields.length > 0) {
+                    const nameValue = localItem.projectName || remoteItem.projectName || '-';
+                    diffItems.push({
+                        recordKey: key,
+                        nameValue: nameValue,
+                        matchValue: key,
+                        fields: diffFields
+                    });
+                }
+            }
+        }
+
+        if (diffItems.length > 0) {
+            let diffHtml = '<div class="table-wrapper"><table><thead><tr><th style="width:30px;"><input type="checkbox" id="rBackupSelectAll" checked></th><th>序号</th><th>工程名称</th><th>报名序号</th><th>差异字段</th><th>云端值</th><th>本地值</th></tr></thead><tbody>';
+            let idx = 1;
+            for (let item of diffItems) {
+                const rowspan = item.fields.length;
+                for (let fIdx = 0; fIdx < rowspan; fIdx++) {
+                    const field = item.fields[fIdx];
+                    diffHtml += `<tr>`;
+                    if (fIdx === 0) {
+                        diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;"><input type="checkbox" class="rBackupCheckbox" data-key="${escapeHtml(item.recordKey)}" checked></td>`;
+                        diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${idx}</td>`;
+                        diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${escapeHtml(item.nameValue)}</td>`;
+                        diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${escapeHtml(item.matchValue)}</td>`;
+                    }
+                    diffHtml += `<td>${escapeHtml(field.label)}</td>`;
+                    diffHtml += `<td>${escapeHtml(field.remoteVal)}</td>`;
+                    diffHtml += `<td>${escapeHtml(field.localVal)}</td>`;
+                    diffHtml += `</tr>`;
+                }
+                idx++;
+            }
+            diffHtml += '</tbody></table></div>';
+
+            const overlay = document.createElement('div');
+            overlay.className = 'modal-overlay';
+            overlay.style.display = 'flex';
+            overlay.innerHTML = `<div class="modal" style="max-width:1000px;">
+                <h3>报名数据差异对比（备份前）</h3>
+                <p>勾选您希望用<strong>云端数据覆盖本地</strong>的行，未勾选则保留本地数据。</p>
+                ${diffHtml}
+                <div class="modal-actions">
+                    <button class="btn btn-outline" id="rBackupIgnoreBtn">忽略差异，保留本地</button>
+                    <button class="btn btn-primary" id="rBackupUpdateBtn">覆盖选中项</button>
+                </div>
+            </div>`;
+            document.body.appendChild(overlay);
+
+            overlay.querySelector('#rBackupSelectAll').addEventListener('change', function() {
+                const cbs = overlay.querySelectorAll('.rBackupCheckbox');
+                cbs.forEach(cb => cb.checked = this.checked);
+            });
+
+            const result = await new Promise((resolve) => {
+                overlay.querySelector('#rBackupIgnoreBtn').onclick = () => {
+                    document.body.removeChild(overlay);
+                    resolve('ignore');
+                };
+                overlay.querySelector('#rBackupUpdateBtn').onclick = () => {
+                    const selectedKeys = [];
+                    overlay.querySelectorAll('.rBackupCheckbox:checked').forEach(cb => {
+                        selectedKeys.push(cb.dataset.key);
+                    });
+                    if (selectedKeys.length === 0) {
+                        showToast('请至少勾选一条记录', 'error');
+                        return;
+                    }
+                    for (let [key, remoteItem] of remoteMap) {
+                        if (selectedKeys.includes(key) && localMap.has(key)) {
+                            const localItem = localMap.get(key);
+                            const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
+                            for (let field of allKeys) {
+                                if (field === 'seq') continue;
+                                localItem[field] = remoteItem[field];
+                            }
+                        }
+                    }
+                    document.body.removeChild(overlay);
+                    resolve('update');
+                };
+            });
+
+            if (result === 'ignore') {
+                showToast('已忽略差异，保留本地数据', 'info');
+            } else {
+                showToast('已更新选中记录', 'success');
+                r_saveLocal(r_allData);
+                r_refreshQueryTable();
+            }
+        } else {
+            showToast('本地与云端数据无差异', 'info');
+        }
+    }
+
+    // 3. 执行备份上传
     let key = null;
     while (true) {
-        const firstKey = prompt('请输入本次备份的随机加密密钥（恢复时需要提供）：');
+        const firstKey = prompt('请输入本次备份的加密密钥（用于恢复）：');
         if (firstKey === null) { return; }
-        const secondKey = prompt('请再次输入加密密钥以确认：');
+        const secondKey = prompt('请再次输入加密密钥确认：');
         if (secondKey === null) { return; }
         if (firstKey === secondKey) {
             key = firstKey;
@@ -2221,6 +2760,7 @@ function p_exportQueryResults() {
             showToast('两次输入的密钥不一致，请重新输入', 'error');
         }
     }
+
     let success = false;
     const cloudArray = r_allData.map(item => ({
         "序号": item.seq,
@@ -2243,12 +2783,21 @@ function p_exportQueryResults() {
     const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
     const batches = [];
     let startIdx = 0;
-    while (startIdx < encPayload.length) { batches.push(encPayload.slice(startIdx, startIdx + 6000)); startIdx += 6000; }
+    while (startIdx < encPayload.length) {
+        batches.push(encPayload.slice(startIdx, startIdx + 6000));
+        startIdx += 6000;
+    }
     try {
-        for (let i = 0; i < batches.length; i++) { const res = await cloudUpdateRaw(getRegCloudKey() + '_batch' + (i+1), batches[i]); if (!res.success) throw new Error('分片写入失败'); }
+        for (let i = 0; i < batches.length; i++) {
+            const res = await cloudUpdateRaw(getRegCloudKey() + '_batch' + (i + 1), batches[i]);
+            if (!res.success) throw new Error('分片写入失败');
+        }
         await cloudUpdateRaw(getRegCloudKey(), JSON.stringify({ batches: batches.length }));
-        showToast('云端备份成功', 'success'); success = true;
-    } catch (e) { showToast('云端备份失败', 'error'); }
+        showToast('云端备份成功', 'success');
+        success = true;
+    } catch (e) {
+        showToast('云端备份失败', 'error');
+    }
     const statusText = success ? '备份成功' : '备份失败';
     const fileName = `报名管理系统_${statusText}_${getNowString()}.xlsx`;
     const fields = (r_remarks2Visible && permissions.showSensitive) ? [...r_allFieldsExport.map(f => f.key), 'remarks2'] : r_allFieldsExport.map(f => f.key);
