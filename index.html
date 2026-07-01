@@ -965,20 +965,35 @@ cachedUsers = users;  // 直接赋值给局部变量
             if (key) remoteMap.set(key, item);
         });
 
-        // 云端有本地无 → 直接新增
-        let addedCount = 0;
+        // ---------- 处理“云端有本地无” ----------
+        const toAdd = [];
         for (let [key, remoteItem] of remoteMap) {
             if (!localMap.has(key)) {
-                a_allData.push(remoteItem);
-                addedCount++;
-                localMap.set(key, remoteItem);
+                toAdd.push(remoteItem);
             }
         }
-        if (addedCount > 0) {
-            showToast(`云端新增 ${addedCount} 条记录已自动添加到本地`, 'success');
+        if (toAdd.length > 0) {
+            // 弹出列表让用户选择是否新增
+            let msg = '云端有以下新记录，是否新增到本地？\n\n';
+            toAdd.forEach((item, idx) => {
+                msg += `${idx+1}. 档案号: ${item.archiveNo || '无'}，工程名称: ${item.engName || '无'}\n`;
+            });
+            if (confirm(msg + '\n点击“确定”新增，点击“取消”忽略')) {
+                a_allData.push(...toAdd);
+                a_saveLocal(a_allData);
+                a_refreshQueryTable();
+                showToast(`已新增 ${toAdd.length} 条云端记录`, 'success');
+                // 重新构建本地映射（因为新增了）
+                toAdd.forEach(item => {
+                    const key = item.archiveNo || '';
+                    if (key) localMap.set(key, item);
+                });
+            } else {
+                showToast('已忽略新增记录', 'info');
+            }
         }
 
-        // 收集差异（双方都存在且字段值不同）
+        // ---------- 收集差异（双方都存在且字段值不同） ----------
         const diffItems = [];
         for (let [key, remoteItem] of remoteMap) {
             if (localMap.has(key)) {
@@ -986,8 +1001,7 @@ cachedUsers = users;  // 直接赋值给局部变量
                 const diffFields = [];
                 const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
                 for (let field of allKeys) {
-                    // 主键不参与覆盖
-                    if (field === 'archiveNo') continue;
+                    if (field === 'archiveNo') continue; // 主键不参与覆盖
                     const localVal = localItem[field] ?? '';
                     const remoteVal = remoteItem[field] ?? '';
                     if (localVal != remoteVal) {
@@ -1007,7 +1021,7 @@ cachedUsers = users;  // 直接赋值给局部变量
         }
 
         if (diffItems.length > 0) {
-            // 构建差异表格
+            // 构建差异表格（带勾选）
             let diffHtml = '<div class="table-wrapper"><table><thead><tr><th style="width:30px;"><input type="checkbox" id="aBackupSelectAll" checked></th><th>序号</th><th>工程名称</th><th>档案号</th><th>差异字段</th><th>云端值</th><th>本地值</th></tr></thead><tbody>';
             let idx = 1;
             for (let item of diffItems) {
@@ -1858,7 +1872,31 @@ function p_importFromExcel() {
                 }
                 const decPayload = CryptoJS.AES.decrypt(fullEnc, decryptKey).toString(CryptoJS.enc.Utf8);
                 if (!decPayload) throw new Error('解密失败');
-                remoteData = JSON.parse(decPayload);
+                const rawData = JSON.parse(decPayload);
+                // ===== 关键修复：将中文列名映射为英文字段 =====
+                remoteData = rawData.map(item => ({
+                    seq: String(item["序号"] || ""),
+                    name: item["姓名"] || "",
+                    idcard: item["身份证"] || "",
+                    category: item["类别"] || "",
+                    position: item["岗位"] || "",
+                    regno: item["注册号"] || "",
+                    major: item["注册专业"] || "",
+                    validity: item["有效期"] ? excelSerialToDate(parseInt(item["有效期"])) : "",
+                    level: item["级别"] || "",
+                    issuer: item["发证单位"] || "",
+                    phone: item["联系电话"] || "",
+                    jishibanAccount: item["冀时办账号"] || "",
+                    jishibanPassword: item["冀时办密码"] || "",
+                    socialSecurity: item["社保"] || "",
+                    company: item["所属公司"] || "",
+                    remarks: item["备注"] || "",
+                    categoryOther: item["类别自定义"] || "",
+                    positionOther: item["岗位自定义"] || "",
+                    majorOther: item["注册专业自定义"] || "",
+                    levelOther: item["级别自定义"] || "",
+                    companyOther: item["所属公司自定义"] || ""
+                }));
             } catch (e) {
                 showToast('解密密钥错误，无法查看云端数据', 'error');
                 if (!confirm('解密失败，是否直接备份本地数据覆盖云端？')) return;
@@ -1890,20 +1928,34 @@ function p_importFromExcel() {
             remoteMap.set(key, item);
         });
 
-        // 云端有本地无 → 新增
-        let addedCount = 0;
+        // ---------- 处理“云端有本地无” ----------
+        const toAdd = [];
         for (let [key, remoteItem] of remoteMap) {
             if (!localMap.has(key)) {
-                p_allData.push(remoteItem);
-                addedCount++;
-                localMap.set(key, remoteItem);
+                toAdd.push(remoteItem);
             }
         }
-        if (addedCount > 0) {
-            showToast(`云端新增 ${addedCount} 条记录已自动添加到本地`, 'success');
+        if (toAdd.length > 0) {
+            let msg = '云端有以下新人员记录，是否新增到本地？\n\n';
+            toAdd.forEach((item, idx) => {
+                msg += `${idx+1}. 姓名: ${item.name || '无'}，注册号: ${item.regno || '无'}，身份证: ${item.idcard || '无'}\n`;
+            });
+            if (confirm(msg + '\n点击“确定”新增，点击“取消”忽略')) {
+                p_allData.push(...toAdd);
+                p_saveLocal(p_allData);
+                p_refreshQueryTable();
+                showToast(`已新增 ${toAdd.length} 条云端人员记录`, 'success');
+                // 重新构建本地映射
+                toAdd.forEach((item, idx) => {
+                    const key = getKey(item, p_allData.indexOf(item));
+                    if (key) localMap.set(key, item);
+                });
+            } else {
+                showToast('已忽略新增记录', 'info');
+            }
         }
 
-        // 收集差异
+        // ---------- 收集差异 ----------
         const diffItems = [];
         for (let [key, remoteItem] of remoteMap) {
             if (localMap.has(key)) {
@@ -2078,8 +2130,6 @@ function p_importFromExcel() {
     const fields = p_allFields.map(f => f.key);
     p_exportWithFields(p_allData, fileName, fields);
 }
-
-
             
             async function p_handleRestoreFromCloud() {
     if (!permissions.restore) { showToast('无恢复权限', 'error'); return; }
@@ -2623,7 +2673,25 @@ function p_exportQueryResults() {
                 }
                 const decPayload = CryptoJS.AES.decrypt(fullEnc, decryptKey).toString(CryptoJS.enc.Utf8);
                 if (!decPayload) throw new Error('解密失败');
-                remoteData = JSON.parse(decPayload);
+                const rawData = JSON.parse(decPayload);
+                // ===== 关键修复：将中文列名映射为英文字段 =====
+                remoteData = rawData.map(item => ({
+                    seq: String(item["序号"] || ""),
+                    projectName: item["工程名称"] || "",
+                    client: item["委托人"] || "",
+                    projectManager: item["项目经理"] || "",
+                    materials: item["资料"] || "",
+                    registrationDate: item["报名日期"] || "",
+                    bidOpeningMethod: item["开标方式"] || "",
+                    bidOpeningAddress: item["开标地址"] || "",
+                    bidOpeningDate: item["开标日期"] || "",
+                    deposit: item["保证金"] || "",
+                    maxPrice: item["最高限价"] || "",
+                    announcementUrl: item["公告地址"] || "",
+                    company: item["所属公司"] || "",
+                    remarks: item["备注"] || "",
+                    remarks2: item["备注2"] || ""
+                }));
             } catch (e) {
                 showToast('解密密钥错误，无法查看云端数据', 'error');
                 if (!confirm('解密失败，是否直接备份本地数据覆盖云端？')) return;
@@ -2647,20 +2715,34 @@ function p_exportQueryResults() {
             if (key) remoteMap.set(key, item);
         });
 
-        // 云端有本地无 → 新增
-        let addedCount = 0;
+        // ---------- 处理“云端有本地无” ----------
+        const toAdd = [];
         for (let [key, remoteItem] of remoteMap) {
             if (!localMap.has(key)) {
-                r_allData.push(remoteItem);
-                addedCount++;
-                localMap.set(key, remoteItem);
+                toAdd.push(remoteItem);
             }
         }
-        if (addedCount > 0) {
-            showToast(`云端新增 ${addedCount} 条记录已自动添加到本地`, 'success');
+        if (toAdd.length > 0) {
+            let msg = '云端有以下新报名记录，是否新增到本地？\n\n';
+            toAdd.forEach((item, idx) => {
+                msg += `${idx+1}. 工程名称: ${item.projectName || '无'}，报名序号: ${item.seq || '无'}\n`;
+            });
+            if (confirm(msg + '\n点击“确定”新增，点击“取消”忽略')) {
+                r_allData.push(...toAdd);
+                r_saveLocal(r_allData);
+                r_refreshQueryTable();
+                showToast(`已新增 ${toAdd.length} 条云端报名记录`, 'success');
+                // 重新构建本地映射
+                toAdd.forEach(item => {
+                    const key = item.seq || '';
+                    if (key) localMap.set(key, item);
+                });
+            } else {
+                showToast('已忽略新增记录', 'info');
+            }
         }
 
-        // 收集差异
+        // ---------- 收集差异 ----------
         const diffItems = [];
         for (let [key, remoteItem] of remoteMap) {
             if (localMap.has(key)) {
@@ -2828,7 +2910,6 @@ function p_exportQueryResults() {
     const fields = (r_remarks2Visible && permissions.showSensitive) ? [...r_allFieldsExport.map(f => f.key), 'remarks2'] : r_allFieldsExport.map(f => f.key);
     r_exportWithFields(r_allData, fileName, fields);
 }
-
 
        async function r_handleRestoreFromCloud() {
     if (!permissions.restore) { showToast('无恢复权限', 'error'); return; }
