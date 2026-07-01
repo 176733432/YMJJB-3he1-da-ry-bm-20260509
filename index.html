@@ -2204,8 +2204,34 @@ function p_exportQueryResults() {
                 try { const bytes = CryptoJS.AES.decrypt(cipherText, key, { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }); const decrypted = bytes.toString(CryptoJS.enc.Utf8); return decrypted ? JSON.parse(decrypted) : null; } catch (e) { return null; }
             }
             function r_saveLocal(data) { const encrypted = r_encryptData(data); if (encrypted) localStorage.setItem('BMGLXT20020308ZDST', encrypted); }
-            function r_loadLocal() { const raw = localStorage.getItem('BMGLXT20020308ZDST'); if (!raw) return null; const decrypted = r_decryptData(raw); if (decrypted) return decrypted; try { const parsed = JSON.parse(raw); if (Array.isArray(parsed)) { r_saveLocal(parsed); return parsed; } } catch (e) {} return null; }
 
+            function r_loadLocal() {
+    const raw = localStorage.getItem('BMGLXT20020308ZDST');
+    if (!raw) return null;
+    const decrypted = r_decryptData(raw);
+    if (decrypted) {
+        // 清洗日期格式：统一将 T 替换为空格
+        decrypted.forEach(item => {
+            if (item.bidOpeningDate && typeof item.bidOpeningDate === 'string') {
+                item.bidOpeningDate = item.bidOpeningDate.replace('T', ' ');
+            }
+        });
+        return decrypted;
+    }
+    try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) {
+            parsed.forEach(item => {
+                if (item.bidOpeningDate && typeof item.bidOpeningDate === 'string') {
+                    item.bidOpeningDate = item.bidOpeningDate.replace('T', ' ');
+                }
+            });
+            r_saveLocal(parsed);
+            return parsed;
+        }
+    } catch (e) {}
+    return null;
+}
             function r_getBidOpeningStatus(person) {
                 if (person.remarks && person.remarks.includes('不投了')) return '已取消投标';
                 if (!person.bidOpeningDate) return '';
@@ -2770,7 +2796,7 @@ function p_exportQueryResults() {
         "报名日期": item.registrationDate,
         "开标方式": item.bidOpeningMethod,
         "开标地址": item.bidOpeningAddress,
-        "开标日期": item.bidOpeningDate,
+        "开标日期": item.bidOpeningDate ? item.bidOpeningDate.replace('T', ' ') : '',
         "保证金": item.deposit,
         "最高限价": item.maxPrice,
         "公告地址": item.announcementUrl,
@@ -3496,10 +3522,16 @@ async function initAllSystems() {
     p_queryResults = [];
     p_refreshQueryTable();
 
-    // ---------- 报名系统 ----------
+       // ---------- 报名系统 ----------
     let r_local = r_loadLocal();
     if (!r_local || !r_local.length) { migrateRegistration(); r_local = r_loadLocal(); }
     if (!r_local) r_local = [];
+    // 二次清洗（确保内存中的数据也统一）
+    r_local.forEach(item => {
+        if (item.bidOpeningDate && typeof item.bidOpeningDate === 'string') {
+            item.bidOpeningDate = item.bidOpeningDate.replace('T', ' ');
+        }
+    });
     r_allData = r_local;
     r_saveLocal(r_allData);
     r_activeSearchResults = null;
