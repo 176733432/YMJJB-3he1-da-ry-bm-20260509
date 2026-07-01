@@ -2390,7 +2390,10 @@ function p_exportQueryResults() {
     setVal('re_registrationDate', person.registrationDate || '');
     setVal('re_bidOpeningMethod', person.bidOpeningMethod || '线上');
     setVal('re_bidOpeningAddress', person.bidOpeningAddress || '');
-    setVal('re_bidOpeningDate', person.bidOpeningDate || '');
+    // ===== 修改点：将空格转为T =====
+    const bidDateVal = person.bidOpeningDate ? person.bidOpeningDate.replace(' ', 'T') : '';
+    setVal('re_bidOpeningDate', bidDateVal);
+    // ===== 修改结束 =====
     setVal('re_deposit', person.deposit || '');
     setVal('re_maxPrice', person.maxPrice || '');
     setVal('re_announcementUrl', person.announcementUrl || '');
@@ -2402,8 +2405,6 @@ function p_exportQueryResults() {
     if (isNew) {
         const companySelect = document.getElementById('re_company');
         const seqInput = document.getElementById('re_seq');
-        
-        // 定义更新序号的函数
         const updateSeq = () => {
             const selectedCompany = companySelect.value;
             if (selectedCompany) {
@@ -2413,11 +2414,7 @@ function p_exportQueryResults() {
                 seqInput.value = '';
             }
         };
-        
-        // 监听公司选择变化
         companySelect.addEventListener('change', updateSeq);
-        
-        // 初始调用一次（如果已有默认公司）
         if (companySelect.value) {
             updateSeq();
         }
@@ -2437,7 +2434,9 @@ function p_exportQueryResults() {
         registrationDate: document.getElementById('re_registrationDate').value,
         bidOpeningMethod: document.getElementById('re_bidOpeningMethod').value,
         bidOpeningAddress: document.getElementById('re_bidOpeningAddress').value,
-        bidOpeningDate: document.getElementById('re_bidOpeningDate').value,
+        // ===== 修改点：将T转为空格 =====
+        bidOpeningDate: document.getElementById('re_bidOpeningDate').value.replace('T', ' '),
+        // ===== 修改结束 =====
         deposit: document.getElementById('re_deposit').value,
         maxPrice: document.getElementById('re_maxPrice').value,
         announcementUrl: document.getElementById('re_announcementUrl').value,
@@ -2450,14 +2449,14 @@ function p_exportQueryResults() {
         return;
     }
     if (index >= 0 && index < r_allData.length) {
-        r_allData[index] = person;   // 更新已有记录
+        r_allData[index] = person;
     } else {
-        r_allData.push(person);      // 新增
+        r_allData.push(person);
     }
-    r_saveLocal(r_allData);          // 保存到本地存储
-    r_activeSearchResults = null;    // 清除搜索缓存
-    r_refreshQueryTable();           // 刷新表格显示
-    closeEditModal();                // 关闭弹窗
+    r_saveLocal(r_allData);
+    r_activeSearchResults = null;
+    r_refreshQueryTable();
+    closeEditModal();
 }
 
             function r_openAddProjectModal() { if (!permissions.entry) { showToast('无录入权限', 'error'); return; } const nextSeq = r_getNextSeq('正大'); r_openEditModal({ seq: nextSeq, projectName: '', client: '', projectManager: '', materials: '', registrationDate: '', bidOpeningMethod: '线上', bidOpeningAddress: '', bidOpeningDate: '', deposit: '', maxPrice: '', announcementUrl: '', company: '', remarks: '', remarks2: '' }, -1); }
