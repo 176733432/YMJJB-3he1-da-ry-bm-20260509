@@ -3603,7 +3603,7 @@ async function initAllSystems() {
     p_queryResults = [];
     p_refreshQueryTable();
 
-       // ---------- 报名系统 ----------
+    // ---------- 报名系统 ----------
     let r_local = r_loadLocal();
     if (!r_local || !r_local.length) { migrateRegistration(); r_local = r_loadLocal(); }
     if (!r_local) r_local = [];
@@ -3658,7 +3658,6 @@ async function initAllSystems() {
         // ---------- 档案系统 ----------
         const a_remote = await fetchArchiveCloudData(currentProjectCode);
         if (a_remote) {
-            // 若本地无数据，直接覆盖（避免合并时的键冲突）
             if (a_local.length === 0) {
                 a_allData = a_remote;
                 a_saveLocal(a_allData);
@@ -3676,13 +3675,13 @@ async function initAllSystems() {
                     a_refreshQueryTable();
                     showToast('档案数据已更新为云端版本', 'success');
                 }
+                // 注意：resolveDataConflict 内部在无差异时已 showToast，所以不用额外添加
             }
         }
 
         // ---------- 人员系统 ----------
         const p_remote = await fetchPersonnelCloudData(currentProjectCode);
         if (p_remote) {
-            // 若本地无数据，直接覆盖（避免 resolvePersonnelConflict 中键冲突导致丢失）
             if (p_local.length === 0) {
                 p_allData = p_remote;
                 p_saveLocal(p_allData);
@@ -3700,7 +3699,8 @@ async function initAllSystems() {
                     p_refreshQueryTable();
                     showToast('人员数据已更新为云端版本', 'success');
                 } else {
-                    // 即使没有差异，也要清空查询缓存并刷新（确保界面同步）
+                    // ========== 修复：无差异时也显示提示 ==========
+                    showToast('人员数据与云端一致，无需更新', 'info');
                     p_queryResults = [];
                     p_refreshQueryTable();
                 }
@@ -3727,6 +3727,7 @@ async function initAllSystems() {
                     r_refreshQueryTable();
                     showToast('报名数据已更新为云端版本', 'success');
                 }
+                // resolveDataConflict 内部在无差异时已 showToast
             }
         }
 
