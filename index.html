@@ -2283,34 +2283,46 @@ function p_exportQueryResults() {
     return null;
 }
             function r_getBidOpeningStatus(person) {
-                if (person.remarks && person.remarks.includes('不投了')) return '已取消投标';
-                if (!person.bidOpeningDate) return '';
-                const now = new Date();
-                const bidDate = new Date(person.bidOpeningDate);
-                if (isNaN(bidDate.getTime())) return '';
-                const diffMs = bidDate.getTime() - now.getTime();
-                if (diffMs < 0) {
-                    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                    const bidDayStart = new Date(bidDate.getFullYear(), bidDate.getMonth(), bidDate.getDate());
-                    if (todayStart.getTime() === bidDayStart.getTime()) {
-                        const overMs = Math.abs(diffMs);
-                        const overHours = Math.floor(overMs / (1000 * 60 * 60));
-                        const overMinutes = Math.floor((overMs % (1000 * 60 * 60)) / (1000 * 60));
-                        return `今日开标，已超过规定开标${overHours}时${overMinutes}分`;
-                    }
-                    return '已经开标';
-                } else {
-                    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-                    const bidDayStart = new Date(bidDate.getFullYear(), bidDate.getMonth(), bidDate.getDate());
-                    if (todayStart.getTime() === bidDayStart.getTime()) {
-                        const remainHours = Math.floor(diffMs / (1000 * 60 * 60));
-                        const remainMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
-                        return `今日开标，还有${remainHours}时${remainMinutes}分`;
-                    }
-                    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-                    return '距开标还有' + diffDays + '天';
-                }
-            }
+    if (person.remarks && person.remarks.includes('不投了')) return '已取消投标';
+    if (!person.bidOpeningDate) return '';
+    const now = new Date();
+    const bidDate = new Date(person.bidOpeningDate);
+    if (isNaN(bidDate.getTime())) return '';
+    const diffMs = bidDate.getTime() - now.getTime();
+    const absMs = Math.abs(diffMs);
+    
+    // 计算天、时、分
+    const days = Math.floor(absMs / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((absMs % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((absMs % (1000 * 60 * 60)) / (1000 * 60));
+    
+    // 构建时间描述
+    let timeParts = [];
+    if (days > 0) timeParts.push(days + '天');
+    if (hours > 0) timeParts.push(hours + '时');
+    if (minutes > 0 || (days === 0 && hours === 0)) timeParts.push(minutes + '分');
+    const timeStr = timeParts.join('') || '0分';
+    
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const bidDayStart = new Date(bidDate.getFullYear(), bidDate.getMonth(), bidDate.getDate());
+    const isToday = (todayStart.getTime() === bidDayStart.getTime());
+    
+    if (diffMs < 0) {
+        // 已过开标时间
+        if (isToday) {
+            return `今日开标，已超过规定开标${timeStr}`;
+        } else {
+            return '已经开标';  // 非今日开标，保持原显示
+        }
+    } else {
+        // 未到开标时间
+        if (isToday) {
+            return `今日开标，还有${timeStr}`;
+        } else {
+            return `距开标还有${timeStr}`;
+        }
+    }
+}
 
             function r_getCompanyPrefix(company) { return company === '正大' ? 'ZD' : company === '世拓' ? 'ST' : ''; }
             function r_getNextSeq(company) { const prefix = r_getCompanyPrefix(company), cy = new Date().getFullYear(); let maxNum = 0; r_allData.forEach(item => { if (item.company === company) { const parts = String(item.seq).split('-'); if (parts.length === 3 && parts[0] === prefix && parseInt(parts[1]) === cy) { const n = parseInt(parts[2]); if (n > maxNum) maxNum = n; } } }); return `${prefix}-${cy}-${maxNum+1}`; }
