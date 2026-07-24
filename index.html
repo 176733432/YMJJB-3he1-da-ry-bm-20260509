@@ -1106,6 +1106,56 @@
             document.addEventListener('click', function(e) {
     hideCellContextMenu(e);
 });
+
+// ===== 移动端长按检测 =====
+let longPressTimer = null;
+let longPressTarget = null;
+
+function handleTouchStart(e) {
+    // 如果浮动层已显示且点击在浮动层内，不处理
+    const menu = document.getElementById('cellContextMenu');
+    if (menu.classList.contains('visible') && menu.contains(e.target)) {
+        return;
+    }
+    const cell = e.target.closest('td:not(.checkbox-cell)');
+    if (!cell) return;
+    // 如果正在显示菜单，先关闭
+    hideCellContextMenu();
+    longPressTarget = cell;
+    // 长按计时器
+    longPressTimer = setTimeout(() => {
+        const touch = e.touches[0];
+        // 构造一个类似鼠标事件的对象，供 showCellContextMenu 使用
+        const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY };
+        showCellContextMenu(fakeEvent, cell);
+        longPressTimer = null;
+        // 阻止系统默认上下文菜单（可选）
+        e.preventDefault();
+    }, 500);
+}
+
+function handleTouchMove(e) {
+    if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+        longPressTarget = null;
+    }
+}
+
+function handleTouchEnd(e) {
+    if (longPressTimer) {
+        clearTimeout(longPressTimer);
+        longPressTimer = null;
+        // 普通点击不触发
+    }
+    longPressTarget = null;
+}
+
+// 绑定事件（注意 passive: false 以便可以 preventDefault）
+document.addEventListener('touchstart', handleTouchStart, { passive: false });
+document.addEventListener('touchmove', handleTouchMove, { passive: true });
+document.addEventListener('touchend', handleTouchEnd, { passive: true });
+
 document.addEventListener('scroll', function(e) {
     hideCellContextMenu(e);
 });
