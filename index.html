@@ -402,6 +402,16 @@
         .btn-audit:hover {
             background: #e09a00;
         }
+
+        /* ===== 审核提醒闪烁样式 ===== */
+        @keyframes auditBlink {
+            0% { color: inherit; }
+            50% { color: red; font-weight: bold; }
+            100% { color: inherit; }
+        }
+        .audit-blink {
+            animation: auditBlink 0.8s infinite;
+        }
     </style>
     <script>
         (function() {
@@ -495,7 +505,7 @@
                         <div class="card-title" id="archiveQueryResultTitle" style="margin-bottom:0; cursor:pointer;">查询结果 <span class="badge-count" id="a_queryCount">0</span></div>
                         <div class="query-actions">
                             <div class="dropdown">
-                                <button class="btn btn-primary btn-sm dropdown-toggle" onclick="toggleDropdown(this)">操作 ▾</button>
+                                <button class="btn btn-primary btn-sm dropdown-toggle" id="a_dropdown_toggle" onclick="toggleDropdown(this)">操作 ▾</button>
                                 <ul class="dropdown-menu">
                                     <li><button class="btn btn-sm" id="a_btnImportExcel">📂 从EXCEL导入</button></li>
                                     <li><button class="btn btn-sm" id="a_btnAddArchive">➕ 新增档案</button></li>
@@ -575,7 +585,7 @@
                         </div>
                         <div class="query-actions">
                             <div class="dropdown">
-                                <button class="btn btn-primary btn-sm dropdown-toggle" onclick="toggleDropdown(this)">操作 ▾</button>
+                                <button class="btn btn-primary btn-sm dropdown-toggle" id="p_dropdown_toggle" onclick="toggleDropdown(this)">操作 ▾</button>
                                 <ul class="dropdown-menu">
                                     <li><button class="btn btn-sm" id="p_btnImportExcel">📂 从EXCEL导入</button></li>
                                     <li><button class="btn btn-sm" id="p_btnAddPerson">➕ 新增人员</button></li>
@@ -626,7 +636,7 @@
                         </div>
                         <div class="query-actions">
                             <div class="dropdown">
-                                <button class="btn btn-primary btn-sm dropdown-toggle" onclick="toggleDropdown(this)">操作 ▾</button>
+                                <button class="btn btn-primary btn-sm dropdown-toggle" id="r_dropdown_toggle" onclick="toggleDropdown(this)">操作 ▾</button>
                                 <ul class="dropdown-menu">
                                     <li><button class="btn btn-sm" id="r_btnImportExcel">📂 从EXCEL导入</button></li>
                                     <li><button class="btn btn-sm" id="r_btnAddProject">➕ 新增报名</button></li>
@@ -792,7 +802,7 @@
             // ==================== 全局状态变量 ====================
             let currentUser='', currentSensitivePwd='', isLoggedIn=false;
             let currentProjectCode = '';
-            let permissions = { entry:false, backup:false, export:false, showSensitive:false, view:false, import:false, restore:false, clearCloud:false, audit:false };  // ← 新增 audit
+            let permissions = { entry:false, backup:false, export:false, showSensitive:false, view:false, import:false, restore:false, clearCloud:false, audit:false };
             let passwordCallback=null, pendingExportCallback=null;
             let activeSystem='archive';
             let r_refreshTimer = null;
@@ -810,6 +820,11 @@
             let p_sensitiveVisible = false;
             let p_showResigned = false;
             let loginPasswordCallback = null;
+
+            // ===== 审核提醒状态 =====
+            let auditReminderTimer = null;
+            let auditReminderShown = { archive: false, personnel: false, registration: false };
+            let auditDataExists = { archive: false, personnel: false, registration: false };
 
             // 字段定义
             const a_encryptFields = ['engName','partyA','engAddress','contractPrice','cooperation','partner','phone'];
@@ -1099,6 +1114,93 @@
                 }
             }
 
+            // ==================== 审核提醒核心函数 ====================
+            async function checkAuditData() {
+                if (!isLoggedIn || !permissions.audit) return;
+
+                const systems = [
+                    { key: AUDIT_KEY_ARCHIVE, name: '档案', id: 'archive' },
+                    { key: AUDIT_KEY_PERSONNEL, name: '人员', id: 'personnel' },
+                    { key: AUDIT_KEY_REG, name: '报名', id: 'registration' }
+                ];
+
+                let anyPending = false;
+
+                for (let sys of systems) {
+                    try {
+                        const metaRaw = await cloudReadRaw(sys.key);
+                        let hasData = false;
+                        if (metaRaw) {
+                            try {
+                                const metaList = JSON.parse(metaRaw);
+                                hasData = metaList && metaList.length > 0;
+                            } catch(e) {}
+                        }
+                        auditDataExists[sys.id] = hasData;
+                        if (hasData) anyPending = true;
+                    } catch(e) {
+                        auditDataExists[sys.id] = false;
+                    }
+                }
+
+                // 更新UI提醒
+                updateAuditReminderUI();
+
+                // 如果有待审核数据且尚未弹出提醒，且用户有审核权限
+                if (anyPending && permissions.audit) {
+                    // 全局弹窗提醒（只弹一次，不重复弹）
+                    if (!sessionStorage.getItem('audit_reminder_global_shown')) {
+                        sessionStorage.setItem('audit_reminder_global_shown', 'true');
+                        const detail = [];
+                        if (auditDataExists.archive) detail.push('📁 档案系统');
+                        if (auditDataExists.personnel) detail.push('👥 人员系统');
+                        if (auditDataExists.registration) detail.push('📋 报名系统');
+                        showToast('🔔 有新的待审核数据！请点击各系统"操作→审核"查看。', 'warning');
+                        // 用 confirm 做强提醒（不关闭无法继续）
+                        confirm(`🔔 待审核提醒\n\n以下系统有待审核数据，请及时处理：\n${detail.join('\n')}\n\n点击"确定"查看，或稍后点击"操作→审核"处理。`);
+                    }
+                }
+
+                // 定时检查（每30秒一次）
+                if (auditReminderTimer) clearTimeout(auditReminderTimer);
+                auditReminderTimer = setTimeout(checkAuditData, 30000);
+            }
+
+            function updateAuditReminderUI() {
+                // 更新各系统"操作"按钮的闪烁状态
+                const toggleIds = ['a_dropdown_toggle', 'p_dropdown_toggle', 'r_dropdown_toggle'];
+                const sysIds = ['archive', 'personnel', 'registration'];
+                for (let i = 0; i < toggleIds.length; i++) {
+                    const btn = document.getElementById(toggleIds[i]);
+                    if (btn) {
+                        if (auditDataExists[sysIds[i]] && permissions.audit) {
+                            btn.classList.add('audit-blink');
+                            btn.title = '🔔 有待审核数据，点击查看';
+                        } else {
+                            btn.classList.remove('audit-blink');
+                            btn.title = '';
+                        }
+                    }
+                }
+
+                // 如果当前系统有待审核数据且审核按钮可见，额外高亮审核按钮
+                const auditBtnMap = {
+                    archive: 'a_btnAudit',
+                    personnel: 'p_btnAudit',
+                    registration: 'r_btnAudit'
+                };
+                for (let sysId of ['archive', 'personnel', 'registration']) {
+                    const btn = document.getElementById(auditBtnMap[sysId]);
+                    if (btn && auditDataExists[sysId] && permissions.audit) {
+                        btn.style.color = '#d93025';
+                        btn.style.fontWeight = 'bold';
+                    } else if (btn) {
+                        btn.style.color = '';
+                        btn.style.fontWeight = '';
+                    }
+                }
+            }
+
             // ==================== 登录与退出 ====================
             async function performLogin() {
                 const suffix=document.getElementById('loginSuffix').value.trim();
@@ -1129,16 +1231,22 @@
                     permissions.restore=perms.restorePermission==='1';
                     permissions.showSensitive=perms.showSensitivePermission==='1';
                     permissions.clearCloud=perms.clearCloudPermission==='1';
-                    permissions.audit=perms.auditPermission==='1';   // ← 新增
+                    permissions.audit=perms.auditPermission==='1';
                     document.getElementById('loginPanel').style.display='none';
                     document.getElementById('appPanel').style.display='block';
                     document.getElementById('currentUserDisplay').textContent='👤 '+currentUser;
                     isLoggedIn=true;
                     suppressAlerts = { archive:false, personnel:false, registration:false };
+                    // 重置审核提醒状态
+                    sessionStorage.removeItem('audit_reminder_global_shown');
                     applyAllPermissions();
                     await initAllSystems();
                     scheduleAutoSync();
                     fetchLunarData();
+                    // 启动审核数据检查
+                    if (permissions.audit) {
+                        setTimeout(checkAuditData, 3000);
+                    }
                 } catch(e) { err.textContent='登录服务异常'; err.style.display='block'; } finally { document.getElementById('loginBtn').disabled=false; document.getElementById('loginPwd').value=''; }
             }
 
@@ -1152,6 +1260,7 @@
                 document.body.classList.remove('no-copy');
                 if (r_refreshTimer) { clearInterval(r_refreshTimer); r_refreshTimer = null; }
                 if (autoSyncTimeout) { clearTimeout(autoSyncTimeout); autoSyncTimeout = null; }
+                if (auditReminderTimer) { clearTimeout(auditReminderTimer); auditReminderTimer = null; }
             }
 
             function applyAllPermissions() {
@@ -1220,6 +1329,10 @@
                     r_refreshQueryTable();
                     r_checkDueBidOpenings();
                     r_refreshTimer = setInterval(() => { r_refreshQueryTable(); }, 60000);
+                }
+                // 切换到系统时，如果该有审核数据且用户有审核权限，更新UI
+                if (permissions.audit) {
+                    updateAuditReminderUI();
                 }
             }
 
@@ -1322,7 +1435,6 @@
             document.addEventListener('scroll', function(e) { hideCellContextMenu(e); });
 
             // 第二部分结束
-
             // ===================== 档案系统函数 =====================
             function a_encryptData(data) {
                 try { return CryptoJS.AES.encrypt(JSON.stringify(data), a_getLocalKey(), { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }).toString(); } catch (e) { return null; }
@@ -1728,21 +1840,23 @@
                     metaList.push({ versionId, user: currentUser, time: new Date().toISOString(), batchCount });
                     await cloudUpdateRaw(AUDIT_KEY_ARCHIVE, JSON.stringify(metaList));
                     showToast('✅ 数据已提交审核，等待审核员审批', 'success');
+                    // 通知审核者（如果当前用户有审核权限，立即刷新提醒）
+                    if (permissions.audit) {
+                        setTimeout(checkAuditData, 500);
+                    }
                 } catch (e) {
                     showToast('提交审核失败：' + e.message, 'error');
                 }
             }
 
             // ==================== 审核函数 ====================
-            async function a_handleAudit() {
+                        async function a_handleAudit() {
                 if (!permissions.audit) { showToast('您没有审核权限', 'error'); return; }
-                // 读取审核列表
                 const metaRaw = await cloudReadRaw(AUDIT_KEY_ARCHIVE);
                 if (!metaRaw) { showToast('暂无待审核数据', 'info'); return; }
                 let metaList = JSON.parse(metaRaw);
                 if (metaList.length === 0) { showToast('暂无待审核数据', 'info'); return; }
-                // 显示版本列表
-                let msg = '请选择要审核的版本（输入编号）：\n';
+                let msg = '📋 请选择要审核的版本（输入编号）：\n';
                 metaList.forEach((v, i) => {
                     msg += `${i+1}. 用户: ${v.user}  时间: ${v.time}\n`;
                 });
@@ -1753,7 +1867,6 @@
                     showToast('无效选择', 'error'); return;
                 }
                 const selected = metaList[idx];
-                // 读取分片并解密
                 let fullEnc = '';
                 for (let i = 0; i < selected.batchCount; i++) {
                     const part = await cloudReadRaw(AUDIT_KEY_ARCHIVE + '_' + selected.versionId + '_batch' + i);
@@ -1769,14 +1882,12 @@
                     showToast('解密失败，密钥错误', 'error');
                     return;
                 }
-                // 对比差异
                 const result = await resolveDataConflict(a_allData, cloudData, '档案');
                 if (result !== a_allData) {
                     a_allData = result;
                     a_saveLocal(a_allData);
                     a_refreshQueryTable();
                     showToast('✅ 已应用审核数据到本地', 'success');
-                    // 询问是否正式备份
                     if (confirm('审核数据已合并到本地，是否立即备份到正式云端？')) {
                         const formalKey = prompt('请输入本次正式备份的加密密钥（用于恢复）：');
                         if (formalKey) {
@@ -1788,14 +1899,26 @@
                             }
                         }
                     }
-                    // 从审核列表中移除该版本
-                    metaList.splice(idx, 1);
-                    await cloudUpdateRaw(AUDIT_KEY_ARCHIVE, JSON.stringify(metaList));
-                    showToast('审核完成', 'success');
                 } else {
-                    showToast('本地与审核数据无差异，无需操作', 'info');
-                    metaList.splice(idx, 1);
-                    await cloudUpdateRaw(AUDIT_KEY_ARCHIVE, JSON.stringify(metaList));
+                    showToast('本地与审核数据无差异', 'info');
+                    // ===== 新增：即使无差异也询问是否备份 =====
+                    if (confirm('审核数据与本地一致，是否立即备份到正式云端？')) {
+                        const formalKey = prompt('请输入本次正式备份的加密密钥（用于恢复）：');
+                        if (formalKey) {
+                            const confirmKey = prompt('请再次输入确认：');
+                            if (formalKey === confirmKey) {
+                                await a_doFormalBackup(formalKey);
+                            } else {
+                                showToast('密钥不一致，取消正式备份', 'error');
+                            }
+                        }
+                    }
+                }
+                // 从审核列表中移除该版本
+                metaList.splice(idx, 1);
+                await cloudUpdateRaw(AUDIT_KEY_ARCHIVE, JSON.stringify(metaList));
+                if (permissions.audit) {
+                    setTimeout(checkAuditData, 500);
                 }
             }
 
@@ -2668,19 +2791,22 @@
                     metaList.push({ versionId, user: currentUser, time: new Date().toISOString(), batchCount });
                     await cloudUpdateRaw(AUDIT_KEY_PERSONNEL, JSON.stringify(metaList));
                     showToast('✅ 人员数据已提交审核，等待审核员审批', 'success');
+                    if (permissions.audit) {
+                        setTimeout(checkAuditData, 500);
+                    }
                 } catch (e) {
                     showToast('提交审核失败：' + e.message, 'error');
                 }
             }
 
             // ==================== 审核函数（人员） ====================
-            async function p_handleAudit() {
+                        async function p_handleAudit() {
                 if (!permissions.audit) { showToast('您没有审核权限', 'error'); return; }
                 const metaRaw = await cloudReadRaw(AUDIT_KEY_PERSONNEL);
                 if (!metaRaw) { showToast('暂无待审核数据', 'info'); return; }
                 let metaList = JSON.parse(metaRaw);
                 if (metaList.length === 0) { showToast('暂无待审核数据', 'info'); return; }
-                let msg = '请选择要审核的版本（输入编号）：\n';
+                let msg = '📋 请选择要审核的版本（输入编号）：\n';
                 metaList.forEach((v, i) => {
                     msg += `${i+1}. 用户: ${v.user}  时间: ${v.time}\n`;
                 });
@@ -2726,13 +2852,25 @@
                             }
                         }
                     }
-                    metaList.splice(idx, 1);
-                    await cloudUpdateRaw(AUDIT_KEY_PERSONNEL, JSON.stringify(metaList));
-                    showToast('审核完成', 'success');
                 } else {
-                    showToast('本地与审核数据无差异，无需操作', 'info');
-                    metaList.splice(idx, 1);
-                    await cloudUpdateRaw(AUDIT_KEY_PERSONNEL, JSON.stringify(metaList));
+                    showToast('本地与审核数据无差异', 'info');
+                    // ===== 新增：即使无差异也询问是否备份 =====
+                    if (confirm('审核数据与本地一致，是否立即备份到正式云端？')) {
+                        const formalKey = prompt('请输入本次正式备份的加密密钥（用于恢复）：');
+                        if (formalKey) {
+                            const confirmKey = prompt('请再次输入确认：');
+                            if (formalKey === confirmKey) {
+                                await p_doFormalBackup(formalKey);
+                            } else {
+                                showToast('密钥不一致，取消正式备份', 'error');
+                            }
+                        }
+                    }
+                }
+                metaList.splice(idx, 1);
+                await cloudUpdateRaw(AUDIT_KEY_PERSONNEL, JSON.stringify(metaList));
+                if (permissions.audit) {
+                    setTimeout(checkAuditData, 500);
                 }
             }
 
@@ -3361,19 +3499,22 @@
                     metaList.push({ versionId, user: currentUser, time: new Date().toISOString(), batchCount });
                     await cloudUpdateRaw(AUDIT_KEY_REG, JSON.stringify(metaList));
                     showToast('✅ 报名数据已提交审核，等待审核员审批', 'success');
+                    if (permissions.audit) {
+                        setTimeout(checkAuditData, 500);
+                    }
                 } catch (e) {
                     showToast('提交审核失败：' + e.message, 'error');
                 }
             }
 
             // ==================== 审核函数（报名） ====================
-            async function r_handleAudit() {
+                        async function r_handleAudit() {
                 if (!permissions.audit) { showToast('您没有审核权限', 'error'); return; }
                 const metaRaw = await cloudReadRaw(AUDIT_KEY_REG);
                 if (!metaRaw) { showToast('暂无待审核数据', 'info'); return; }
                 let metaList = JSON.parse(metaRaw);
                 if (metaList.length === 0) { showToast('暂无待审核数据', 'info'); return; }
-                let msg = '请选择要审核的版本（输入编号）：\n';
+                let msg = '📋 请选择要审核的版本（输入编号）：\n';
                 metaList.forEach((v, i) => {
                     msg += `${i+1}. 用户: ${v.user}  时间: ${v.time}\n`;
                 });
@@ -3419,13 +3560,25 @@
                             }
                         }
                     }
-                    metaList.splice(idx, 1);
-                    await cloudUpdateRaw(AUDIT_KEY_REG, JSON.stringify(metaList));
-                    showToast('审核完成', 'success');
                 } else {
-                    showToast('本地与审核数据无差异，无需操作', 'info');
-                    metaList.splice(idx, 1);
-                    await cloudUpdateRaw(AUDIT_KEY_REG, JSON.stringify(metaList));
+                    showToast('本地与审核数据无差异', 'info');
+                    // ===== 新增：即使无差异也询问是否备份 =====
+                    if (confirm('审核数据与本地一致，是否立即备份到正式云端？')) {
+                        const formalKey = prompt('请输入本次正式备份的加密密钥（用于恢复）：');
+                        if (formalKey) {
+                            const confirmKey = prompt('请再次输入确认：');
+                            if (formalKey === confirmKey) {
+                                await r_doFormalBackup(formalKey);
+                            } else {
+                                showToast('密钥不一致，取消正式备份', 'error');
+                            }
+                        }
+                    }
+                }
+                metaList.splice(idx, 1);
+                await cloudUpdateRaw(AUDIT_KEY_REG, JSON.stringify(metaList));
+                if (permissions.audit) {
+                    setTimeout(checkAuditData, 500);
                 }
             }
 
