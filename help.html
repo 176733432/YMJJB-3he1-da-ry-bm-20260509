@@ -1,0 +1,272 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>智档 · 使用说明</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", Arial, sans-serif;
+            background: #f5f7fa;
+            color: #202124;
+            line-height: 1.7;
+            padding: 30px 20px;
+        }
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+            padding: 40px 45px;
+        }
+        h1 {
+            font-size: 28px;
+            border-bottom: 3px solid #1a73e8;
+            padding-bottom: 12px;
+            margin-bottom: 28px;
+            color: #1a73e8;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        h1 .badge {
+            font-size: 14px;
+            background: #e8edf4;
+            color: #4a5a6a;
+            padding: 2px 14px;
+            border-radius: 30px;
+            font-weight: 400;
+        }
+        h2 {
+            font-size: 20px;
+            margin: 28px 0 14px;
+            padding-left: 12px;
+            border-left: 4px solid #1a73e8;
+            color: #1e3a5f;
+        }
+        h3 {
+            font-size: 16px;
+            margin: 18px 0 8px;
+            color: #2c3e4a;
+        }
+        p, li {
+            color: #3d4a55;
+            font-size: 15px;
+        }
+        ul, ol {
+            padding-left: 24px;
+            margin: 8px 0 14px;
+        }
+        li {
+            margin-bottom: 4px;
+        }
+        .tip {
+            background: #f0f7ff;
+            border-left: 4px solid #1a73e8;
+            padding: 12px 18px;
+            border-radius: 6px;
+            margin: 16px 0;
+            font-size: 14px;
+        }
+        .tip strong {
+            color: #1a73e8;
+        }
+        .grid-2 {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            margin: 12px 0;
+        }
+        .card-mini {
+            background: #f8fafc;
+            border-radius: 10px;
+            padding: 16px 20px;
+            border: 1px solid #e8edf2;
+        }
+        .card-mini h4 {
+            font-size: 14px;
+            color: #1a73e8;
+            margin-bottom: 6px;
+        }
+        .card-mini p {
+            font-size: 13px;
+            color: #4a5a6a;
+        }
+        .btn-demo {
+            display: inline-block;
+            background: #1a73e8;
+            color: #fff;
+            padding: 2px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 500;
+        }
+        .btn-demo.gray {
+            background: #e8edf4;
+            color: #2c3e4a;
+        }
+        hr {
+            border: none;
+            border-top: 1px solid #e8edf2;
+            margin: 30px 0;
+        }
+        .footer {
+            text-align: center;
+            font-size: 13px;
+            color: #8a9aa8;
+            margin-top: 30px;
+            border-top: 1px solid #e8edf2;
+            padding-top: 20px;
+        }
+        @media (max-width: 640px) {
+            .container { padding: 20px; }
+            .grid-2 { grid-template-columns: 1fr; }
+            h1 { font-size: 22px; flex-wrap: wrap; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <h1>
+        📘 智档 · 综合管理系统 使用说明
+        <span class="badge">v3.0</span>
+    </h1>
+
+    <p style="font-size:16px; color:#2c3e4a; margin-bottom:20px;">
+        本系统集成了档案、人员、报名三大管理模块，所有数据均采用<strong>端到端加密</strong>存储，支持云端备份与多用户审核协作。
+    </p>
+
+    <!-- ===================== 登录 ===================== -->
+    <h2>🔐 登录</h2>
+    <ul>
+        <li><strong>项目库码</strong>：由管理员分配，每个项目库独立。</li>
+        <li><strong>用户名 / 密码</strong>：由管理员创建，登录后自动读取对应权限。</li>
+        <li>登录后，系统会从云端同步最新数据，并每10分钟自动检查一次更新。</li>
+    </ul>
+
+    <!-- ===================== 三大系统 ===================== -->
+    <h2>📂 三大管理系统</h2>
+    <p>点击顶部标签切换：</p>
+    <ul>
+        <li><strong>📁 档案管理系统</strong>：管理工程档案信息，支持模糊查找、高级筛选、批量操作。</li>
+        <li><strong>👥 人员管理系统</strong>：管理人员证件、岗位、有效期等信息，支持离职数据过滤。</li>
+        <li><strong>📋 报名管理系统</strong>：管理投标报名项目，自动计算开标倒计时（精确到分钟）。</li>
+    </ul>
+
+    <div class="tip">
+        <strong>💡 提示：</strong> 三个系统均支持表格单元格 <strong>鼠标悬停</strong> 显示完整内容，<strong>右键单击</strong> 弹出浮动框展示全部数据（移动端长按触发）。
+    </div>
+
+    <!-- ===================== 数据操作 ===================== -->
+    <h2>✏️ 数据操作（每个系统通用）</h2>
+    <p>所有操作按钮收纳在 <span class="btn-demo">操作 ▾</span> 下拉菜单中，包括：</p>
+    <div class="grid-2">
+        <div class="card-mini">
+            <h4>📂 从EXCEL导入</h4>
+            <p>支持 .xlsx / .xls 格式，按表头字段自动匹配。</p>
+        </div>
+        <div class="card-mini">
+            <h4>➕ 新增</h4>
+            <p>填写表单，必填项（工程名称/姓名/工程名称）不能为空。</p>
+        </div>
+        <div class="card-mini">
+            <h4>✏️ 编辑</h4>
+            <p>勾选数据行后点击，或双击数据行直接编辑。</p>
+        </div>
+        <div class="card-mini">
+            <h4>🗑️ 批量删除</h4>
+            <p>勾选多条数据后执行，需验证敏感信息密码。</p>
+        </div>
+        <div class="card-mini">
+            <h4>☁️ 提交审核</h4>
+            <p>将当前本地数据加密上传至审核区，等待审核者审批。</p>
+        </div>
+        <div class="card-mini">
+            <h4>🔍 审核</h4>
+            <p>仅拥有审核权限的用户可见。可查看待审核版本，对比差异并选择覆盖或忽略。</p>
+        </div>
+        <div class="card-mini">
+            <h4>⬇️ 从云端恢复</h4>
+            <p>输入备份时的加密密钥，解密并覆盖本地数据。</p>
+        </div>
+        <div class="card-mini">
+            <h4>🗑️ 清除云端</h4>
+            <p>彻底删除云端备份数据（不可恢复）。</p>
+        </div>
+        <div class="card-mini">
+            <h4>🗑️ 清理本地数据</h4>
+            <p>清空浏览器本地存储中的所有数据（仅影响当前设备）。</p>
+        </div>
+        <div class="card-mini">
+            <h4>📥 导出全部 / 导出查询结果</h4>
+            <p>支持自定义选择导出字段，生成 .xlsx 文件。</p>
+        </div>
+    </div>
+
+    <!-- ===================== 审核流程 ===================== -->
+    <h2>🔒 审核协作流程</h2>
+    <ul>
+        <li><strong>提交审核</strong>：任何有备份权限的用户均可将本地数据提交到审核区，同时生成一个加密版本。</li>
+        <li><strong>审核处理</strong>：拥有审核权限的用户登录后，系统会自动检测待审核数据并弹出提醒（“操作”按钮闪烁红字）。点击“操作 ▾” → “审核”进入审核界面。</li>
+        <li><strong>版本选择</strong>：审核者可选择任一待审核版本，输入该版本的加密密钥（由提交者提供）解密数据。</li>
+        <li><strong>差异对比</strong>：系统会展示本地数据与审核版本的差异表格，审核者可逐项勾选要覆盖的字段。</li>
+        <li><strong>审核完成</strong>：点击“覆盖选中项”或“全部忽略”，审核版本会被标记为已处理。审核通过后，系统会询问是否将当前本地数据（含审核合并结果）正式备份到云端。</li>
+        <li><strong>正式备份</strong>：若选择备份，需输入新的加密密钥，系统将数据加密上传至正式云端，并生成一份 .xlsx 本地备份文件供保存。</li>
+    </ul>
+
+    <!-- ===================== 云端备份与恢复 ===================== -->
+    <h2>☁️ 云端备份与恢复</h2>
+    <ul>
+        <li><strong>备份前对比</strong>：点击“提交审核”时，系统会先获取云端数据，若存在差异，会弹出对比表格（支持按行勾选），用户可选择以云端覆盖本地或忽略。</li>
+        <li><strong>加密密钥</strong>：备份时需输入自定义密钥（两次确认），该密钥用于解密恢复，请妥善保管。</li>
+        <li><strong>分片存储</strong>：大数据自动分片上传，保证稳定。</li>
+        <li><strong>恢复</strong>：输入备份时的密钥即可解密并覆盖本地数据。</li>
+    </ul>
+
+    <!-- ===================== 高级筛选与搜索 ===================== -->
+    <h2>🔎 高级筛选与搜索</h2>
+    <ul>
+        <li><strong>模糊查找</strong>：在搜索框中输入关键词，系统会自动高亮匹配项。</li>
+        <li><strong>高级筛选</strong>：点击“高级筛选”标题可折叠/展开筛选项，支持多条件组合筛选（如日期区间、价格范围等）。</li>
+        <li><strong>排序</strong>：点击表头可对当前列进行升序/降序排序。</li>
+    </ul>
+
+    <!-- ===================== 辅助工具 ===================== -->
+    <h2>🛠️ 辅助工具（全局顶部栏）</h2>
+    <ul>
+        <li><strong>📅 黄历</strong>：点击日历图标弹出今日黄历，含宜忌、冲煞、星宿等信息（需联网）。</li>
+        <li><strong>🧮 日期计算</strong>：点击“日期计算”按钮，可快速计算两个日期之间的天数或推算目标日期。</li>
+    </ul>
+
+    <!-- ===================== 系统特色功能 ===================== -->
+    <h2>✨ 系统特色功能</h2>
+    <ul>
+        <li><strong>人员到期提醒</strong>：系统自动检测人员证书有效期，过期或临期会弹出提醒表格。</li>
+        <li><strong>档案完整性检查</strong>：自动检查无合同、无合作协议、无竣工资料（竣工超30天）的档案，并提示。</li>
+        <li><strong>报名开标提醒</strong>：根据开标日期，在开标前3天和7天内分别提醒做书、保证金等。</li>
+        <li><strong>离职数据过滤</strong>：人员系统支持勾选“离职数据”复选框，显示/隐藏备注含“离职”的人员。</li>
+        <li><strong>数据安全</strong>：所有本地数据使用 PBKDF2 + AES-CBC 加密，云端数据使用 AES 加密，密钥由用户掌握。</li>
+    </ul>
+
+    <!-- ===================== 注意事项 ===================== -->
+    <h2>⚠️ 注意事项</h2>
+    <ul>
+        <li><strong>密钥管理</strong>：备份/审核密钥请务必牢记，丢失后无法恢复数据。</li>
+        <li><strong>多设备协作</strong>：建议定期提交审核并正式备份，确保云端数据为最新权威版本。</li>
+        <li><strong>浏览器兼容</strong>：推荐使用 Chrome / Edge / Firefox 等现代浏览器。</li>
+        <li><strong>数据隐私</strong>：所有加密操作均在本地完成，云端仅存储密文，服务商无法读取您的数据。</li>
+    </ul>
+
+    <hr>
+    <div class="footer">
+        智档 · 综合管理系统 &nbsp;|&nbsp; 版本 3.0 &nbsp;|&nbsp; 如有疑问请联系管理员
+    </div>
+</div>
+</body>
+</html>

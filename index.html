@@ -458,10 +458,11 @@
             </div>
         </header>
         <nav class="main-tab-nav" id="mainTabNav">
-            <button class="main-tab-btn active" data-main="panel-archive">📁 档案管理系统</button>
-            <button class="main-tab-btn" data-main="panel-personnel">👥 人员管理系统</button>
-            <button class="main-tab-btn" data-main="panel-registration">📋 报名管理系统</button>
-        </nav>
+    <button class="main-tab-btn active" data-main="panel-archive">📁 档案管理系统</button>
+    <button class="main-tab-btn" data-main="panel-personnel">👥 人员管理系统</button>
+    <button class="main-tab-btn" data-main="panel-registration">📋 报名管理系统</button>
+    <button class="main-tab-btn" id="helpBtn" style="margin-left:auto; border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 16px; background:transparent; cursor:pointer; font-size:13px; color:var(--text-secondary);">📖 使用说明</button>
+</nav>
 
         <!-- ===================== 档案管理系统 ===================== -->
         <div class="system-panel active" id="panel-archive">
@@ -4285,7 +4286,11 @@
 
             // ==================== 事件绑定与启动 ====================
             document.getElementById('mainTabNav').addEventListener('click', function(e) { const btn = e.target.closest('.main-tab-btn'); if (!btn) return; const systemId = btn.getAttribute('data-main')?.replace('panel-', ''); if (systemId) switchMainTab(systemId); });
-
+            // ===== 使用说明按钮 =====
+document.getElementById('helpBtn')?.addEventListener('click', function(e) {
+    e.stopPropagation(); // 防止触发导航切换
+    window.open('help.html', '_blank');
+});
             document.getElementById('archiveQueryResultTitle').addEventListener('click', function(e) {
                 if (!isLoggedIn || activeSystem !== 'archive') return;
                 if (permissions.showSensitive) { clearTimeout(a_dataTabClickTimer); a_dataTabClickCount++; if (a_dataTabClickCount === 3) { a_dataTabClickCount = 0; a_toggleHiddenFields(); } else { a_dataTabClickTimer = setTimeout(() => { a_dataTabClickCount = 0; }, 1000); } }
