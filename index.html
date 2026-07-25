@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>智档</title>
+    <title>智档Pro-简洁版 · 综合管理系统</title>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -216,7 +216,7 @@
             border: 1px solid var(--border);
             border-radius: var(--radius-sm);
             box-shadow: var(--shadow-lg);
-            min-width: 180px;
+            min-width: 200px;
             padding: 6px 0;
             list-style: none;
             z-index: 1000;
@@ -369,32 +369,39 @@
         }
 
         /* ===== 右键菜单浮动层 ===== */
-       .cell-context-menu {
-    position: fixed;
-    background: #fff;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    box-shadow: var(--shadow-lg);
-    padding: 8px 12px;
-    max-width: 420px;
-    max-height: 300px;
-    overflow: auto;
-    white-space: pre-wrap;        /* 自动换行 */
-    word-wrap: break-word;
-    font-size: 13px;
-    line-height: 1.6;
-    z-index: 9999;
-    display: none;
-    pointer-events: auto;         /* 允许鼠标事件（选择/复制） */
-    user-select: text;            /* 允许选择文本 */
-    -webkit-user-select: text;
-    cursor: text;
-}
+        .cell-context-menu {
+            position: fixed;
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            box-shadow: var(--shadow-lg);
+            padding: 8px 12px;
+            max-width: 420px;
+            max-height: 300px;
+            overflow: auto;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            font-size: 13px;
+            line-height: 1.6;
+            z-index: 9999;
+            display: none;
+            pointer-events: auto;
+            user-select: text;
+            -webkit-user-select: text;
+            cursor: text;
+        }
         .cell-context-menu.visible {
             display: block;
         }
 
-        /* 其他已有样式保留 */
+        /* 审核按钮样式 */
+        .btn-audit {
+            background: #f9ab00;
+            color: #fff;
+        }
+        .btn-audit:hover {
+            background: #e09a00;
+        }
     </style>
     <script>
         (function() {
@@ -411,7 +418,7 @@
 <body>
     <div id="loginPanel" style="display:flex;justify-content:center;align-items:center;min-height:100vh;">
         <div class="login-container">
-            <h2 style="text-align:center;color:#1e3a5f;margin-bottom:20px;">🔐 智档·用户登录</h2>
+            <h2 style="text-align:center;color:#1e3a5f;margin-bottom:20px;">🔐 智档Pro-简洁版 · 用户登录</h2>
             <div style="margin-bottom:14px;"><label>项目库码</label><input type="password" id="loginSuffix" placeholder="请联系管理员索要。" style="width:100%;margin-top:4px;padding:10px;border-radius:20px;border:1px solid #ccc;"></div>
             <div style="margin-bottom:14px;"><label>用户名</label><input type="text" id="loginUser" placeholder="请输入用户名" style="width:100%;margin-top:4px;padding:10px;border-radius:20px;border:1px solid #ccc;" onkeyup="if(event.key==='Enter')performLogin()"></div>
             <div style="margin-bottom:14px;"><label>密码</label><input type="password" id="loginPwd" placeholder="请输入密码" style="width:100%;margin-top:4px;padding:10px;border-radius:20px;border:1px solid #ccc;" onkeyup="if(event.key==='Enter')performLogin()"></div>
@@ -425,14 +432,12 @@
 
     <div id="appPanel" style="display:none;">
         <header class="app-header">
-            <div class="logo"><span class="icon">📁</span> 智档</div>
+            <div class="logo"><span class="icon">📁</span> 智档Pro-简洁版 · 综合管理</div>
             <div class="header-actions">
-                <!-- 新增：黄历图标按钮 -->
                 <button class="tool-btn" id="calendarToolBtn" title="今日黄历">
                     <i class="fas fa-calendar-alt"></i>
                     <span class="btn-label">黄历</span>
                 </button>
-                <!-- 新增：日期计算文字按钮 -->
                 <button class="tool-btn" id="dateCalcToolBtn" title="日期计算">
                     <i class="fas fa-calculator"></i>
                     <span class="btn-label">日期计算</span>
@@ -448,8 +453,7 @@
             <button class="main-tab-btn" data-main="panel-registration">📋 报名管理系统</button>
         </nav>
 
-        <!-- ===== 以下为三个系统面板，保持不变，但已在相应表格构建中增加title和右键支持 ===== -->
-        <!-- 档案管理系统 -->
+        <!-- ===================== 档案管理系统 ===================== -->
         <div class="system-panel active" id="panel-archive">
             <div class="main-container">
                 <div class="card"><div class="card-title">🔍 模糊查找</div><div class="search-box"><div class="form-group" style="flex:3;min-width:250px;"><label>查找关键字（搜索范围：档案号、工程名称、甲方单位、工程地址、项目经理等）</label><input type="text" id="a_globalSearch" placeholder="输入关键字..." oninput="a_performGlobalSearch()"></div><button class="btn btn-outline btn-sm" onclick="a_clearGlobalSearch()">清除</button></div></div>
@@ -497,7 +501,10 @@
                                     <li><button class="btn btn-sm" id="a_btnAddArchive">➕ 新增档案</button></li>
                                     <li><button class="btn btn-sm" id="a_btnEditSelected">✏️ 编辑</button></li>
                                     <li><button class="btn btn-sm" id="a_btnBatchDelete">🗑️ 批量删除</button></li>
-                                    <li><button class="btn btn-sm" id="a_btnBackupCloud">☁️ 备份到云端</button></li>
+                                    <!-- 原备份按钮改为“提交审核” -->
+                                    <li><button class="btn btn-sm" id="a_btnBackupAudit">☁️ 提交审核</button></li>
+                                    <!-- 新增审核按钮，仅审核者可见 -->
+                                    <li><button class="btn btn-sm btn-audit" id="a_btnAudit" style="display:none;">🔍 审核</button></li>
                                     <li><button class="btn btn-sm" id="a_btnRestoreCloud">⬇️ 从云端恢复</button></li>
                                     <li><button class="btn btn-sm" id="a_btnClearCloud">🗑️ 清除云端</button></li>
                                     <li><button class="btn btn-sm" id="a_btnClearLocal">🗑️ 清理本地数据</button></li>
@@ -514,7 +521,7 @@
             </div>
         </div>
 
-        <!-- 人员管理系统 -->
+        <!-- ===================== 人员管理系统 ===================== -->
         <div class="system-panel" id="panel-personnel">
             <div class="main-container">
                 <div class="card"><div class="card-title">🔍 快速查找</div><div class="search-box"><div class="form-group" style="flex:2;min-width:180px;"><label>查找关键字（搜索范围：姓名、身份证、备注）</label><input type="text" id="p_quickSearch" placeholder="输入姓名或身份证号..." oninput="p_performQuickSearch()"></div><button class="btn btn-outline btn-sm" onclick="p_clearQuickSearch()">清除</button></div></div>
@@ -574,7 +581,8 @@
                                     <li><button class="btn btn-sm" id="p_btnAddPerson">➕ 新增人员</button></li>
                                     <li><button class="btn btn-sm" id="p_btnEditSelected">✏️ 编辑</button></li>
                                     <li><button class="btn btn-sm" id="p_btnBatchDelete">🗑️ 批量删除</button></li>
-                                    <li><button class="btn btn-sm" id="p_btnBackupCloud">☁️ 备份到云端</button></li>
+                                    <li><button class="btn btn-sm" id="p_btnBackupAudit">☁️ 提交审核</button></li>
+                                    <li><button class="btn btn-sm btn-audit" id="p_btnAudit" style="display:none;">🔍 审核</button></li>
                                     <li><button class="btn btn-sm" id="p_btnRestoreCloud">⬇️ 从云端恢复</button></li>
                                     <li><button class="btn btn-sm" id="p_btnClearCloud">🗑️ 清除云端</button></li>
                                     <li><button class="btn btn-sm" id="p_btnClearLocal">🗑️ 清理本地数据</button></li>
@@ -592,7 +600,7 @@
             </div>
         </div>
 
-        <!-- 报名管理系统 -->
+        <!-- ===================== 报名管理系统 ===================== -->
         <div class="system-panel" id="panel-registration">
             <div class="main-container">
                 <div class="card"><div class="card-title">🔍 快速查找</div><div class="search-box"><div class="form-group" style="flex:2;min-width:220px;"><label>查找关键字(搜索范围：工程名称/委托人/项目经理/资料/备注)</label><input type="text" id="r_quickSearch" placeholder="输入关键字..." oninput="r_performQuickSearch()"></div><button class="btn btn-outline btn-sm" onclick="r_clearQuickSearch()">清除</button></div></div>
@@ -624,7 +632,8 @@
                                     <li><button class="btn btn-sm" id="r_btnAddProject">➕ 新增报名</button></li>
                                     <li><button class="btn btn-sm" id="r_btnEdit">✏️ 编辑</button></li>
                                     <li><button class="btn btn-sm" id="r_btnDelete">🗑️ 批量删除</button></li>
-                                    <li><button class="btn btn-sm" id="r_btnBackup">☁️ 备份到云端</button></li>
+                                    <li><button class="btn btn-sm" id="r_btnBackupAudit">☁️ 提交审核</button></li>
+                                    <li><button class="btn btn-sm btn-audit" id="r_btnAudit" style="display:none;">🔍 审核</button></li>
                                     <li><button class="btn btn-sm" id="r_btnRestore">⬇️ 从云端恢复</button></li>
                                     <li><button class="btn btn-sm" id="r_btnClearCloud">🗑️ 清除云端</button></li>
                                     <li><button class="btn btn-sm" id="r_btnClearLocal">🗑️ 清理本地数据</button></li>
@@ -642,7 +651,7 @@
         </div>
     </div>
 
-    <!-- ===== 原有模态框保持不变 ===== -->
+    <!-- ===== 所有模态框 ===== -->
     <div class="modal-overlay" id="passwordModal" style="display:none;">
         <div class="modal" style="max-width:400px;">
             <h3>🔒 身份验证</h3>
@@ -660,6 +669,7 @@
 
     <div class="modal-overlay" id="editModal" style="display:none;"></div>
     <div class="modal-overlay" id="exportFieldModal" style="display:none;"></div>
+
     <div class="modal-overlay" id="dueModal" style="display:none;">
         <div class="modal" style="max-width:1000px;">
             <button class="modal-close" id="dueCloseBtn">×</button>
@@ -700,7 +710,7 @@
         </div>
     </div>
 
-    <!-- ===== 新增：黄历模态框 ===== -->
+    <!-- ===== 黄历模态框 ===== -->
     <div class="modal-overlay calendar-modal" id="calendarModal" style="display:none;">
         <div class="modal-content">
             <button class="modal-close" onclick="closeCalendarModal()">×</button>
@@ -714,7 +724,7 @@
         </div>
     </div>
 
-    <!-- ===== 新增：日期计算模态框 ===== -->
+    <!-- ===== 日期计算模态框 ===== -->
     <div class="modal-overlay date-calc-modal" id="dateCalcModal" style="display:none;">
         <div class="modal-content">
             <button class="modal-close" onclick="closeDateCalcModal()">×</button>
@@ -759,6 +769,13 @@
             function getPersonnelCloudKey() { return xorStr(_PERSONNEL_KEY_ENC, KEY_MASK_PERSONNEL); }
             function getRegCloudKey() { return xorStr(_REG_KEY_ENC, KEY_MASK_REG); }
 
+            // ==================== 审核KEY（新增） ====================
+            const AUDIT_KEY_ARCHIVE = 'DANGANSHENHE2002';
+            const AUDIT_KEY_PERSONNEL = 'RDNYUANSHENHE2002';
+            const AUDIT_KEY_REG = 'BAOMINGSHENHE2002';
+            // 审核密码SHA256哈希（可选，若启用则需验证）
+            const AUDIT_PASSWORD_HASH = '36684207f2e16c8704249953d564591ca9a6c52974d87faf080fdc96458d8c6e';
+
             const CLOUD_KEY_PREFIX = 'zhengda02_4shituo_15_';
             const USER_PW_SALT = 'ZDST_USER_PW_SALT_2024_!@#';
             const SENSITIVE_SALT = 'ZDST_SENSITIVE_SALT_2024_!@#';
@@ -769,13 +786,13 @@
             const iv = getFixedIV();
 
             let lastBackupTime = { archive:0, personnel:0, registration:0 };
-            function canBackup(system) { const now = Date.now(); if(now - lastBackupTime[system] < 30000) { showToast('备份过于频繁，请30秒后再试','error'); return false; } lastBackupTime[system]=now; return true; }
+            function canBackup(system) { const now = Date.now(); if(now - lastBackupTime[system] < 30000) { showToast('操作过于频繁，请30秒后再试','error'); return false; } lastBackupTime[system]=now; return true; }
             function addLog(action, details) { const logs = JSON.parse(localStorage.getItem('operation_logs')||'[]'); logs.push({ timestamp: new Date().toISOString(), user: currentUser, action: action, details: details }); if(logs.length>500) logs.splice(0, logs.length-500); localStorage.setItem('operation_logs', JSON.stringify(logs)); }
 
             // ==================== 全局状态变量 ====================
             let currentUser='', currentSensitivePwd='', isLoggedIn=false;
             let currentProjectCode = '';
-            let permissions = { entry:false, backup:false, export:false, showSensitive:false, view:false, import:false, restore:false, clearCloud:false };
+            let permissions = { entry:false, backup:false, export:false, showSensitive:false, view:false, import:false, restore:false, clearCloud:false, audit:false };  // ← 新增 audit
             let passwordCallback=null, pendingExportCallback=null;
             let activeSystem='archive';
             let r_refreshTimer = null;
@@ -845,7 +862,7 @@
             async function cloudUpdateRaw(key, rawString) { const url=`https://textdb.online/update/?key=${key}&value=${encodeURIComponent(rawString)}`; try { const r=await fetch(url,{method:'POST'}); if(r.ok){ const j=await r.json().catch(()=>null); if(j&&j.status===1) return {success:true}; } return {success:false}; } catch(e) { return {success:false}; } }
             function verifySensitive(input) { if(!currentSensitivePwd) { alert('未配置敏感信息密码'); return false; } const hash=CryptoJS.SHA256(input+SENSITIVE_SALT).toString(); return hash===currentSensitivePwd; }
 
-            // ==================== 黄历插件（参照投标导航） ====================
+            // ==================== 黄历插件 ====================
             const DEFAULT_API_KEY = 'txxvS89xaHq8BZ3RwAjxKcFB0S';
             const API_KEY_KEY = 'tender_nav_api_key';
 
@@ -857,21 +874,9 @@
                         return trimmed;
                     } else {
                         localStorage.removeItem(API_KEY_KEY);
-                        console.warn('无效的用户密钥已清除');
                     }
                 }
                 return DEFAULT_API_KEY;
-            }
-
-            function isUsingCustomKey() {
-                const userKey = localStorage.getItem(API_KEY_KEY);
-                return !!(userKey && userKey.trim() && /^[A-Za-z0-9]+$/.test(userKey.trim()) && userKey.trim().length > 10);
-            }
-
-            function getMaskedKey(key) {
-                if (!key) return '未设置';
-                if (key.length <= 8) return key;
-                return key.substring(0, 4) + '****' + key.substring(key.length - 4);
             }
 
             let calendarData = null;
@@ -900,12 +905,10 @@
                 const content = document.getElementById('calendarContent');
                 modal.style.display = 'flex';
                 content.innerHTML = '<div style="text-align:center; color:#b2aa98; padding:20px;">加载黄历中...</div>';
-
                 if (calendarData) {
                     renderCalendarContent(calendarData);
                     return;
                 }
-
                 fetchLunarData().then(data => {
                     if (data) {
                         renderCalendarContent(data);
@@ -938,7 +941,6 @@
                 const xingXiuLucky = data.xingXiu?.lucky || '--';
                 const tianShen = data.tianShen?.day || '--';
                 const tianShenLucky = data.tianShen?.lucky || '--';
-
                 content.innerHTML = `
                     <div class="calendar-header">
                         <span><strong>📅 公历</strong> ${solarDate}</span>
@@ -977,7 +979,6 @@
             // ==================== 日期计算 ====================
             function showDateCalcModal() {
                 document.getElementById('dateCalcModal').style.display = 'flex';
-                // 默认填充今日日期
                 const today = new Date().toISOString().split('T')[0];
                 if (!document.getElementById('calcStartDate').value) {
                     document.getElementById('calcStartDate').value = today;
@@ -1052,113 +1053,51 @@
                 showToast('已清空', 1000);
             }
 
-            // ==================== 右键菜单（显示单元格全部数据） ====================
+            // ==================== 右键菜单 ====================
             let contextMenuTimer = null;
 
             function showCellContextMenu(e, cell) {
-    const menu = document.getElementById('cellContextMenu');
-    // 优先使用 data-fulltext 属性（存储完整内容）
-    let fullText = cell.getAttribute('data-fulltext');
-    if (!fullText) {
-        fullText = cell.textContent || cell.innerText || '';
-    }
-    if (!fullText || fullText.trim() === '') {
-        menu.classList.remove('visible');
-        return;
-    }
-    // 不再截断，显示全部（但限制最大长度避免过大）
-    if (fullText.length > 5000) {
-        fullText = fullText.substring(0, 5000) + '\n... (内容过长，已截断)';
-    }
-    menu.textContent = fullText;
-    // 定位
-    const menuWidth = 420;
-    const menuHeight = 300;
-    let left = e.clientX + 10;
-    let top = e.clientY + 10;
-    if (left + menuWidth > window.innerWidth) left = window.innerWidth - menuWidth - 10;
-    if (top + menuHeight > window.innerHeight) top = window.innerHeight - menuHeight - 10;
-    if (left < 10) left = 10;
-    if (top < 10) top = 10;
-    menu.style.left = left + 'px';
-    menu.style.top = top + 'px';
-    menu.classList.add('visible');
-    // 清除之前的自动隐藏定时器（改为不自动隐藏，由点击外部关闭）
-    if (contextMenuTimer) {
-        clearTimeout(contextMenuTimer);
-        contextMenuTimer = null;
-    }
-}
+                const menu = document.getElementById('cellContextMenu');
+                let fullText = cell.getAttribute('data-fulltext');
+                if (!fullText) {
+                    fullText = cell.textContent || cell.innerText || '';
+                }
+                if (!fullText || fullText.trim() === '') {
+                    menu.classList.remove('visible');
+                    return;
+                }
+                if (fullText.length > 5000) {
+                    fullText = fullText.substring(0, 5000) + '\n... (内容过长，已截断)';
+                }
+                menu.textContent = fullText;
+                const menuWidth = 420;
+                const menuHeight = 300;
+                let left = e.clientX + 10;
+                let top = e.clientY + 10;
+                if (left + menuWidth > window.innerWidth) left = window.innerWidth - menuWidth - 10;
+                if (top + menuHeight > window.innerHeight) top = window.innerHeight - menuHeight - 10;
+                if (left < 10) left = 10;
+                if (top < 10) top = 10;
+                menu.style.left = left + 'px';
+                menu.style.top = top + 'px';
+                menu.classList.add('visible');
+                if (contextMenuTimer) {
+                    clearTimeout(contextMenuTimer);
+                    contextMenuTimer = null;
+                }
+            }
 
             function hideCellContextMenu(e) {
-    const menu = document.getElementById('cellContextMenu');
-    // 如果传入事件且目标在菜单内，则不隐藏
-    if (e && menu.contains(e.target)) {
-        return;
-    }
-    menu.classList.remove('visible');
-    if (contextMenuTimer) {
-        clearTimeout(contextMenuTimer);
-        contextMenuTimer = null;
-    }
-}
-
-            document.addEventListener('click', function(e) {
-    hideCellContextMenu(e);
-});
-
-// ===== 移动端长按检测 =====
-let longPressTimer = null;
-let longPressTarget = null;
-
-function handleTouchStart(e) {
-    // 如果浮动层已显示且点击在浮动层内，不处理
-    const menu = document.getElementById('cellContextMenu');
-    if (menu.classList.contains('visible') && menu.contains(e.target)) {
-        return;
-    }
-    const cell = e.target.closest('td:not(.checkbox-cell)');
-    if (!cell) return;
-    // 如果正在显示菜单，先关闭
-    hideCellContextMenu();
-    longPressTarget = cell;
-    // 长按计时器
-    longPressTimer = setTimeout(() => {
-        const touch = e.touches[0];
-        // 构造一个类似鼠标事件的对象，供 showCellContextMenu 使用
-        const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY };
-        showCellContextMenu(fakeEvent, cell);
-        longPressTimer = null;
-        // 阻止系统默认上下文菜单（可选）
-        e.preventDefault();
-    }, 500);
-}
-
-function handleTouchMove(e) {
-    if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-        longPressTarget = null;
-    }
-}
-
-function handleTouchEnd(e) {
-    if (longPressTimer) {
-        clearTimeout(longPressTimer);
-        longPressTimer = null;
-        // 普通点击不触发
-    }
-    longPressTarget = null;
-}
-
-// 绑定事件（注意 passive: false 以便可以 preventDefault）
-document.addEventListener('touchstart', handleTouchStart, { passive: false });
-document.addEventListener('touchmove', handleTouchMove, { passive: true });
-document.addEventListener('touchend', handleTouchEnd, { passive: true });
-
-document.addEventListener('scroll', function(e) {
-    hideCellContextMenu(e);
-});
+                const menu = document.getElementById('cellContextMenu');
+                if (e && menu.contains(e.target)) {
+                    return;
+                }
+                menu.classList.remove('visible');
+                if (contextMenuTimer) {
+                    clearTimeout(contextMenuTimer);
+                    contextMenuTimer = null;
+                }
+            }
 
             // ==================== 登录与退出 ====================
             async function performLogin() {
@@ -1182,7 +1121,15 @@ document.addEventListener('scroll', function(e) {
                     currentUser=user;
                     currentSensitivePwd=found.sensitivePwd||'';
                     const perms=found.permissions||{};
-                    permissions.entry=perms.entryPermission==='1'; permissions.view=perms.viewPermission==='1'; permissions.import=perms.importPermission==='1'; permissions.export=perms.exportPermission==='1'; permissions.backup=perms.backupPermission==='1'; permissions.restore=perms.restorePermission==='1'; permissions.showSensitive=perms.showSensitivePermission==='1'; permissions.clearCloud=perms.clearCloudPermission==='1';
+                    permissions.entry=perms.entryPermission==='1';
+                    permissions.view=perms.viewPermission==='1';
+                    permissions.import=perms.importPermission==='1';
+                    permissions.export=perms.exportPermission==='1';
+                    permissions.backup=perms.backupPermission==='1';
+                    permissions.restore=perms.restorePermission==='1';
+                    permissions.showSensitive=perms.showSensitivePermission==='1';
+                    permissions.clearCloud=perms.clearCloudPermission==='1';
+                    permissions.audit=perms.auditPermission==='1';   // ← 新增
                     document.getElementById('loginPanel').style.display='none';
                     document.getElementById('appPanel').style.display='block';
                     document.getElementById('currentUserDisplay').textContent='👤 '+currentUser;
@@ -1191,7 +1138,6 @@ document.addEventListener('scroll', function(e) {
                     applyAllPermissions();
                     await initAllSystems();
                     scheduleAutoSync();
-                    // 登录后尝试获取黄历
                     fetchLunarData();
                 } catch(e) { err.textContent='登录服务异常'; err.style.display='block'; } finally { document.getElementById('loginBtn').disabled=false; document.getElementById('loginPwd').value=''; }
             }
@@ -1210,17 +1156,39 @@ document.addEventListener('scroll', function(e) {
 
             function applyAllPermissions() {
                 const disableById=(id)=>{ const el=document.getElementById(id); if(el) el.disabled=true; };
-                if(!permissions.entry) { ['a_btnImportExcel','a_btnAddArchive','a_btnEditSelected','a_btnBatchDelete','p_btnImportExcel','p_btnAddPerson','p_btnEditSelected','p_btnBatchDelete','r_btnImportExcel','r_btnAddProject','r_btnEdit','r_btnDelete'].forEach(disableById); }
-                if(!permissions.import) { ['a_btnImportExcel','p_btnImportExcel','r_btnImportExcel'].forEach(disableById); }
-                if(!permissions.backup) { ['a_btnBackupCloud','p_btnBackupCloud','r_btnBackup'].forEach(disableById); }
-                if(!permissions.restore) { ['a_btnRestoreCloud','p_btnRestoreCloud','r_btnRestore'].forEach(disableById); }
-                if(!permissions.export) { ['a_btnExportAll','a_btnExportQuery','p_btnExportAll','p_btnExportQuery','r_btnExportAll','r_btnExportQuery'].forEach(disableById); }
-                if(!permissions.clearCloud) { ['a_btnClearCloud','p_btnClearCloud','r_btnClearCloud'].forEach(disableById); }
+                if(!permissions.entry) {
+                    ['a_btnImportExcel','a_btnAddArchive','a_btnEditSelected','a_btnBatchDelete',
+                     'p_btnImportExcel','p_btnAddPerson','p_btnEditSelected','p_btnBatchDelete',
+                     'r_btnImportExcel','r_btnAddProject','r_btnEdit','r_btnDelete'].forEach(disableById);
+                }
+                if(!permissions.import) {
+                    ['a_btnImportExcel','p_btnImportExcel','r_btnImportExcel'].forEach(disableById);
+                }
+                if(!permissions.backup) {
+                    ['a_btnBackupAudit','p_btnBackupAudit','r_btnBackupAudit'].forEach(disableById);
+                }
+                if(!permissions.restore) {
+                    ['a_btnRestoreCloud','p_btnRestoreCloud','r_btnRestore'].forEach(disableById);
+                }
+                if(!permissions.export) {
+                    ['a_btnExportAll','a_btnExportQuery','p_btnExportAll','p_btnExportQuery','r_btnExportAll','r_btnExportQuery'].forEach(disableById);
+                }
+                if(!permissions.clearCloud) {
+                    ['a_btnClearCloud','p_btnClearCloud','r_btnClearCloud'].forEach(disableById);
+                }
                 const onlyBackup=permissions.backup && !permissions.entry && !permissions.export && !permissions.showSensitive;
                 if(onlyBackup) { document.body.classList.add('no-copy'); } else { document.body.classList.remove('no-copy'); }
+
+                // ===== 控制审核按钮显示 =====
+                const aAuditBtn = document.getElementById('a_btnAudit');
+                if (aAuditBtn) { aAuditBtn.style.display = permissions.audit ? 'inline-block' : 'none'; }
+                const pAuditBtn = document.getElementById('p_btnAudit');
+                if (pAuditBtn) { pAuditBtn.style.display = permissions.audit ? 'inline-block' : 'none'; }
+                const rAuditBtn = document.getElementById('r_btnAudit');
+                if (rAuditBtn) { rAuditBtn.style.display = permissions.audit ? 'inline-block' : 'none'; }
             }
 
-            // ==================== 模态框显示通用 ====================
+            // ==================== 模态框通用 ====================
             function showDueModal(html, module, downloadFn) {
                 const modal=document.getElementById('dueModal');
                 document.getElementById('dueModalContent').innerHTML=html;
@@ -1237,7 +1205,7 @@ document.addEventListener('scroll', function(e) {
             function encryptLocal(plainText, localKey) { return CryptoJS.AES.encrypt(plainText, localKey, { iv:iv, mode:CryptoJS.mode.CBC, padding:CryptoJS.pad.Pkcs7 }).toString(); }
             function decryptLocal(cipherText, localKey) { try { const bytes=CryptoJS.AES.decrypt(cipherText, localKey, { iv:iv, mode:CryptoJS.mode.CBC, padding:CryptoJS.pad.Pkcs7 }); return bytes.toString(CryptoJS.enc.Utf8); } catch(e) { return ''; } }
 
-            // ==================== Tab 切换 ====================
+            // ==================== Tab切换 ====================
             function switchMainTab(systemId) {
                 activeSystem = systemId;
                 document.querySelectorAll('.system-panel').forEach(p => p.classList.remove('active'));
@@ -1255,7 +1223,7 @@ document.addEventListener('scroll', function(e) {
                 }
             }
 
-            // 折叠/展开筛选
+            // ===== 折叠筛选 =====
             window.toggleFilter = function(system) {
                 const content = document.getElementById(system + '_filterContent');
                 const arrow = document.getElementById(system + '_filterArrow');
@@ -1268,7 +1236,7 @@ document.addEventListener('scroll', function(e) {
                 }
             };
 
-            // 下拉菜单切换
+            // ===== 下拉菜单 =====
             window.toggleDropdown = function(btn) {
                 const menu = btn.parentElement.querySelector('.dropdown-menu');
                 document.querySelectorAll('.dropdown-menu.open').forEach(m => {
@@ -1286,7 +1254,7 @@ document.addEventListener('scroll', function(e) {
                 }
             };
 
-            // ==================== 密码验证模态框 ====================
+            // ==================== 密码验证 ====================
             function showPasswordModal(cb) { passwordCallback = cb; document.getElementById('passwordModal').style.display = 'flex'; document.getElementById('passwordInput').value = ''; document.getElementById('passwordError').style.display = 'none'; }
             function closePasswordModal() { document.getElementById('passwordModal').style.display = 'none'; passwordCallback = null; }
             function showLoginPasswordModal(callback) {
@@ -1337,23 +1305,24 @@ document.addEventListener('scroll', function(e) {
             function confirmExport() { const cbs = document.querySelectorAll('#exportFieldCheckboxes input:checked'); const fields = Array.from(cbs).map(cb => cb.value); if (!fields.length) { showToast('至少选一个', 'error'); return; } const cb = pendingExportCallback; closeExportFieldModal(); if (cb) cb(fields); }
             function closeEditModal() { document.getElementById('editModal').style.display = 'none'; if (activeSystem === 'archive') a_processEditQueue(); else if (activeSystem === 'personnel') p_processEditQueue(); else if (activeSystem === 'registration') r_processEditQueue(); }
 
-            // ==================== 事件绑定工具 ====================
-            // 绑定黄历和日期计算按钮
+            // ==================== 事件绑定（黄历/日期计算/全局） ====================
             document.getElementById('calendarToolBtn')?.addEventListener('click', showCalendarModal);
             document.getElementById('dateCalcToolBtn')?.addEventListener('click', showDateCalcModal);
             document.getElementById('calcDateBtn2')?.addEventListener('click', calcDate2);
             document.getElementById('clearDateBtn2')?.addEventListener('click', clearDateFields2);
-            // 点击模态框外部关闭
+
             window.addEventListener('click', function(e) {
                 if (e.target === document.getElementById('calendarModal')) closeCalendarModal();
                 if (e.target === document.getElementById('dateCalcModal')) closeDateCalcModal();
                 if (e.target === document.getElementById('editModal')) closeEditModal();
-                if (e.target === document.getElementById('manageTagsModal')) document.getElementById('manageTagsModal').style.display = 'none';
-                if (e.target === document.getElementById('customModal')) closeCustomModal();
             });
 
-            // ==================== 以下开始三个系统的具体实现 ====================
+            // ===== 右键菜单全局点击/滚动关闭 =====
+            document.addEventListener('click', function(e) { hideCellContextMenu(e); });
+            document.addEventListener('scroll', function(e) { hideCellContextMenu(e); });
+
             // 第二部分结束
+
             // ===================== 档案系统函数 =====================
             function a_encryptData(data) {
                 try { return CryptoJS.AES.encrypt(JSON.stringify(data), a_getLocalKey(), { iv: iv, mode: CryptoJS.mode.CBC, padding: CryptoJS.pad.Pkcs7 }).toString(); } catch (e) { return null; }
@@ -1401,7 +1370,6 @@ document.addEventListener('scroll', function(e) {
                 html += '</tr>'; thead.innerHTML = html; return thead;
             }
 
-            // ★ 修改：添加 title 悬浮显示 和 右键菜单支持
             function a_buildTableRow(person, index) {
                 const tr = document.createElement('tr'); tr.setAttribute('data-index', index);
                 let html = `<td class="checkbox-cell"><input type="checkbox" class="a_row-checkbox-query" data-index="${index}" onclick="event.stopPropagation();"></td>`;
@@ -1410,7 +1378,6 @@ document.addEventListener('scroll', function(e) {
                     html += `<td title="${escapeHtml(val)}" data-fulltext="${escapeHtml(val)}">${escapeHtml(val)}</td>`;
                 });
                 tr.innerHTML = html;
-                // ★ 为每个td绑定右键事件
                 tr.querySelectorAll('td:not(.checkbox-cell)').forEach(td => {
                     td.addEventListener('contextmenu', function(e) {
                         e.preventDefault();
@@ -1522,6 +1489,7 @@ document.addEventListener('scroll', function(e) {
                 }
             }
 
+            // ==================== 编辑/新增/删除等 ====================
             function a_openEditModal(person, index) {
                 const modal = document.getElementById('editModal'); const isNew = index < 0; const showHidden = isNew || a_hiddenVisible;
                 let html = `<div class="modal"><button class="modal-close" onclick="closeEditModal()">×</button><h3>${isNew?'新增档案信息':'修改档案信息'}</h3><div class="form-row">`;
@@ -1724,202 +1692,120 @@ document.addEventListener('scroll', function(e) {
                 input.click();
             }
 
-            async function a_handleBackupToCloud() {
+            // ==================== 提交审核（替代原备份） ====================
+            async function a_handleBackupToAudit() {
                 if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
-                let remoteData = null;
-                const metaRaw = await cloudReadRaw(getArchiveCloudKey());
-                if (metaRaw) {
-                    const decryptKey = prompt('请输入云端备份的解密密钥（用于查看云端数据，若不知道可取消）：');
-                    if (decryptKey === null) {
-                        if (!confirm('未提供解密密钥，将直接备份本地数据覆盖云端，确定继续？')) return;
-                    } else {
-                        try {
-                            const meta = JSON.parse(metaRaw);
-                            let fullEnc = '';
-                            for (let i = 1; i <= meta.batches; i++) {
-                                const part = await cloudReadRaw(getArchiveCloudKey() + '_batch' + i);
-                                if (part) fullEnc += part;
-                            }
-                            const decPayload = CryptoJS.AES.decrypt(fullEnc, decryptKey).toString(CryptoJS.enc.Utf8);
-                            if (!decPayload) throw new Error('解密失败');
-                            remoteData = JSON.parse(decPayload);
-                        } catch (e) {
-                            showToast('解密密钥错误，无法查看云端数据', 'error');
-                            if (!confirm('解密失败，是否直接备份本地数据覆盖云端？')) return;
-                        }
-                    }
-                } else {
-                    showToast('云端无数据，将直接备份', 'info');
-                }
-
-                if (remoteData && remoteData.length > 0) {
-                    const localMap = new Map();
-                    const remoteMap = new Map();
-                    a_allData.forEach(item => {
-                        const key = item.archiveNo || '';
-                        if (key) localMap.set(key, item);
-                    });
-                    remoteData.forEach(item => {
-                        const key = item.archiveNo || '';
-                        if (key) remoteMap.set(key, item);
-                    });
-
-                    const toAdd = [];
-                    for (let [key, remoteItem] of remoteMap) {
-                        if (!localMap.has(key)) {
-                            toAdd.push(remoteItem);
-                        }
-                    }
-                    if (toAdd.length > 0) {
-                        let msg = '云端有以下新记录，是否新增到本地？\n\n';
-                        toAdd.forEach((item, idx) => {
-                            msg += `${idx+1}. 档案号: ${item.archiveNo || '无'}，工程名称: ${item.engName || '无'}\n`;
-                        });
-                        if (confirm(msg + '\n点击“确定”新增，点击“取消”忽略')) {
-                            a_allData.push(...toAdd);
-                            a_saveLocal(a_allData);
-                            a_refreshQueryTable();
-                            showToast(`已新增 ${toAdd.length} 条云端记录`, 'success');
-                            toAdd.forEach(item => {
-                                const key = item.archiveNo || '';
-                                if (key) localMap.set(key, item);
-                            });
-                        } else {
-                            showToast('已忽略新增记录', 'info');
-                        }
-                    }
-
-                    const diffItems = [];
-                    for (let [key, remoteItem] of remoteMap) {
-                        if (localMap.has(key)) {
-                            const localItem = localMap.get(key);
-                            const diffFields = [];
-                            const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
-                            for (let field of allKeys) {
-                                if (field === 'archiveNo') continue;
-                                const localVal = localItem[field] ?? '';
-                                const remoteVal = remoteItem[field] ?? '';
-                                if (localVal != remoteVal) {
-                                    const label = a_fieldLabelMap.get(field) || field;
-                                    diffFields.push({ field, label, localVal: String(localVal), remoteVal: String(remoteVal) });
-                                }
-                            }
-                            if (diffFields.length > 0) {
-                                diffItems.push({
-                                    recordKey: key,
-                                    nameValue: localItem.engName || remoteItem.engName || '-',
-                                    matchValue: key,
-                                    fields: diffFields
-                                });
-                            }
-                        }
-                    }
-
-                    if (diffItems.length > 0) {
-                        let diffHtml = '<div class="table-wrapper"><table><thead><tr><th style="width:30px;"><input type="checkbox" id="aBackupSelectAll" checked></th><th>序号</th><th>工程名称</th><th>档案号</th><th>差异字段</th><th>云端值</th><th>本地值</th></tr></thead><tbody>';
-                        let idx = 1;
-                        for (let item of diffItems) {
-                            const rowspan = item.fields.length;
-                            for (let fIdx = 0; fIdx < rowspan; fIdx++) {
-                                const field = item.fields[fIdx];
-                                diffHtml += `<tr>`;
-                                if (fIdx === 0) {
-                                    diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;"><input type="checkbox" class="aBackupCheckbox" data-key="${escapeHtml(item.recordKey)}" checked></td>`;
-                                    diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${idx}</td>`;
-                                    diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${escapeHtml(item.nameValue)}</td>`;
-                                    diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${escapeHtml(item.matchValue)}</td>`;
-                                }
-                                diffHtml += `<td>${escapeHtml(field.label)}</td>`;
-                                diffHtml += `<td>${escapeHtml(field.remoteVal)}</td>`;
-                                diffHtml += `<td>${escapeHtml(field.localVal)}</td>`;
-                                diffHtml += `</tr>`;
-                            }
-                            idx++;
-                        }
-                        diffHtml += '</tbody></table></div>';
-
-                        const overlay = document.createElement('div');
-                        overlay.className = 'modal-overlay';
-                        overlay.style.display = 'flex';
-                        overlay.innerHTML = `<div class="modal" style="max-width:1000px;">
-                            <h3>档案数据差异对比（备份前）</h3>
-                            <p>勾选您希望用<strong>云端数据覆盖本地</strong>的行，未勾选则保留本地数据。</p>
-                            ${diffHtml}
-                            <div class="modal-actions">
-                                <button class="btn btn-outline" id="aBackupIgnoreBtn">忽略差异，保留本地</button>
-                                <button class="btn btn-primary" id="aBackupUpdateBtn">覆盖选中项</button>
-                            </div>
-                        </div>`;
-                        document.body.appendChild(overlay);
-
-                        overlay.querySelector('#aBackupSelectAll').addEventListener('change', function() {
-                            const cbs = overlay.querySelectorAll('.aBackupCheckbox');
-                            cbs.forEach(cb => cb.checked = this.checked);
-                        });
-
-                        const result = await new Promise((resolve) => {
-                            overlay.querySelector('#aBackupIgnoreBtn').onclick = () => {
-                                document.body.removeChild(overlay);
-                                resolve('ignore');
-                            };
-                            overlay.querySelector('#aBackupUpdateBtn').onclick = () => {
-                                const selectedKeys = [];
-                                overlay.querySelectorAll('.aBackupCheckbox:checked').forEach(cb => {
-                                    selectedKeys.push(cb.dataset.key);
-                                });
-                                if (selectedKeys.length === 0) {
-                                    showToast('请至少勾选一条记录', 'error');
-                                    return;
-                                }
-                                for (let [key, remoteItem] of remoteMap) {
-                                    if (selectedKeys.includes(key) && localMap.has(key)) {
-                                        const localItem = localMap.get(key);
-                                        const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
-                                        for (let field of allKeys) {
-                                            if (field === 'archiveNo') continue;
-                                            localItem[field] = remoteItem[field];
-                                        }
-                                    }
-                                }
-                                document.body.removeChild(overlay);
-                                resolve('update');
-                            };
-                        });
-
-                        if (result === 'ignore') {
-                            showToast('已忽略差异，保留本地数据', 'info');
-                        } else {
-                            showToast('已更新选中记录', 'success');
-                            a_saveLocal(a_allData);
-                            a_refreshQueryTable();
-                        }
-                    } else {
-                        showToast('本地与云端数据无差异', 'info');
-                    }
-                }
-
+                // 获取加密密钥
                 let key = null;
                 while (true) {
                     const firstKey = prompt('请输入本次备份的加密密钥（用于恢复）：');
-                    if (firstKey === null) { return; }
+                    if (firstKey === null) return;
                     const secondKey = prompt('请再次输入加密密钥确认：');
-                    if (secondKey === null) { return; }
-                    if (firstKey === secondKey) {
-                        key = firstKey;
-                        break;
-                    } else {
-                        showToast('两次输入的密钥不一致，请重新输入', 'error');
-                    }
+                    if (secondKey === null) return;
+                    if (firstKey === secondKey) { key = firstKey; break; }
+                    showToast('两次输入的密钥不一致，请重新输入', 'error');
                 }
-
-                let success = false;
+                // 生成唯一版本ID
+                const versionId = currentUser + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
                 const payload = JSON.stringify(a_allData);
                 const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
                 const batches = [];
-                let startIdx = 0;
-                while (startIdx < encPayload.length) {
-                    batches.push(encPayload.slice(startIdx, startIdx + 6000));
-                    startIdx += 6000;
+                for (let i = 0; i < encPayload.length; i += 6000) {
+                    batches.push(encPayload.slice(i, i + 6000));
+                }
+                const batchCount = batches.length;
+                try {
+                    for (let i = 0; i < batchCount; i++) {
+                        const res = await cloudUpdateRaw(AUDIT_KEY_ARCHIVE + '_' + versionId + '_batch' + i, batches[i]);
+                        if (!res.success) throw new Error('分片写入失败');
+                    }
+                    // 更新审核主KEY列表
+                    const metaRaw = await cloudReadRaw(AUDIT_KEY_ARCHIVE);
+                    let metaList = [];
+                    if (metaRaw) {
+                        try { metaList = JSON.parse(metaRaw); } catch(e) {}
+                    }
+                    metaList.push({ versionId, user: currentUser, time: new Date().toISOString(), batchCount });
+                    await cloudUpdateRaw(AUDIT_KEY_ARCHIVE, JSON.stringify(metaList));
+                    showToast('✅ 数据已提交审核，等待审核员审批', 'success');
+                } catch (e) {
+                    showToast('提交审核失败：' + e.message, 'error');
+                }
+            }
+
+            // ==================== 审核函数 ====================
+            async function a_handleAudit() {
+                if (!permissions.audit) { showToast('您没有审核权限', 'error'); return; }
+                // 读取审核列表
+                const metaRaw = await cloudReadRaw(AUDIT_KEY_ARCHIVE);
+                if (!metaRaw) { showToast('暂无待审核数据', 'info'); return; }
+                let metaList = JSON.parse(metaRaw);
+                if (metaList.length === 0) { showToast('暂无待审核数据', 'info'); return; }
+                // 显示版本列表
+                let msg = '请选择要审核的版本（输入编号）：\n';
+                metaList.forEach((v, i) => {
+                    msg += `${i+1}. 用户: ${v.user}  时间: ${v.time}\n`;
+                });
+                const choice = prompt(msg);
+                if (choice === null) return;
+                const idx = parseInt(choice) - 1;
+                if (isNaN(idx) || idx < 0 || idx >= metaList.length) {
+                    showToast('无效选择', 'error'); return;
+                }
+                const selected = metaList[idx];
+                // 读取分片并解密
+                let fullEnc = '';
+                for (let i = 0; i < selected.batchCount; i++) {
+                    const part = await cloudReadRaw(AUDIT_KEY_ARCHIVE + '_' + selected.versionId + '_batch' + i);
+                    if (part) fullEnc += part;
+                }
+                const key = prompt('请输入该备份的加密密钥（由提交者提供）：');
+                if (!key) return;
+                let cloudData;
+                try {
+                    const decPayload = CryptoJS.AES.decrypt(fullEnc, key).toString(CryptoJS.enc.Utf8);
+                    cloudData = JSON.parse(decPayload);
+                } catch(e) {
+                    showToast('解密失败，密钥错误', 'error');
+                    return;
+                }
+                // 对比差异
+                const result = await resolveDataConflict(a_allData, cloudData, '档案');
+                if (result !== a_allData) {
+                    a_allData = result;
+                    a_saveLocal(a_allData);
+                    a_refreshQueryTable();
+                    showToast('✅ 已应用审核数据到本地', 'success');
+                    // 询问是否正式备份
+                    if (confirm('审核数据已合并到本地，是否立即备份到正式云端？')) {
+                        const formalKey = prompt('请输入本次正式备份的加密密钥（用于恢复）：');
+                        if (formalKey) {
+                            const confirmKey = prompt('请再次输入确认：');
+                            if (formalKey === confirmKey) {
+                                await a_doFormalBackup(formalKey);
+                            } else {
+                                showToast('密钥不一致，取消正式备份', 'error');
+                            }
+                        }
+                    }
+                    // 从审核列表中移除该版本
+                    metaList.splice(idx, 1);
+                    await cloudUpdateRaw(AUDIT_KEY_ARCHIVE, JSON.stringify(metaList));
+                    showToast('审核完成', 'success');
+                } else {
+                    showToast('本地与审核数据无差异，无需操作', 'info');
+                    metaList.splice(idx, 1);
+                    await cloudUpdateRaw(AUDIT_KEY_ARCHIVE, JSON.stringify(metaList));
+                }
+            }
+
+            // ==================== 正式备份（不经过审核） ====================
+            async function a_doFormalBackup(key) {
+                const payload = JSON.stringify(a_allData);
+                const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
+                const batches = [];
+                for (let i = 0; i < encPayload.length; i += 6000) {
+                    batches.push(encPayload.slice(i, i + 6000));
                 }
                 try {
                     for (let i = 0; i < batches.length; i++) {
@@ -1927,17 +1813,13 @@ document.addEventListener('scroll', function(e) {
                         if (!res.success) throw new Error('分片写入失败');
                     }
                     await cloudUpdateRaw(getArchiveCloudKey(), JSON.stringify({ batches: batches.length }));
-                    showToast('云端备份成功', 'success');
-                    success = true;
+                    showToast('✅ 正式云端备份成功', 'success');
                 } catch (e) {
-                    showToast('云端备份失败', 'error');
+                    showToast('正式备份失败：' + e.message, 'error');
                 }
-                const statusText = success ? '备份成功' : '备份失败';
-                const fileName = `档案管理系统_${statusText}_${getNowString()}.xlsx`;
-                const fields = a_hiddenVisible ? a_allFields.map(f => f.key) : a_allFields.filter(f => !a_hiddenFields.includes(f.key)).map(f => f.key);
-                a_exportWithFields(a_allData, fileName, fields);
             }
 
+            // ==================== 从云端恢复 ====================
             async function a_handleRestoreFromCloud() {
                 if (!permissions.restore) { showToast('无恢复权限', 'error'); return; }
                 const key = prompt('请输入备份时使用的随机加密密钥：'); if (!key) return;
@@ -1956,11 +1838,11 @@ document.addEventListener('scroll', function(e) {
                 });
             }
 
+            // ==================== 清除云端/本地 ====================
             async function a_clearCloud() { if (!permissions.clearCloud) { showToast('无清除权限', 'error'); return; } if (confirm('确定要彻底清除档案云端数据吗？')) { await cloudUpdateRaw(getArchiveCloudKey(), ''); showToast('云端档案数据已清除', 'info'); } }
             function a_getExportFields() { if (a_hiddenVisible) return a_allFields; else return a_allFields.filter(f => !a_hiddenFields.includes(f.key)); }
             function a_exportWithFields(dataArray, fileName, fields) { if (!dataArray.length) { showToast('无数据', 'error'); return; } const header = fields.map(k => a_allFields.find(f => f.key === k)?.label || k); const exportData = dataArray.map(p => fields.map(k => p[k] || '')); const ws = XLSX.utils.aoa_to_sheet([header, ...exportData]); ws['!cols'] = header.map(() => ({ wch: 15 })); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '档案'); XLSX.writeFile(wb, fileName); showToast('已导出', 'success'); }
             function a_exportAllData() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(a_getExportFields(), (fields) => a_exportWithFields(a_allData, '正大世拓档案备份_' + getNowString() + '.xlsx', fields)); }
-
             function a_exportQueryResults() {
                 if (!permissions.export) { showToast('无导出权限', 'error'); return; }
                 openExportFieldModal(a_getExportFields(), (fields) => {
@@ -1976,6 +1858,125 @@ document.addEventListener('scroll', function(e) {
             }
 
             function a_toggleHiddenFields() { if (!permissions.showSensitive) { showToast('无显示敏感信息权限', 'error'); return; } if (!a_hiddenVisible) { showPasswordModal(() => { a_hiddenVisible = true; a_refreshQueryTable(); showToast('敏感信息已显示', 'info'); }); } else { a_hiddenVisible = false; a_refreshQueryTable(); showToast('敏感信息已隐藏', 'info'); } }
+
+            // ==================== 档案完整性检查 ====================
+            function a_checkArchives() {
+                if (suppressAlerts.archive) return;
+                if (!a_allData.length) return;
+                const noContract = a_allData.filter(p => {
+                    if (p.contractReminder === false) return false;
+                    if (!p.contract) return true;
+                    return !p.contract.includes('有');
+                });
+                const noCooperation = a_allData.filter(p => {
+                    if (p.cooperationReminder === false) return false;
+                    if (!p.cooperation) return true;
+                    return !p.cooperation.includes('有');
+                });
+                const now = new Date();
+                const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+                const noCompletionDoc = a_allData.filter(p => {
+                    if (p.completionDocReminder === false) return false;
+                    if (!p.completionDate) return false;
+                    const compDate = new Date(p.completionDate);
+                    if (compDate > thirtyDaysAgo) return false;
+                    if (!p.completionDoc) return true;
+                    return !p.completionDoc.includes('有');
+                });
+                if (!noContract.length && !noCooperation.length && !noCompletionDoc.length) return;
+                let html = '';
+                function buildTable(title, data, columns) {
+                    if (!data.length) return '';
+                    let tableHtml = `<div class="due-section-title">${title} (${data.length}条)</div>`;
+                    tableHtml += '<div class="table-wrapper">';
+                    tableHtml += '<table style="border-collapse:collapse; width:100%;">';
+                    tableHtml += '<thead><tr>';
+                    for (let col of columns) {
+                        tableHtml += `<th>${col.label}</th>`;
+                    }
+                    tableHtml += '</tr></thead><tbody>';
+                    for (let item of data) {
+                        tableHtml += '<tr>';
+                        for (let col of columns) {
+                            let val = item[col.field] || '';
+                            tableHtml += `<td style="border:1px solid #ddd; padding:6px;">${escapeHtml(val)}</td>`;
+                        }
+                        tableHtml += '</tr>';
+                    }
+                    tableHtml += '</tbody></table></div>';
+                    return tableHtml;
+                }
+                if (noContract.length) {
+                    html += buildTable('📋 无合同档案', noContract, [
+                        { label: '所属公司', field: 'company' },
+                        { label: '档案号', field: 'archiveNo' },
+                        { label: '工程名称', field: 'engName' },
+                        { label: '甲方单位', field: 'partyA' },
+                        { label: '签署日期', field: 'signDate' },
+                        { label: '签署份数', field: 'signCopies' },
+                        { label: '合同', field: 'contract' }
+                    ]);
+                }
+                if (noCooperation.length) {
+                    html += buildTable('📋 无合作协议档案', noCooperation, [
+                        { label: '所属公司', field: 'company' },
+                        { label: '档案号', field: 'archiveNo' },
+                        { label: '工程名称', field: 'engName' },
+                        { label: '甲方单位', field: 'partyA' },
+                        { label: '签署日期', field: 'signDate' },
+                        { label: '签署份数', field: 'signCopies' },
+                        { label: '合作协议', field: 'cooperation' }
+                    ]);
+                }
+                if (noCompletionDoc.length) {
+                    html += buildTable('📋 无竣工资料档案', noCompletionDoc, [
+                        { label: '档案号', field: 'archiveNo' },
+                        { label: '工程名称', field: 'engName' },
+                        { label: '甲方单位', field: 'partyA' },
+                        { label: '开工日期', field: 'startDate' },
+                        { label: '竣工日期', field: 'completionDate' },
+                        { label: '竣工文件', field: 'completionDoc' }
+                    ]);
+                }
+                const downloadFn = () => {
+                    const wb = XLSX.utils.book_new();
+                    if (noContract.length > 0) {
+                        const ws = XLSX.utils.json_to_sheet(noContract.map(p => ({
+                            "所属公司": p.company, "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA,
+                            "签署日期": p.signDate, "签署份数": p.signCopies, "合同": p.contract
+                        })));
+                        XLSX.utils.book_append_sheet(wb, ws, '无合同档案');
+                    }
+                    if (noCooperation.length > 0) {
+                        const ws = XLSX.utils.json_to_sheet(noCooperation.map(p => ({
+                            "所属公司": p.company, "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA,
+                            "签署日期": p.signDate, "签署份数": p.signCopies, "合作协议": p.cooperation
+                        })));
+                        XLSX.utils.book_append_sheet(wb, ws, '无合作协议档案');
+                    }
+                    if (noCompletionDoc.length > 0) {
+                        const ws = XLSX.utils.json_to_sheet(noCompletionDoc.map(p => ({
+                            "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA,
+                            "开工日期": p.startDate, "竣工日期": p.completionDate, "竣工文件": p.completionDoc
+                        })));
+                        XLSX.utils.book_append_sheet(wb, ws, '无竣工资料档案');
+                    }
+                    const fileName = `档案完整性检查_${getNowString()}.xlsx`;
+                    XLSX.writeFile(wb, fileName);
+                    showToast('提醒列表已下载', 'success');
+                };
+                showDueModal(html, 'archive', downloadFn);
+            }
+
+            // ==================== 数据迁移（档案） ====================
+            function migrateArchive() {
+                const raw = localStorage.getItem('DANGAN20020308ZDSTSJ'); if (!raw) return;
+                let parsed; try { parsed = JSON.parse(raw); } catch(e) { return; }
+                let data = null; try { data = a_decryptFromStorage(parsed); } catch(e) {}
+                if (data) return;
+                const oldKey = deriveLocalKeyOld(currentSensitivePwd);
+                try { data = a_decryptFromStorage(parsed, () => oldKey); if (data && data.length) { a_saveLocal(data); console.log('档案数据已迁移'); } } catch(e) {}
+            }
 
             // ===================== 档案系统结束 =====================
             // 第三部分结束
@@ -2203,10 +2204,8 @@ document.addEventListener('scroll', function(e) {
                 html += '</tr>'; thead.innerHTML = html; return thead;
             }
 
-            // ★ 修改：添加 title 悬浮显示 和 右键菜单支持
             function p_buildTableRow(person, index) {
                 const tr = document.createElement('tr'); tr.setAttribute('data-index', index);
-                // 离职人员行背景色
                 if (person.remarks && person.remarks.toLowerCase().includes('离职')) {
                     tr.classList.add('p-resigned-row');
                 }
@@ -2223,19 +2222,16 @@ document.addEventListener('scroll', function(e) {
                 html += `<td class="${expireClass}" title="${escapeHtml(person.validity||'')}" data-fulltext="${escapeHtml(person.validity||'')}">${escapeHtml(person.validity||'')}</td>`;
                 html += `<td title="${escapeHtml(p_getDisplayValue('level',person.level,person.levelOther))}" data-fulltext="${escapeHtml(p_getDisplayValue('level',person.level,person.levelOther))}">${escapeHtml(p_getDisplayValue('level',person.level,person.levelOther))}</td>`;
                 html += `<td title="${escapeHtml(person.issuer||'')}" data-fulltext="${escapeHtml(person.issuer||'')}">${escapeHtml(person.issuer||'')}</td>`;
-                // 联系电话
                 if (p_sensitiveVisible) {
                     html += `<td title="${escapeHtml(person.phone||'')}" data-fulltext="${escapeHtml(person.phone||'')}">${escapeHtml(person.phone||'')}</td>`;
                 } else {
                     html += `<td class="sensitive-star" title="*** 敏感信息已隐藏" data-fulltext="***">***</td>`;
                 }
-                // 冀时办账号
                 if (p_sensitiveVisible) {
                     html += `<td title="${escapeHtml(person.jishibanAccount||'')}" data-fulltext="${escapeHtml(person.jishibanAccount||'')}">${escapeHtml(person.jishibanAccount||'')}</td>`;
                 } else {
                     html += `<td class="sensitive-star" title="*** 敏感信息已隐藏" data-fulltext="***">***</td>`;
                 }
-                // 冀时办密码
                 if (p_sensitiveVisible) {
                     html += `<td title="${escapeHtml(person.jishibanPassword||'')}" data-fulltext="${escapeHtml(person.jishibanPassword||'')}">${escapeHtml(person.jishibanPassword||'')}</td>`;
                 } else {
@@ -2245,7 +2241,6 @@ document.addEventListener('scroll', function(e) {
                 html += `<td title="${escapeHtml(p_getDisplayValue('company',person.company,person.companyOther))}" data-fulltext="${escapeHtml(p_getDisplayValue('company',person.company,person.companyOther))}">${escapeHtml(p_getDisplayValue('company',person.company,person.companyOther))}</td>`;
                 html += `<td title="${escapeHtml(person.remarks||'')}" data-fulltext="${escapeHtml(person.remarks||'')}">${escapeHtml(person.remarks||'')}</td>`;
                 tr.innerHTML = html;
-                // ★ 为每个td绑定右键事件
                 tr.querySelectorAll('td:not(.checkbox-cell)').forEach(td => {
                     td.addEventListener('contextmenu', function(e) {
                         e.preventDefault();
@@ -2258,7 +2253,6 @@ document.addEventListener('scroll', function(e) {
 
             function p_refreshQueryTable(results) {
                 let resolved = results !== undefined ? results : (p_queryResults.length > 0 ? p_queryResults : (p_activeSearchResults || p_allData));
-                // 离职数据过滤
                 if (!p_showResigned) {
                     resolved = resolved.filter(p => {
                         const remark = (p.remarks || '').toLowerCase();
@@ -2342,14 +2336,12 @@ document.addEventListener('scroll', function(e) {
                     }
                     return true;
                 });
-
                 if (!p_showResigned) {
                     filtered = filtered.filter(p => {
                         const remark = (p.remarks || '').toLowerCase();
                         return !remark.includes('离职');
                     });
                 }
-
                 p_queryResults = filtered;
                 p_refreshQueryTable(p_queryResults);
             }
@@ -2376,14 +2368,12 @@ document.addEventListener('scroll', function(e) {
                     }
                     return false;
                 });
-
                 if (!p_showResigned) {
                     matched = matched.filter(p => {
                         const remark = (p.remarks || '').toLowerCase();
                         return !remark.includes('离职');
                     });
                 }
-
                 p_activeSearchResults = matched;
                 p_queryResults = [];
                 if (p_hasAdvancedFilter()) {
@@ -2587,16 +2577,13 @@ document.addEventListener('scroll', function(e) {
                             };
                         });
                         if (!imported.length) { showToast('无有效数据'); return; }
-
                         const matchMap = new Map();
                         p_allData.forEach((item, idx) => {
                             const key = (item.idcard || '').trim() + '|||' + (item.regno || '').trim();
                             if (key !== '|||') matchMap.set(key, idx);
                         });
-
                         const newData = [...p_allData];
                         let updateCount = 0, addCount = 0;
-
                         imported.forEach(imp => {
                             const key = (imp.idcard || '').trim() + '|||' + (imp.regno || '').trim();
                             if (key !== '|||' && matchMap.has(key)) {
@@ -2608,7 +2595,6 @@ document.addEventListener('scroll', function(e) {
                                 addCount++;
                             }
                         });
-
                         if (updateCount === 0 && addCount === 0) {
                             showToast('导入数据与现有数据无差异', 'info');
                             return;
@@ -2627,229 +2613,19 @@ document.addEventListener('scroll', function(e) {
                 input.click();
             }
 
-            async function p_handleBackupToCloud() {
+            // ==================== 提交审核（人员） ====================
+            async function p_handleBackupToAudit() {
                 if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
-                let remoteData = null;
-                const metaRaw = await cloudReadRaw(getPersonnelCloudKey());
-                if (metaRaw) {
-                    const decryptKey = prompt('请输入云端备份的解密密钥（用于查看云端数据，若不知道可取消）：');
-                    if (decryptKey === null) {
-                        if (!confirm('未提供解密密钥，将直接备份本地数据覆盖云端，确定继续？')) return;
-                    } else {
-                        try {
-                            const meta = JSON.parse(metaRaw);
-                            let fullEnc = '';
-                            for (let i = 1; i <= meta.batches; i++) {
-                                const part = await cloudReadRaw(getPersonnelCloudKey() + '_batch' + i);
-                                if (part) fullEnc += part;
-                            }
-                            const decPayload = CryptoJS.AES.decrypt(fullEnc, decryptKey).toString(CryptoJS.enc.Utf8);
-                            if (!decPayload) throw new Error('解密失败');
-                            const rawData = JSON.parse(decPayload);
-                            remoteData = rawData.map(item => ({
-                                seq: String(item["序号"] || ""),
-                                name: item["姓名"] || "",
-                                idcard: item["身份证"] || "",
-                                category: item["类别"] || "",
-                                position: item["岗位"] || "",
-                                regno: item["注册号"] || "",
-                                major: item["注册专业"] || "",
-                                validity: item["有效期"] ? excelSerialToDate(parseInt(item["有效期"])) : "",
-                                level: item["级别"] || "",
-                                issuer: item["发证单位"] || "",
-                                phone: item["联系电话"] || "",
-                                jishibanAccount: item["冀时办账号"] || "",
-                                jishibanPassword: item["冀时办密码"] || "",
-                                socialSecurity: item["社保"] || "",
-                                company: item["所属公司"] || "",
-                                remarks: item["备注"] || "",
-                                categoryOther: item["类别自定义"] || "",
-                                positionOther: item["岗位自定义"] || "",
-                                majorOther: item["注册专业自定义"] || "",
-                                levelOther: item["级别自定义"] || "",
-                                companyOther: item["所属公司自定义"] || ""
-                            }));
-                        } catch (e) {
-                            showToast('解密密钥错误，无法查看云端数据', 'error');
-                            if (!confirm('解密失败，是否直接备份本地数据覆盖云端？')) return;
-                        }
-                    }
-                } else {
-                    showToast('云端无数据，将直接备份', 'info');
-                }
-
-                if (remoteData && remoteData.length > 0) {
-                    const localMap = new Map();
-                    const remoteMap = new Map();
-                    const getKey = (item, fallbackIdx) => {
-                        const regno = (item.regno || '').trim();
-                        const idcard = (item.idcard || '').trim();
-                        if (regno || idcard) return regno + '|||' + idcard;
-                        const seq = (item.seq || '').trim();
-                        if (seq) return 'seq:' + seq;
-                        return 'empty:' + (item.name || 'unknown') + ':' + fallbackIdx;
-                    };
-                    p_allData.forEach((item, idx) => {
-                        const key = getKey(item, idx);
-                        localMap.set(key, item);
-                    });
-                    remoteData.forEach((item, idx) => {
-                        const key = getKey(item, idx);
-                        remoteMap.set(key, item);
-                    });
-
-                    const toAdd = [];
-                    for (let [key, remoteItem] of remoteMap) {
-                        if (!localMap.has(key)) {
-                            toAdd.push(remoteItem);
-                        }
-                    }
-                    if (toAdd.length > 0) {
-                        let msg = '云端有以下新人员记录，是否新增到本地？\n\n';
-                        toAdd.forEach((item, idx) => {
-                            msg += `${idx+1}. 姓名: ${item.name || '无'}，注册号: ${item.regno || '无'}，身份证: ${item.idcard || '无'}\n`;
-                        });
-                        if (confirm(msg + '\n点击“确定”新增，点击“取消”忽略')) {
-                            p_allData.push(...toAdd);
-                            p_saveLocal(p_allData);
-                            p_refreshQueryTable();
-                            showToast(`已新增 ${toAdd.length} 条云端人员记录`, 'success');
-                            toAdd.forEach((item, idx) => {
-                                const key = getKey(item, p_allData.indexOf(item));
-                                if (key) localMap.set(key, item);
-                            });
-                        } else {
-                            showToast('已忽略新增记录', 'info');
-                        }
-                    }
-
-                    const diffItems = [];
-                    for (let [key, remoteItem] of remoteMap) {
-                        if (localMap.has(key)) {
-                            const localItem = localMap.get(key);
-                            const diffFields = [];
-                            const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
-                            for (let field of allKeys) {
-                                if (field === 'seq') continue;
-                                if (field === 'categoryOther' || field === 'positionOther' || field === 'majorOther' || field === 'levelOther' || field === 'companyOther') continue;
-                                const localVal = localItem[field] ?? '';
-                                const remoteVal = remoteItem[field] ?? '';
-                                if (localVal != remoteVal) {
-                                    const label = p_fieldLabelMap.get(field) || field;
-                                    diffFields.push({ field, label, localVal: String(localVal), remoteVal: String(remoteVal) });
-                                }
-                            }
-                            if (diffFields.length > 0) {
-                                const nameValue = localItem.name || remoteItem.name || '-';
-                                const matchValue = localItem.regno || remoteItem.regno || localItem.idcard || remoteItem.idcard || (localItem.seq || '');
-                                diffItems.push({
-                                    recordKey: key,
-                                    nameValue: nameValue,
-                                    matchValue: matchValue,
-                                    fields: diffFields
-                                });
-                            }
-                        }
-                    }
-
-                    if (diffItems.length > 0) {
-                        let diffHtml = '<div class="table-wrapper"><table><thead><tr><th style="width:30px;"><input type="checkbox" id="pBackupSelectAll" checked></th><th>序号</th><th>姓名</th><th>匹配项</th><th>差异字段</th><th>云端值</th><th>本地值</th></tr></thead><tbody>';
-                        let idx = 1;
-                        for (let item of diffItems) {
-                            const rowspan = item.fields.length;
-                            for (let fIdx = 0; fIdx < rowspan; fIdx++) {
-                                const field = item.fields[fIdx];
-                                diffHtml += `<tr>`;
-                                if (fIdx === 0) {
-                                    diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;"><input type="checkbox" class="pBackupCheckbox" data-key="${escapeHtml(item.recordKey)}" checked></td>`;
-                                    diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${idx}</td>`;
-                                    diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${escapeHtml(item.nameValue)}</td>`;
-                                    diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${escapeHtml(item.matchValue)}</td>`;
-                                }
-                                diffHtml += `<td>${escapeHtml(field.label)}</td>`;
-                                diffHtml += `<td>${escapeHtml(field.remoteVal)}</td>`;
-                                diffHtml += `<td>${escapeHtml(field.localVal)}</td>`;
-                                diffHtml += `</tr>`;
-                            }
-                            idx++;
-                        }
-                        diffHtml += '</tbody></table></div>';
-
-                        const overlay = document.createElement('div');
-                        overlay.className = 'modal-overlay';
-                        overlay.style.display = 'flex';
-                        overlay.innerHTML = `<div class="modal" style="max-width:1000px;">
-                            <h3>人员数据差异对比（备份前）</h3>
-                            <p>勾选您希望用<strong>云端数据覆盖本地</strong>的行，未勾选则保留本地数据。</p>
-                            ${diffHtml}
-                            <div class="modal-actions">
-                                <button class="btn btn-outline" id="pBackupIgnoreBtn">忽略差异，保留本地</button>
-                                <button class="btn btn-primary" id="pBackupUpdateBtn">覆盖选中项</button>
-                            </div>
-                        </div>`;
-                        document.body.appendChild(overlay);
-
-                        overlay.querySelector('#pBackupSelectAll').addEventListener('change', function() {
-                            const cbs = overlay.querySelectorAll('.pBackupCheckbox');
-                            cbs.forEach(cb => cb.checked = this.checked);
-                        });
-
-                        const result = await new Promise((resolve) => {
-                            overlay.querySelector('#pBackupIgnoreBtn').onclick = () => {
-                                document.body.removeChild(overlay);
-                                resolve('ignore');
-                            };
-                            overlay.querySelector('#pBackupUpdateBtn').onclick = () => {
-                                const selectedKeys = [];
-                                overlay.querySelectorAll('.pBackupCheckbox:checked').forEach(cb => {
-                                    selectedKeys.push(cb.dataset.key);
-                                });
-                                if (selectedKeys.length === 0) {
-                                    showToast('请至少勾选一条记录', 'error');
-                                    return;
-                                }
-                                for (let [key, remoteItem] of remoteMap) {
-                                    if (selectedKeys.includes(key) && localMap.has(key)) {
-                                        const localItem = localMap.get(key);
-                                        const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
-                                        for (let field of allKeys) {
-                                            if (field === 'seq') continue;
-                                            localItem[field] = remoteItem[field];
-                                        }
-                                    }
-                                }
-                                document.body.removeChild(overlay);
-                                resolve('update');
-                            };
-                        });
-
-                        if (result === 'ignore') {
-                            showToast('已忽略差异，保留本地数据', 'info');
-                        } else {
-                            showToast('已更新选中记录', 'success');
-                            p_saveLocal(p_allData);
-                            p_refreshQueryTable();
-                        }
-                    } else {
-                        showToast('本地与云端数据无差异', 'info');
-                    }
-                }
-
                 let key = null;
                 while (true) {
                     const firstKey = prompt('请输入本次备份的加密密钥（用于恢复）：');
-                    if (firstKey === null) { return; }
+                    if (firstKey === null) return;
                     const secondKey = prompt('请再次输入加密密钥确认：');
-                    if (secondKey === null) { return; }
-                    if (firstKey === secondKey) {
-                        key = firstKey;
-                        break;
-                    } else {
-                        showToast('两次输入的密钥不一致，请重新输入', 'error');
-                    }
+                    if (secondKey === null) return;
+                    if (firstKey === secondKey) { key = firstKey; break; }
+                    showToast('两次输入的密钥不一致，请重新输入', 'error');
                 }
-
-                let success = false;
+                const versionId = currentUser + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
                 const cloudArray = p_allData.map((item, idx) => {
                     const seqValue = (item.seq || '').trim() || String(idx + 1);
                     return {
@@ -2875,10 +2651,120 @@ document.addEventListener('scroll', function(e) {
                 const payload = JSON.stringify(cloudArray);
                 const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
                 const batches = [];
-                let startIdx = 0;
-                while (startIdx < encPayload.length) {
-                    batches.push(encPayload.slice(startIdx, startIdx + 6000));
-                    startIdx += 6000;
+                for (let i = 0; i < encPayload.length; i += 6000) {
+                    batches.push(encPayload.slice(i, i + 6000));
+                }
+                const batchCount = batches.length;
+                try {
+                    for (let i = 0; i < batchCount; i++) {
+                        const res = await cloudUpdateRaw(AUDIT_KEY_PERSONNEL + '_' + versionId + '_batch' + i, batches[i]);
+                        if (!res.success) throw new Error('分片写入失败');
+                    }
+                    const metaRaw = await cloudReadRaw(AUDIT_KEY_PERSONNEL);
+                    let metaList = [];
+                    if (metaRaw) {
+                        try { metaList = JSON.parse(metaRaw); } catch(e) {}
+                    }
+                    metaList.push({ versionId, user: currentUser, time: new Date().toISOString(), batchCount });
+                    await cloudUpdateRaw(AUDIT_KEY_PERSONNEL, JSON.stringify(metaList));
+                    showToast('✅ 人员数据已提交审核，等待审核员审批', 'success');
+                } catch (e) {
+                    showToast('提交审核失败：' + e.message, 'error');
+                }
+            }
+
+            // ==================== 审核函数（人员） ====================
+            async function p_handleAudit() {
+                if (!permissions.audit) { showToast('您没有审核权限', 'error'); return; }
+                const metaRaw = await cloudReadRaw(AUDIT_KEY_PERSONNEL);
+                if (!metaRaw) { showToast('暂无待审核数据', 'info'); return; }
+                let metaList = JSON.parse(metaRaw);
+                if (metaList.length === 0) { showToast('暂无待审核数据', 'info'); return; }
+                let msg = '请选择要审核的版本（输入编号）：\n';
+                metaList.forEach((v, i) => {
+                    msg += `${i+1}. 用户: ${v.user}  时间: ${v.time}\n`;
+                });
+                const choice = prompt(msg);
+                if (choice === null) return;
+                const idx = parseInt(choice) - 1;
+                if (isNaN(idx) || idx < 0 || idx >= metaList.length) {
+                    showToast('无效选择', 'error'); return;
+                }
+                const selected = metaList[idx];
+                let fullEnc = '';
+                for (let i = 0; i < selected.batchCount; i++) {
+                    const part = await cloudReadRaw(AUDIT_KEY_PERSONNEL + '_' + selected.versionId + '_batch' + i);
+                    if (part) fullEnc += part;
+                }
+                const key = prompt('请输入该备份的加密密钥（由提交者提供）：');
+                if (!key) return;
+                let cloudArray;
+                try {
+                    const decPayload = CryptoJS.AES.decrypt(fullEnc, key).toString(CryptoJS.enc.Utf8);
+                    cloudArray = JSON.parse(decPayload);
+                } catch(e) {
+                    showToast('解密失败，密钥错误', 'error');
+                    return;
+                }
+                const cloudData = cloudArray.map(item => ({
+                    seq: String(item["序号"] || ""), name: item["姓名"] || "", idcard: item["身份证"] || "", category: item["类别"] || "", position: item["岗位"] || "", regno: item["注册号"] || "", major: item["注册专业"] || "", validity: item["有效期"] ? excelSerialToDate(parseInt(item["有效期"])) : "", level: item["级别"] || "", issuer: item["发证单位"] || "", phone: item["联系电话"] || "", jishibanAccount: item["冀时办账号"] || "", jishibanPassword: item["冀时办密码"] || "", socialSecurity: item["社保"] || "", company: item["所属公司"] || "", remarks: item["备注"] || "", categoryOther: item["类别自定义"] || "", positionOther: item["岗位自定义"] || "", majorOther: item["注册专业自定义"] || "", levelOther: item["级别自定义"] || "", companyOther: item["所属公司自定义"] || ""
+                }));
+                const result = await resolvePersonnelConflict(p_allData, cloudData);
+                if (result !== p_allData) {
+                    p_allData = result;
+                    p_saveLocal(p_allData);
+                    p_refreshQueryTable();
+                    showToast('✅ 已应用审核数据到本地', 'success');
+                    if (confirm('审核数据已合并到本地，是否立即备份到正式云端？')) {
+                        const formalKey = prompt('请输入本次正式备份的加密密钥（用于恢复）：');
+                        if (formalKey) {
+                            const confirmKey = prompt('请再次输入确认：');
+                            if (formalKey === confirmKey) {
+                                await p_doFormalBackup(formalKey);
+                            } else {
+                                showToast('密钥不一致，取消正式备份', 'error');
+                            }
+                        }
+                    }
+                    metaList.splice(idx, 1);
+                    await cloudUpdateRaw(AUDIT_KEY_PERSONNEL, JSON.stringify(metaList));
+                    showToast('审核完成', 'success');
+                } else {
+                    showToast('本地与审核数据无差异，无需操作', 'info');
+                    metaList.splice(idx, 1);
+                    await cloudUpdateRaw(AUDIT_KEY_PERSONNEL, JSON.stringify(metaList));
+                }
+            }
+
+            // ==================== 正式备份（人员） ====================
+            async function p_doFormalBackup(key) {
+                const cloudArray = p_allData.map((item, idx) => {
+                    const seqValue = (item.seq || '').trim() || String(idx + 1);
+                    return {
+                        "序号": seqValue,
+                        "姓名": item.name,
+                        "身份证": item.idcard,
+                        "类别": p_getDisplayValue('category', item.category, item.categoryOther),
+                        "岗位": p_getDisplayValue('position', item.position, item.positionOther),
+                        "注册号": item.regno,
+                        "注册专业": p_getDisplayValue('major', item.major, item.majorOther),
+                        "有效期": item.validity ? (() => { const d = new Date(item.validity); return Math.round((d.getTime() - new Date(1899, 11, 30).getTime()) / 86400000); })() : "",
+                        "级别": p_getDisplayValue('level', item.level, item.levelOther),
+                        "发证单位": item.issuer,
+                        "联系电话": item.phone,
+                        "冀时办账号": item.jishibanAccount,
+                        "冀时办密码": item.jishibanPassword,
+                        "社保": item.socialSecurity,
+                        "所属公司": p_getDisplayValue('company', item.company, item.companyOther),
+                        "备注": item.remarks,
+                        "类别自定义": "", "岗位自定义": "", "注册专业自定义": "", "级别自定义": "", "所属公司自定义": ""
+                    };
+                });
+                const payload = JSON.stringify(cloudArray);
+                const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
+                const batches = [];
+                for (let i = 0; i < encPayload.length; i += 6000) {
+                    batches.push(encPayload.slice(i, i + 6000));
                 }
                 try {
                     for (let i = 0; i < batches.length; i++) {
@@ -2886,17 +2772,13 @@ document.addEventListener('scroll', function(e) {
                         if (!res.success) throw new Error('分片写入失败');
                     }
                     await cloudUpdateRaw(getPersonnelCloudKey(), JSON.stringify({ batches: batches.length }));
-                    showToast('云端备份成功', 'success');
-                    success = true;
+                    showToast('✅ 正式云端备份成功', 'success');
                 } catch (e) {
-                    showToast('云端备份失败', 'error');
+                    showToast('正式备份失败：' + e.message, 'error');
                 }
-                const statusText = success ? '备份成功' : '备份失败';
-                const fileName = `人员管理系统_${statusText}_${getNowString()}.xlsx`;
-                const fields = p_allFields.map(f => f.key);
-                p_exportWithFields(p_allData, fileName, fields);
             }
 
+            // ==================== 从云端恢复（人员） ====================
             async function p_handleRestoreFromCloud() {
                 if (!permissions.restore) { showToast('无恢复权限', 'error'); return; }
                 const key = prompt('请输入备份时使用的随机加密密钥：'); if (!key) return;
@@ -2918,10 +2800,10 @@ document.addEventListener('scroll', function(e) {
                 });
             }
 
+            // ==================== 清除云端/本地（人员） ====================
             async function p_clearCloud() { if (!permissions.clearCloud) { showToast('无清除权限', 'error'); return; } if (confirm('确定要彻底清除人员云端数据吗？')) { await cloudUpdateRaw(getPersonnelCloudKey(), ''); showToast('云端人员数据已清除', 'info'); } }
             function p_exportWithFields(dataArray, fileName, fields) { if (!dataArray.length) { showToast('无数据', 'error'); return; } const header = fields.map(k => p_allFields.find(f => f.key === k)?.label || k); const exportData = dataArray.map(p => fields.map(k => { if (k === 'category' || k === 'position' || k === 'major' || k === 'level' || k === 'company') { return p_getDisplayValue(k, p[k], p[k + 'Other']) || ''; } return p[k] || ''; })); const ws = XLSX.utils.aoa_to_sheet([header, ...exportData]); ws['!cols'] = header.map(() => ({ wch: 15 })); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '人员数据'); XLSX.writeFile(wb, fileName); showToast('已导出', 'success'); }
             function p_exportAllData() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(p_allFields, (fields) => p_exportWithFields(p_allData, '人员数据汇总表.xlsx', fields)); }
-
             function p_exportQueryResults() {
                 if (!permissions.export) { showToast('无导出权限', 'error'); return; }
                 openExportFieldModal(p_allFields, (fields) => {
@@ -3005,6 +2887,15 @@ document.addEventListener('scroll', function(e) {
                     showToast('提醒列表已下载', 'success');
                 };
                 showDueModal(html, 'personnel', downloadFn);
+            }
+
+            // ==================== 数据迁移（人员） ====================
+            function migratePersonnel() {
+                const raw = localStorage.getItem('DANGAN20020308SYRYSK'); if (!raw) return;
+                let data = null; try { data = p_decryptData(raw); } catch(e) {}
+                if (data) return;
+                const oldKey = deriveLocalKeyOld(currentSensitivePwd);
+                try { data = p_decryptData(raw, () => oldKey); if (data && data.length) { p_saveLocal(data); console.log('人员数据已迁移'); } } catch(e) {}
             }
 
             // ===================== 人员系统结束 =====================
@@ -3104,7 +2995,6 @@ document.addEventListener('scroll', function(e) {
                 html += '</tr>'; thead.innerHTML = html; return thead;
             }
 
-            // ★ 修改：添加 title 悬浮显示 和 右键菜单支持
             function r_buildTableRow(person, index) {
                 const tr = document.createElement('tr'); tr.setAttribute('data-index', index);
                 let html = `<td class="checkbox-cell"><input type="checkbox" class="r_row-checkbox-query" data-index="${index}" onclick="event.stopPropagation();"></td>
@@ -3128,7 +3018,6 @@ document.addEventListener('scroll', function(e) {
                     <td title="${escapeHtml(person.remarks||'')}" data-fulltext="${escapeHtml(person.remarks||'')}">${escapeHtml(person.remarks||'')}</td>`;
                 if (r_remarks2Visible) html += `<td title="${escapeHtml(person.remarks2||'')}" data-fulltext="${escapeHtml(person.remarks2||'')}">${escapeHtml(person.remarks2||'')}</td>`;
                 tr.innerHTML = html;
-                // ★ 为每个td绑定右键事件
                 tr.querySelectorAll('td:not(.checkbox-cell)').forEach(td => {
                     td.addEventListener('contextmenu', function(e) {
                         e.preventDefault();
@@ -3422,213 +3311,19 @@ document.addEventListener('scroll', function(e) {
                 input.click();
             }
 
-            async function r_handleBackupToCloud() {
+            // ==================== 提交审核（报名） ====================
+            async function r_handleBackupToAudit() {
                 if (!permissions.backup) { showToast('无备份权限', 'error'); return; }
-                let remoteData = null;
-                const metaRaw = await cloudReadRaw(getRegCloudKey());
-                if (metaRaw) {
-                    const decryptKey = prompt('请输入云端备份的解密密钥（用于查看云端数据，若不知道可取消）：');
-                    if (decryptKey === null) {
-                        if (!confirm('未提供解密密钥，将直接备份本地数据覆盖云端，确定继续？')) return;
-                    } else {
-                        try {
-                            const meta = JSON.parse(metaRaw);
-                            let fullEnc = '';
-                            for (let i = 1; i <= meta.batches; i++) {
-                                const part = await cloudReadRaw(getRegCloudKey() + '_batch' + i);
-                                if (part) fullEnc += part;
-                            }
-                            const decPayload = CryptoJS.AES.decrypt(fullEnc, decryptKey).toString(CryptoJS.enc.Utf8);
-                            if (!decPayload) throw new Error('解密失败');
-                            const rawData = JSON.parse(decPayload);
-                            remoteData = rawData.map(item => ({
-                                seq: String(item["序号"] || ""),
-                                projectName: item["工程名称"] || "",
-                                client: item["委托人"] || "",
-                                projectManager: item["项目经理"] || "",
-                                materials: item["资料"] || "",
-                                registrationDate: item["报名日期"] || "",
-                                bidOpeningMethod: item["开标方式"] || "",
-                                bidOpeningAddress: item["开标地址"] || "",
-                                bidOpeningDate: item["开标日期"] || "",
-                                deposit: item["保证金"] || "",
-                                maxPrice: item["最高限价"] || "",
-                                announcementUrl: item["公告地址"] || "",
-                                company: item["所属公司"] || "",
-                                remarks: item["备注"] || "",
-                                remarks2: item["备注2"] || ""
-                            }));
-                        } catch (e) {
-                            showToast('解密密钥错误，无法查看云端数据', 'error');
-                            if (!confirm('解密失败，是否直接备份本地数据覆盖云端？')) return;
-                        }
-                    }
-                } else {
-                    showToast('云端无数据，将直接备份', 'info');
-                }
-
-                if (remoteData && remoteData.length > 0) {
-                    const localMap = new Map();
-                    const remoteMap = new Map();
-                    r_allData.forEach(item => {
-                        const key = item.seq || '';
-                        if (key) localMap.set(key, item);
-                    });
-                    remoteData.forEach(item => {
-                        const key = item.seq || '';
-                        if (key) remoteMap.set(key, item);
-                    });
-
-                    const toAdd = [];
-                    for (let [key, remoteItem] of remoteMap) {
-                        if (!localMap.has(key)) {
-                            toAdd.push(remoteItem);
-                        }
-                    }
-                    if (toAdd.length > 0) {
-                        let msg = '云端有以下新报名记录，是否新增到本地？\n\n';
-                        toAdd.forEach((item, idx) => {
-                            msg += `${idx+1}. 工程名称: ${item.projectName || '无'}，报名序号: ${item.seq || '无'}\n`;
-                        });
-                        if (confirm(msg + '\n点击“确定”新增，点击“取消”忽略')) {
-                            r_allData.push(...toAdd);
-                            r_saveLocal(r_allData);
-                            r_refreshQueryTable();
-                            showToast(`已新增 ${toAdd.length} 条云端报名记录`, 'success');
-                            toAdd.forEach(item => {
-                                const key = item.seq || '';
-                                if (key) localMap.set(key, item);
-                            });
-                        } else {
-                            showToast('已忽略新增记录', 'info');
-                        }
-                    }
-
-                    const diffItems = [];
-                    for (let [key, remoteItem] of remoteMap) {
-                        if (localMap.has(key)) {
-                            const localItem = localMap.get(key);
-                            const diffFields = [];
-                            const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
-                            for (let field of allKeys) {
-                                if (field === 'seq') continue;
-                                const localVal = localItem[field] ?? '';
-                                const remoteVal = remoteItem[field] ?? '';
-                                if (localVal != remoteVal) {
-                                    const label = r_fieldLabelMap.get(field) || field;
-                                    diffFields.push({ field, label, localVal: String(localVal), remoteVal: String(remoteVal) });
-                                }
-                            }
-                            if (diffFields.length > 0) {
-                                const nameValue = localItem.projectName || remoteItem.projectName || '-';
-                                diffItems.push({
-                                    recordKey: key,
-                                    nameValue: nameValue,
-                                    matchValue: key,
-                                    fields: diffFields
-                                });
-                            }
-                        }
-                    }
-
-                    if (diffItems.length > 0) {
-                        let diffHtml = '<div class="table-wrapper"><table><thead><tr><th style="width:30px;"><input type="checkbox" id="rBackupSelectAll" checked></th><th>序号</th><th>工程名称</th><th>报名序号</th><th>差异字段</th><th>云端值</th><th>本地值</th></tr></thead><tbody>';
-                        let idx = 1;
-                        for (let item of diffItems) {
-                            const rowspan = item.fields.length;
-                            for (let fIdx = 0; fIdx < rowspan; fIdx++) {
-                                const field = item.fields[fIdx];
-                                diffHtml += `<tr>`;
-                                if (fIdx === 0) {
-                                    diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;"><input type="checkbox" class="rBackupCheckbox" data-key="${escapeHtml(item.recordKey)}" checked></td>`;
-                                    diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${idx}</td>`;
-                                    diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${escapeHtml(item.nameValue)}</td>`;
-                                    diffHtml += `<td rowspan="${rowspan}" style="text-align:center;vertical-align:middle;">${escapeHtml(item.matchValue)}</td>`;
-                                }
-                                diffHtml += `<td>${escapeHtml(field.label)}</td>`;
-                                diffHtml += `<td>${escapeHtml(field.remoteVal)}</td>`;
-                                diffHtml += `<td>${escapeHtml(field.localVal)}</td>`;
-                                diffHtml += `</tr>`;
-                            }
-                            idx++;
-                        }
-                        diffHtml += '</tbody></table></div>';
-
-                        const overlay = document.createElement('div');
-                        overlay.className = 'modal-overlay';
-                        overlay.style.display = 'flex';
-                        overlay.innerHTML = `<div class="modal" style="max-width:1000px;">
-                            <h3>报名数据差异对比（备份前）</h3>
-                            <p>勾选您希望用<strong>云端数据覆盖本地</strong>的行，未勾选则保留本地数据。</p>
-                            ${diffHtml}
-                            <div class="modal-actions">
-                                <button class="btn btn-outline" id="rBackupIgnoreBtn">忽略差异，保留本地</button>
-                                <button class="btn btn-primary" id="rBackupUpdateBtn">覆盖选中项</button>
-                            </div>
-                        </div>`;
-                        document.body.appendChild(overlay);
-
-                        overlay.querySelector('#rBackupSelectAll').addEventListener('change', function() {
-                            const cbs = overlay.querySelectorAll('.rBackupCheckbox');
-                            cbs.forEach(cb => cb.checked = this.checked);
-                        });
-
-                        const result = await new Promise((resolve) => {
-                            overlay.querySelector('#rBackupIgnoreBtn').onclick = () => {
-                                document.body.removeChild(overlay);
-                                resolve('ignore');
-                            };
-                            overlay.querySelector('#rBackupUpdateBtn').onclick = () => {
-                                const selectedKeys = [];
-                                overlay.querySelectorAll('.rBackupCheckbox:checked').forEach(cb => {
-                                    selectedKeys.push(cb.dataset.key);
-                                });
-                                if (selectedKeys.length === 0) {
-                                    showToast('请至少勾选一条记录', 'error');
-                                    return;
-                                }
-                                for (let [key, remoteItem] of remoteMap) {
-                                    if (selectedKeys.includes(key) && localMap.has(key)) {
-                                        const localItem = localMap.get(key);
-                                        const allKeys = new Set([...Object.keys(localItem), ...Object.keys(remoteItem)]);
-                                        for (let field of allKeys) {
-                                            if (field === 'seq') continue;
-                                            localItem[field] = remoteItem[field];
-                                        }
-                                    }
-                                }
-                                document.body.removeChild(overlay);
-                                resolve('update');
-                            };
-                        });
-
-                        if (result === 'ignore') {
-                            showToast('已忽略差异，保留本地数据', 'info');
-                        } else {
-                            showToast('已更新选中记录', 'success');
-                            r_saveLocal(r_allData);
-                            r_refreshQueryTable();
-                        }
-                    } else {
-                        showToast('本地与云端数据无差异', 'info');
-                    }
-                }
-
                 let key = null;
                 while (true) {
                     const firstKey = prompt('请输入本次备份的加密密钥（用于恢复）：');
-                    if (firstKey === null) { return; }
+                    if (firstKey === null) return;
                     const secondKey = prompt('请再次输入加密密钥确认：');
-                    if (secondKey === null) { return; }
-                    if (firstKey === secondKey) {
-                        key = firstKey;
-                        break;
-                    } else {
-                        showToast('两次输入的密钥不一致，请重新输入', 'error');
-                    }
+                    if (secondKey === null) return;
+                    if (firstKey === secondKey) { key = firstKey; break; }
+                    showToast('两次输入的密钥不一致，请重新输入', 'error');
                 }
-
-                let success = false;
+                const versionId = currentUser + '_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6);
                 const cloudArray = r_allData.map(item => ({
                     "序号": item.seq,
                     "工程名称": item.projectName,
@@ -3649,10 +3344,115 @@ document.addEventListener('scroll', function(e) {
                 const payload = JSON.stringify(cloudArray);
                 const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
                 const batches = [];
-                let startIdx = 0;
-                while (startIdx < encPayload.length) {
-                    batches.push(encPayload.slice(startIdx, startIdx + 6000));
-                    startIdx += 6000;
+                for (let i = 0; i < encPayload.length; i += 6000) {
+                    batches.push(encPayload.slice(i, i + 6000));
+                }
+                const batchCount = batches.length;
+                try {
+                    for (let i = 0; i < batchCount; i++) {
+                        const res = await cloudUpdateRaw(AUDIT_KEY_REG + '_' + versionId + '_batch' + i, batches[i]);
+                        if (!res.success) throw new Error('分片写入失败');
+                    }
+                    const metaRaw = await cloudReadRaw(AUDIT_KEY_REG);
+                    let metaList = [];
+                    if (metaRaw) {
+                        try { metaList = JSON.parse(metaRaw); } catch(e) {}
+                    }
+                    metaList.push({ versionId, user: currentUser, time: new Date().toISOString(), batchCount });
+                    await cloudUpdateRaw(AUDIT_KEY_REG, JSON.stringify(metaList));
+                    showToast('✅ 报名数据已提交审核，等待审核员审批', 'success');
+                } catch (e) {
+                    showToast('提交审核失败：' + e.message, 'error');
+                }
+            }
+
+            // ==================== 审核函数（报名） ====================
+            async function r_handleAudit() {
+                if (!permissions.audit) { showToast('您没有审核权限', 'error'); return; }
+                const metaRaw = await cloudReadRaw(AUDIT_KEY_REG);
+                if (!metaRaw) { showToast('暂无待审核数据', 'info'); return; }
+                let metaList = JSON.parse(metaRaw);
+                if (metaList.length === 0) { showToast('暂无待审核数据', 'info'); return; }
+                let msg = '请选择要审核的版本（输入编号）：\n';
+                metaList.forEach((v, i) => {
+                    msg += `${i+1}. 用户: ${v.user}  时间: ${v.time}\n`;
+                });
+                const choice = prompt(msg);
+                if (choice === null) return;
+                const idx = parseInt(choice) - 1;
+                if (isNaN(idx) || idx < 0 || idx >= metaList.length) {
+                    showToast('无效选择', 'error'); return;
+                }
+                const selected = metaList[idx];
+                let fullEnc = '';
+                for (let i = 0; i < selected.batchCount; i++) {
+                    const part = await cloudReadRaw(AUDIT_KEY_REG + '_' + selected.versionId + '_batch' + i);
+                    if (part) fullEnc += part;
+                }
+                const key = prompt('请输入该备份的加密密钥（由提交者提供）：');
+                if (!key) return;
+                let cloudArray;
+                try {
+                    const decPayload = CryptoJS.AES.decrypt(fullEnc, key).toString(CryptoJS.enc.Utf8);
+                    cloudArray = JSON.parse(decPayload);
+                } catch(e) {
+                    showToast('解密失败，密钥错误', 'error');
+                    return;
+                }
+                const cloudData = cloudArray.map(item => ({
+                    seq: String(item["序号"] || ""), projectName: item["工程名称"] || "", client: item["委托人"] || "", projectManager: item["项目经理"] || "", materials: item["资料"] || "", registrationDate: item["报名日期"] || "", bidOpeningMethod: item["开标方式"] || "", bidOpeningAddress: item["开标地址"] || "", bidOpeningDate: item["开标日期"] || "", deposit: item["保证金"] || "", maxPrice: item["最高限价"] || "", announcementUrl: item["公告地址"] || "", company: item["所属公司"] || "", remarks: item["备注"] || "", remarks2: item["备注2"] || ""
+                }));
+                const result = await resolveDataConflict(r_allData, cloudData, '报名');
+                if (result !== r_allData) {
+                    r_allData = result;
+                    r_saveLocal(r_allData);
+                    r_refreshQueryTable();
+                    showToast('✅ 已应用审核数据到本地', 'success');
+                    if (confirm('审核数据已合并到本地，是否立即备份到正式云端？')) {
+                        const formalKey = prompt('请输入本次正式备份的加密密钥（用于恢复）：');
+                        if (formalKey) {
+                            const confirmKey = prompt('请再次输入确认：');
+                            if (formalKey === confirmKey) {
+                                await r_doFormalBackup(formalKey);
+                            } else {
+                                showToast('密钥不一致，取消正式备份', 'error');
+                            }
+                        }
+                    }
+                    metaList.splice(idx, 1);
+                    await cloudUpdateRaw(AUDIT_KEY_REG, JSON.stringify(metaList));
+                    showToast('审核完成', 'success');
+                } else {
+                    showToast('本地与审核数据无差异，无需操作', 'info');
+                    metaList.splice(idx, 1);
+                    await cloudUpdateRaw(AUDIT_KEY_REG, JSON.stringify(metaList));
+                }
+            }
+
+            // ==================== 正式备份（报名） ====================
+            async function r_doFormalBackup(key) {
+                const cloudArray = r_allData.map(item => ({
+                    "序号": item.seq,
+                    "工程名称": item.projectName,
+                    "委托人": item.client,
+                    "项目经理": item.projectManager,
+                    "资料": item.materials,
+                    "报名日期": item.registrationDate,
+                    "开标方式": item.bidOpeningMethod,
+                    "开标地址": item.bidOpeningAddress,
+                    "开标日期": item.bidOpeningDate ? item.bidOpeningDate.replace('T', ' ') : '',
+                    "保证金": item.deposit,
+                    "最高限价": item.maxPrice,
+                    "公告地址": item.announcementUrl,
+                    "所属公司": item.company,
+                    "备注": item.remarks,
+                    "备注2": item.remarks2 || ''
+                }));
+                const payload = JSON.stringify(cloudArray);
+                const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
+                const batches = [];
+                for (let i = 0; i < encPayload.length; i += 6000) {
+                    batches.push(encPayload.slice(i, i + 6000));
                 }
                 try {
                     for (let i = 0; i < batches.length; i++) {
@@ -3660,17 +3460,13 @@ document.addEventListener('scroll', function(e) {
                         if (!res.success) throw new Error('分片写入失败');
                     }
                     await cloudUpdateRaw(getRegCloudKey(), JSON.stringify({ batches: batches.length }));
-                    showToast('云端备份成功', 'success');
-                    success = true;
+                    showToast('✅ 正式云端备份成功', 'success');
                 } catch (e) {
-                    showToast('云端备份失败', 'error');
+                    showToast('正式备份失败：' + e.message, 'error');
                 }
-                const statusText = success ? '备份成功' : '备份失败';
-                const fileName = `报名管理系统_${statusText}_${getNowString()}.xlsx`;
-                const fields = (r_remarks2Visible && permissions.showSensitive) ? [...r_allFieldsExport.map(f => f.key), 'remarks2'] : r_allFieldsExport.map(f => f.key);
-                r_exportWithFields(r_allData, fileName, fields);
             }
 
+            // ==================== 从云端恢复（报名） ====================
             async function r_handleRestoreFromCloud() {
                 if (!permissions.restore) { showToast('无恢复权限', 'error'); return; }
                 const key = prompt('请输入备份时使用的随机加密密钥：'); if (!key) return;
@@ -3692,11 +3488,11 @@ document.addEventListener('scroll', function(e) {
                 });
             }
 
+            // ==================== 清除云端/本地（报名） ====================
             async function r_clearCloud() { if (!permissions.clearCloud) { showToast('无清除权限', 'error'); return; } if (confirm('确定要彻底清除报名云端数据吗？')) { await cloudUpdateRaw(getRegCloudKey(), ''); showToast('云端报名数据已清除', 'info'); } }
             function r_getExportFields() { if (r_remarks2Visible && permissions.showSensitive) { return [...r_allFieldsExport, { key: 'remarks2', label: '备注2' }]; } else { return r_allFieldsExport; } }
             function r_exportWithFields(dataArray, fileName, fields) { if (!dataArray.length) { showToast('无数据', 'error'); return; } const finalFields = fields.filter(k => k !== 'bidOpeningStatus'); const exportData = dataArray.map(p => { const row = {}; finalFields.forEach(k => { if (k === 'bidOpeningDate') { row[k] = formatDateTimeForDisplay(p.bidOpeningDate); } else if (k === 'remarks2') { row[k] = p.remarks2 || ''; } else { row[k] = p[k] || ''; } }); return row; }); const header = finalFields.map(k => { if (k === 'remarks2') return '备注2'; const found = r_allFieldsExport.find(f => f.key === k); return found ? found.label : k; }); const ws = XLSX.utils.json_to_sheet(exportData, { header: finalFields }); XLSX.utils.sheet_add_aoa(ws, [header], { origin: 'A1' }); ws['!cols'] = header.map(() => ({ wch: 16 })); const wb = XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb, ws, '报名数据'); XLSX.writeFile(wb, fileName); showToast('已导出', 'success'); }
             function r_exportAllData() { if (!permissions.export) { showToast('无导出权限', 'error'); return; } openExportFieldModal(r_getExportFields(), (fields) => r_exportWithFields(r_allData, '工程报名备份' + getNowString() + '.xlsx', fields)); }
-
             function r_exportQueryResults() {
                 if (!permissions.export) { showToast('无导出权限', 'error'); return; }
                 openExportFieldModal(r_getExportFields(), (fields) => {
@@ -3738,136 +3534,13 @@ document.addEventListener('scroll', function(e) {
             }
             function r_toggleRemarks2Visibility() { if (!permissions.showSensitive) { showToast('无显示敏感信息权限', 'error'); return; } if (!r_remarks2Visible) { showPasswordModal(() => { r_remarks2Visible = true; r_refreshQueryTable(); showToast('备注2已显示', 'info'); }); } else { r_remarks2Visible = false; r_refreshQueryTable(); showToast('备注2已隐藏', 'info'); } }
 
-            // ==================== 数据迁移 ====================
-            function migrateArchive() {
-                const raw = localStorage.getItem('DANGAN20020308ZDSTSJ'); if (!raw) return;
-                let parsed; try { parsed = JSON.parse(raw); } catch(e) { return; }
-                let data = null; try { data = a_decryptFromStorage(parsed); } catch(e) {}
-                if (data) return;
-                const oldKey = deriveLocalKeyOld(currentSensitivePwd);
-                try { data = a_decryptFromStorage(parsed, () => oldKey); if (data && data.length) { a_saveLocal(data); console.log('档案数据已迁移'); } } catch(e) {}
-            }
-            function migratePersonnel() {
-                const raw = localStorage.getItem('DANGAN20020308SYRYSK'); if (!raw) return;
-                let data = null; try { data = p_decryptData(raw); } catch(e) {}
-                if (data) return;
-                const oldKey = deriveLocalKeyOld(currentSensitivePwd);
-                try { data = p_decryptData(raw, () => oldKey); if (data && data.length) { p_saveLocal(data); console.log('人员数据已迁移'); } } catch(e) {}
-            }
+            // ==================== 数据迁移（报名） ====================
             function migrateRegistration() {
                 const raw = localStorage.getItem('BMGLXT20020308ZDST'); if (!raw) return;
                 let data = null; try { data = r_decryptData(raw); } catch(e) {}
                 if (data) return;
                 const oldKey = deriveLocalKeyOld(currentSensitivePwd);
                 try { data = r_decryptData(raw, () => oldKey); if (data && data.length) { r_saveLocal(data); console.log('报名数据已迁移'); } } catch(e) {}
-            }
-
-            function a_checkArchives() {
-                if (suppressAlerts.archive) return;
-                if (!a_allData.length) return;
-                const noContract = a_allData.filter(p => {
-                    if (p.contractReminder === false) return false;
-                    if (!p.contract) return true;
-                    return !p.contract.includes('有');
-                });
-                const noCooperation = a_allData.filter(p => {
-                    if (p.cooperationReminder === false) return false;
-                    if (!p.cooperation) return true;
-                    return !p.cooperation.includes('有');
-                });
-                const now = new Date();
-                const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
-                const noCompletionDoc = a_allData.filter(p => {
-                    if (p.completionDocReminder === false) return false;
-                    if (!p.completionDate) return false;
-                    const compDate = new Date(p.completionDate);
-                    if (compDate > thirtyDaysAgo) return false;
-                    if (!p.completionDoc) return true;
-                    return !p.completionDoc.includes('有');
-                });
-                if (!noContract.length && !noCooperation.length && !noCompletionDoc.length) return;
-                let html = '';
-                function buildTable(title, data, columns) {
-                    if (!data.length) return '';
-                    let tableHtml = `<div class="due-section-title">${title} (${data.length}条)</div>`;
-                    tableHtml += '<div class="table-wrapper">';
-                    tableHtml += '<table style="border-collapse:collapse; width:100%;">';
-                    tableHtml += '<thead><tr>';
-                    for (let col of columns) {
-                        tableHtml += `<th>${col.label}</th>`;
-                    }
-                    tableHtml += '</tr></thead><tbody>';
-                    for (let item of data) {
-                        tableHtml += '<tr>';
-                        for (let col of columns) {
-                            let val = item[col.field] || '';
-                            tableHtml += `<td style="border:1px solid #ddd; padding:6px;">${escapeHtml(val)}</td>`;
-                        }
-                        tableHtml += '</tr>';
-                    }
-                    tableHtml += '</tbody></table></div>';
-                    return tableHtml;
-                }
-                if (noContract.length) {
-                    html += buildTable('📋 无合同档案', noContract, [
-                        { label: '所属公司', field: 'company' },
-                        { label: '档案号', field: 'archiveNo' },
-                        { label: '工程名称', field: 'engName' },
-                        { label: '甲方单位', field: 'partyA' },
-                        { label: '签署日期', field: 'signDate' },
-                        { label: '签署份数', field: 'signCopies' },
-                        { label: '合同', field: 'contract' }
-                    ]);
-                }
-                if (noCooperation.length) {
-                    html += buildTable('📋 无合作协议档案', noCooperation, [
-                        { label: '所属公司', field: 'company' },
-                        { label: '档案号', field: 'archiveNo' },
-                        { label: '工程名称', field: 'engName' },
-                        { label: '甲方单位', field: 'partyA' },
-                        { label: '签署日期', field: 'signDate' },
-                        { label: '签署份数', field: 'signCopies' },
-                        { label: '合作协议', field: 'cooperation' }
-                    ]);
-                }
-                if (noCompletionDoc.length) {
-                    html += buildTable('📋 无竣工资料档案', noCompletionDoc, [
-                        { label: '档案号', field: 'archiveNo' },
-                        { label: '工程名称', field: 'engName' },
-                        { label: '甲方单位', field: 'partyA' },
-                        { label: '开工日期', field: 'startDate' },
-                        { label: '竣工日期', field: 'completionDate' },
-                        { label: '竣工文件', field: 'completionDoc' }
-                    ]);
-                }
-                const downloadFn = () => {
-                    const wb = XLSX.utils.book_new();
-                    if (noContract.length > 0) {
-                        const ws = XLSX.utils.json_to_sheet(noContract.map(p => ({
-                            "所属公司": p.company, "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA,
-                            "签署日期": p.signDate, "签署份数": p.signCopies, "合同": p.contract
-                        })));
-                        XLSX.utils.book_append_sheet(wb, ws, '无合同档案');
-                    }
-                    if (noCooperation.length > 0) {
-                        const ws = XLSX.utils.json_to_sheet(noCooperation.map(p => ({
-                            "所属公司": p.company, "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA,
-                            "签署日期": p.signDate, "签署份数": p.signCopies, "合作协议": p.cooperation
-                        })));
-                        XLSX.utils.book_append_sheet(wb, ws, '无合作协议档案');
-                    }
-                    if (noCompletionDoc.length > 0) {
-                        const ws = XLSX.utils.json_to_sheet(noCompletionDoc.map(p => ({
-                            "档案号": p.archiveNo, "工程名称": p.engName, "甲方单位": p.partyA,
-                            "开工日期": p.startDate, "竣工日期": p.completionDate, "竣工文件": p.completionDoc
-                        })));
-                        XLSX.utils.book_append_sheet(wb, ws, '无竣工资料档案');
-                    }
-                    const fileName = `档案完整性检查_${getNowString()}.xlsx`;
-                    XLSX.writeFile(wb, fileName);
-                    showToast('提醒列表已下载', 'success');
-                };
-                showDueModal(html, 'archive', downloadFn);
             }
 
             // ==================== 云端数据获取与冲突解决 ====================
@@ -4322,7 +3995,7 @@ document.addEventListener('scroll', function(e) {
 
                 updateSyncStatus(false, '本地模式');
 
-                // 人员冀时办按钮（已移到下拉菜单，此处保留初始化逻辑）
+                // 人员冀时办按钮（已移到下拉菜单）
                 function initPersonnelSensitiveButton() {
                     const btn = document.getElementById('p_toggleSensitiveBtn');
                     if (btn) {
@@ -4347,9 +4020,7 @@ document.addEventListener('scroll', function(e) {
                 }
                 initPersonnelSensitiveButton();
 
-                // 登录后加载黄历
                 fetchLunarData();
-
                 setTimeout(() => a_checkArchives(), 500);
 
                 // ---------- 后台异步对比 ----------
@@ -4467,7 +4138,49 @@ document.addEventListener('scroll', function(e) {
 
             document.addEventListener('keydown', function(e) { if (e.ctrlKey && e.shiftKey && e.key === 'M') { e.preventDefault(); if (!isLoggedIn) return; if (activeSystem === 'archive') a_toggleHiddenFields(); else if (activeSystem === 'registration') r_toggleRemarks2Visibility(); } });
 
-            // 暴露全局函数
+            // ===== 移动端长按支持 =====
+            let longPressTimer = null;
+            let longPressTarget = null;
+
+            function handleTouchStart(e) {
+                const menu = document.getElementById('cellContextMenu');
+                if (menu.classList.contains('visible') && menu.contains(e.target)) {
+                    return;
+                }
+                const cell = e.target.closest('td:not(.checkbox-cell)');
+                if (!cell) return;
+                hideCellContextMenu();
+                longPressTarget = cell;
+                longPressTimer = setTimeout(() => {
+                    const touch = e.touches[0];
+                    const fakeEvent = { clientX: touch.clientX, clientY: touch.clientY };
+                    showCellContextMenu(fakeEvent, cell);
+                    longPressTimer = null;
+                    e.preventDefault();
+                }, 500);
+            }
+
+            function handleTouchMove(e) {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                    longPressTarget = null;
+                }
+            }
+
+            function handleTouchEnd(e) {
+                if (longPressTimer) {
+                    clearTimeout(longPressTimer);
+                    longPressTimer = null;
+                }
+                longPressTarget = null;
+            }
+
+            document.addEventListener('touchstart', handleTouchStart, { passive: false });
+            document.addEventListener('touchmove', handleTouchMove, { passive: true });
+            document.addEventListener('touchend', handleTouchEnd, { passive: true });
+
+            // ===== 暴露全局函数 =====
             window.performLogin = performLogin; window.logout = logout; window.closePasswordModal = closePasswordModal;
             window.submitPassword = submitPassword; window.closeEditModal = closeEditModal; window.closeExportFieldModal = closeExportFieldModal;
             window.confirmExport = confirmExport;
@@ -4485,12 +4198,13 @@ document.addEventListener('scroll', function(e) {
             window.r_performQuickSearch = r_performQuickSearch; window.r_clearQuickSearch = r_clearQuickSearch; window.r_clearAdvancedFilter = r_clearAdvancedFilter; window.r_performAdvancedFilter = r_performAdvancedFilter; window.r_saveFromModal = r_saveFromModal;
             window.p_saveFromModal = p_saveFromModal;
 
-            // 绑定按钮
+            // ===== 绑定按钮 =====
             document.getElementById('a_btnImportExcel')?.addEventListener('click', a_importFromExcel);
             document.getElementById('a_btnAddArchive')?.addEventListener('click', a_openAddArchiveModal);
             document.getElementById('a_btnEditSelected')?.addEventListener('click', a_handleEditSelected);
             document.getElementById('a_btnBatchDelete')?.addEventListener('click', a_handleBatchDelete);
-            document.getElementById('a_btnBackupCloud')?.addEventListener('click', a_handleBackupToCloud);
+            document.getElementById('a_btnBackupAudit')?.addEventListener('click', a_handleBackupToAudit);
+            document.getElementById('a_btnAudit')?.addEventListener('click', a_handleAudit);
             document.getElementById('a_btnRestoreCloud')?.addEventListener('click', a_handleRestoreFromCloud);
             document.getElementById('a_btnClearCloud')?.addEventListener('click', a_clearCloud);
             document.getElementById('a_btnExportAll')?.addEventListener('click', a_exportAllData);
@@ -4501,7 +4215,8 @@ document.addEventListener('scroll', function(e) {
             document.getElementById('p_btnAddPerson')?.addEventListener('click', p_openAddPersonModal);
             document.getElementById('p_btnEditSelected')?.addEventListener('click', p_handleEditSelected);
             document.getElementById('p_btnBatchDelete')?.addEventListener('click', p_handleBatchDelete);
-            document.getElementById('p_btnBackupCloud')?.addEventListener('click', p_handleBackupToCloud);
+            document.getElementById('p_btnBackupAudit')?.addEventListener('click', p_handleBackupToAudit);
+            document.getElementById('p_btnAudit')?.addEventListener('click', p_handleAudit);
             document.getElementById('p_btnRestoreCloud')?.addEventListener('click', p_handleRestoreFromCloud);
             document.getElementById('p_btnClearCloud')?.addEventListener('click', p_clearCloud);
             document.getElementById('p_btnExportAll')?.addEventListener('click', p_exportAllData);
@@ -4512,7 +4227,8 @@ document.addEventListener('scroll', function(e) {
             document.getElementById('r_btnAddProject')?.addEventListener('click', r_openAddProjectModal);
             document.getElementById('r_btnEdit')?.addEventListener('click', r_handleEditSelected);
             document.getElementById('r_btnDelete')?.addEventListener('click', r_handleBatchDelete);
-            document.getElementById('r_btnBackup')?.addEventListener('click', r_handleBackupToCloud);
+            document.getElementById('r_btnBackupAudit')?.addEventListener('click', r_handleBackupToAudit);
+            document.getElementById('r_btnAudit')?.addEventListener('click', r_handleAudit);
             document.getElementById('r_btnRestore')?.addEventListener('click', r_handleRestoreFromCloud);
             document.getElementById('r_btnClearCloud')?.addEventListener('click', r_clearCloud);
             document.getElementById('r_btnExportAll')?.addEventListener('click', r_exportAllData);
@@ -4521,7 +4237,7 @@ document.addEventListener('scroll', function(e) {
 
             document.getElementById('r_hideCompletedQuery')?.addEventListener('change', r_onHideQueryChange);
 
-            // 离职数据复选框事件
+            // 离职数据复选框
             document.getElementById('p_showResigned')?.addEventListener('change', function() {
                 p_showResigned = this.checked;
                 p_activeSearchResults = null;
