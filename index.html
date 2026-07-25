@@ -1923,13 +1923,14 @@
             }
 
             // ==================== 正式备份（不经过审核） ====================
-            async function a_doFormalBackup(key) {
+                        async function a_doFormalBackup(key) {
                 const payload = JSON.stringify(a_allData);
                 const encPayload = CryptoJS.AES.encrypt(payload, key).toString();
                 const batches = [];
                 for (let i = 0; i < encPayload.length; i += 6000) {
                     batches.push(encPayload.slice(i, i + 6000));
                 }
+                let success = false;
                 try {
                     for (let i = 0; i < batches.length; i++) {
                         const res = await cloudUpdateRaw(getArchiveCloudKey() + '_batch' + (i + 1), batches[i]);
@@ -1937,9 +1938,15 @@
                     }
                     await cloudUpdateRaw(getArchiveCloudKey(), JSON.stringify({ batches: batches.length }));
                     showToast('✅ 正式云端备份成功', 'success');
+                    success = true;
                 } catch (e) {
                     showToast('正式备份失败：' + e.message, 'error');
                 }
+                // ===== 导出Excel本地备份（无论成功与否都导出） =====
+                const statusText = success ? '备份成功' : '备份失败';
+                const fileName = `档案管理系统_正式备份_${statusText}_${getNowString()}.xlsx`;
+                const fields = a_hiddenVisible ? a_allFields.map(f => f.key) : a_allFields.filter(f => !a_hiddenFields.includes(f.key)).map(f => f.key);
+                a_exportWithFields(a_allData, fileName, fields);
             }
 
             // ==================== 从云端恢复 ====================
@@ -2875,7 +2882,7 @@
             }
 
             // ==================== 正式备份（人员） ====================
-            async function p_doFormalBackup(key) {
+                        async function p_doFormalBackup(key) {
                 const cloudArray = p_allData.map((item, idx) => {
                     const seqValue = (item.seq || '').trim() || String(idx + 1);
                     return {
@@ -2904,6 +2911,7 @@
                 for (let i = 0; i < encPayload.length; i += 6000) {
                     batches.push(encPayload.slice(i, i + 6000));
                 }
+                let success = false;
                 try {
                     for (let i = 0; i < batches.length; i++) {
                         const res = await cloudUpdateRaw(getPersonnelCloudKey() + '_batch' + (i + 1), batches[i]);
@@ -2911,9 +2919,15 @@
                     }
                     await cloudUpdateRaw(getPersonnelCloudKey(), JSON.stringify({ batches: batches.length }));
                     showToast('✅ 正式云端备份成功', 'success');
+                    success = true;
                 } catch (e) {
                     showToast('正式备份失败：' + e.message, 'error');
                 }
+                // ===== 导出Excel本地备份 =====
+                const statusText = success ? '备份成功' : '备份失败';
+                const fileName = `人员管理系统_正式备份_${statusText}_${getNowString()}.xlsx`;
+                const fields = p_allFields.map(f => f.key);
+                p_exportWithFields(p_allData, fileName, fields);
             }
 
             // ==================== 从云端恢复（人员） ====================
@@ -3583,7 +3597,7 @@
             }
 
             // ==================== 正式备份（报名） ====================
-            async function r_doFormalBackup(key) {
+                        async function r_doFormalBackup(key) {
                 const cloudArray = r_allData.map(item => ({
                     "序号": item.seq,
                     "工程名称": item.projectName,
@@ -3607,6 +3621,7 @@
                 for (let i = 0; i < encPayload.length; i += 6000) {
                     batches.push(encPayload.slice(i, i + 6000));
                 }
+                let success = false;
                 try {
                     for (let i = 0; i < batches.length; i++) {
                         const res = await cloudUpdateRaw(getRegCloudKey() + '_batch' + (i + 1), batches[i]);
@@ -3614,9 +3629,15 @@
                     }
                     await cloudUpdateRaw(getRegCloudKey(), JSON.stringify({ batches: batches.length }));
                     showToast('✅ 正式云端备份成功', 'success');
+                    success = true;
                 } catch (e) {
                     showToast('正式备份失败：' + e.message, 'error');
                 }
+                // ===== 导出Excel本地备份 =====
+                const statusText = success ? '备份成功' : '备份失败';
+                const fileName = `报名管理系统_正式备份_${statusText}_${getNowString()}.xlsx`;
+                const fields = (r_remarks2Visible && permissions.showSensitive) ? [...r_allFieldsExport.map(f => f.key), 'remarks2'] : r_allFieldsExport.map(f => f.key);
+                r_exportWithFields(r_allData, fileName, fields);
             }
 
             // ==================== 从云端恢复（报名） ====================
