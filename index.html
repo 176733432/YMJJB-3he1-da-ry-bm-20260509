@@ -444,24 +444,27 @@
         <header class="app-header">
             <div class="logo"><span class="icon">📁</span> 智档</div>
             <div class="header-actions">
-                <button class="tool-btn" id="calendarToolBtn" title="今日黄历">
-                    <i class="fas fa-calendar-alt"></i>
-                    <span class="btn-label">黄历</span>
-                </button>
-                <button class="tool-btn" id="dateCalcToolBtn" title="日期计算">
-                    <i class="fas fa-calculator"></i>
-                    <span class="btn-label">日期计算</span>
-                </button>
-                <span id="currentUserDisplay" style="margin-right:12px;"></span>
-                <span class="sync-status" id="syncStatus"><span class="sync-dot" id="syncDot"></span><span id="syncText">本地模式</span></span>
-                <button class="btn btn-sm" onclick="logout()">退出登录</button>
-            </div>
+    <button class="tool-btn" id="calendarToolBtn" title="今日黄历">
+        <i class="fas fa-calendar-alt"></i>
+        <span class="btn-label">黄历</span>
+    </button>
+    <button class="tool-btn" id="dateCalcToolBtn" title="日期计算">
+        <i class="fas fa-calculator"></i>
+        <span class="btn-label">日期计算</span>
+    </button>
+    <span id="currentUserDisplay" style="margin-right:12px;"></span>
+    <span class="sync-status" id="syncStatus"><span class="sync-dot" id="syncDot"></span><span id="syncText">本地模式</span></span>
+    <button class="tool-btn" id="helpBtn" title="使用说明">
+        <i class="fas fa-book"></i>
+        <span class="btn-label">使用说明</span>
+    </button>
+    <button class="btn btn-sm" onclick="logout()">退出登录</button>
+</div>
         </header>
         <nav class="main-tab-nav" id="mainTabNav">
     <button class="main-tab-btn active" data-main="panel-archive">📁 档案管理系统</button>
     <button class="main-tab-btn" data-main="panel-personnel">👥 人员管理系统</button>
     <button class="main-tab-btn" data-main="panel-registration">📋 报名管理系统</button>
-    <button class="main-tab-btn" id="helpBtn" style="margin-left:auto; border:1px solid var(--border); border-radius:var(--radius-sm); padding:6px 16px; background:transparent; cursor:pointer; font-size:13px; color:var(--text-secondary);">📖 使用说明</button>
 </nav>
 
         <!-- ===================== 档案管理系统 ===================== -->
