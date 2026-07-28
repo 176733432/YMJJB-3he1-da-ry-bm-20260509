@@ -1118,7 +1118,9 @@
                 }
             }
 
-            // ==================== 审核提醒核心函数 ====================
+                      // 存储上次检测到的有待审核的系统列表（在 sessionStorage 中）
+            const AUDIT_LAST_PENDING_KEY = 'audit_last_pending_systems';
+
             async function checkAuditData() {
                 if (!isLoggedIn || !permissions.audit) return;
 
@@ -1129,6 +1131,7 @@
                 ];
 
                 let anyPending = false;
+                const currentPending = [];
 
                 for (let sys of systems) {
                     try {
@@ -1141,7 +1144,10 @@
                             } catch(e) {}
                         }
                         auditDataExists[sys.id] = hasData;
-                        if (hasData) anyPending = true;
+                        if (hasData) {
+                            anyPending = true;
+                            currentPending.push(sys.id);
+                        }
                     } catch(e) {
                         auditDataExists[sys.id] = false;
                     }
@@ -1150,19 +1156,32 @@
                 // 更新UI提醒
                 updateAuditReminderUI();
 
-                // 如果有待审核数据且尚未弹出提醒，且用户有审核权限
+                // ===== 智能弹窗：比较当前待审核系统与上次记录的差异 =====
                 if (anyPending && permissions.audit) {
-                    // 全局弹窗提醒（只弹一次，不重复弹）
-                    if (!sessionStorage.getItem('audit_reminder_global_shown')) {
-                        sessionStorage.setItem('audit_reminder_global_shown', 'true');
-                        const detail = [];
-                        if (auditDataExists.archive) detail.push('📁 档案系统');
-                        if (auditDataExists.personnel) detail.push('👥 人员系统');
-                        if (auditDataExists.registration) detail.push('📋 报名系统');
-                        showToast('🔔 有新的待审核数据！请点击各系统"操作→审核"查看。', 'warning');
-                        // 用 confirm 做强提醒（不关闭无法继续）
-                        confirm(`🔔 待审核提醒\n\n以下系统有待审核数据，请及时处理：\n${detail.join('\n')}\n\n点击"确定"查看，或稍后点击"操作→审核"处理。`);
+                    const lastPendingStr = sessionStorage.getItem(AUDIT_LAST_PENDING_KEY);
+                    let lastPending = [];
+                    if (lastPendingStr) {
+                        try { lastPending = JSON.parse(lastPendingStr); } catch(e) {}
                     }
+                    // 找出新增的系统（之前没有，现在有的）
+                    const newSystems = currentPending.filter(id => !lastPending.includes(id));
+                    if (newSystems.length > 0) {
+                        // 有新增的待审核系统，弹窗提醒
+                        const detail = newSystems.map(id => {
+                            const sys = systems.find(s => s.id === id);
+                            return sys ? sys.name : id;
+                        });
+                        const msg = `🔔 有新系统提交了待审核数据！\n\n新增待审核系统：${detail.join('、')}\n\n请点击各系统"操作→审核"查看处理。`;
+                        // 用 confirm 做强提醒（不关闭无法继续）
+                        confirm(msg);
+                        // 同时显示 toast 提示
+                        showToast(`🔔 新增待审核系统：${detail.join('、')}，请及时处理`, 'warning');
+                    }
+                    // 更新 sessionStorage 中的记录
+                    sessionStorage.setItem(AUDIT_LAST_PENDING_KEY, JSON.stringify(currentPending));
+                } else {
+                    // 如果没有待审核数据，清空记录
+                    sessionStorage.removeItem(AUDIT_LAST_PENDING_KEY);
                 }
 
                 // 定时检查（每30秒一次）
@@ -2171,7 +2190,7 @@
                 return html;
             }
 
-            async function resolvePersonnelConflict(localRaw, remoteRaw) {
+                        async function resolvePersonnelConflict(localRaw, remoteRaw) {
                 if (!remoteRaw) return localRaw;
 
                 const localNorm = localRaw.map(p_normalizePersonForCompare);
@@ -2296,6 +2315,8 @@
                         cbs.forEach(cb => cb.checked = this.checked);
                     });
 
+                    let modified = false; // ← 新增标志
+
                     overlay.querySelector('#diffIgnoreBtnP').onclick = () => {
                         document.body.removeChild(overlay);
                         resolve(localRaw);
@@ -2319,11 +2340,16 @@
                                     if (field === 'seq') continue;
                                     localRawItem[field] = remoteRawItem[field];
                                 }
+                                modified = true;
                             }
                         }
                         document.body.removeChild(overlay);
                         showToast(`已更新 ${selectedKeys.length} 条记录`, 'success');
-                        resolve(localRaw);
+                        if (modified) {
+                            resolve([...localRaw]);
+                        } else {
+                            resolve(localRaw);
+                        }
                     };
                 });
             }
@@ -3967,7 +3993,7 @@
                 }, 10 * 60 * 1000);
             }
 
-            async function resolveDataConflict(localData, remoteData, systemName) {
+                        async function resolveDataConflict(localData, remoteData, systemName) {
                 if (!remoteData) {
                     showToast(`无法获取云端数据，将加载本地${systemName}数据`, 'info');
                     return localData;
@@ -4084,6 +4110,8 @@
                         cbs.forEach(cb => cb.checked = this.checked);
                     });
 
+                    let modified = false; // ← 新增标志
+
                     overlay.querySelector('#diffIgnoreBtn').onclick = () => {
                         document.body.removeChild(overlay);
                         showToast(`已保留本地${systemName}数据`, 'info');
@@ -4107,11 +4135,17 @@
                                     if (field === matchKey) continue;
                                     localItem[field] = remoteItem[field];
                                 }
+                                modified = true; // ← 标记已修改
                             }
                         }
                         document.body.removeChild(overlay);
                         showToast(`已更新 ${selectedKeys.length} 条记录`, 'success');
-                        resolve(localData);
+                        // 如果修改了，返回新数组引用以触发保存
+                        if (modified) {
+                            resolve([...localData]);
+                        } else {
+                            resolve(localData);
+                        }
                     };
                 });
             }
