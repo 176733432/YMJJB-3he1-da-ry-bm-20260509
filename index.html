@@ -787,6 +787,10 @@
             const AUDIT_KEY_ARCHIVE = 'DANGANSHENHE2002';
             const AUDIT_KEY_PERSONNEL = 'RDNYUANSHENHE2002';
             const AUDIT_KEY_REG = 'BAOMINGSHENHE2002';
+            // ===== 云端更新时间戳KEY =====
+            const UPDATE_KEY_ARCHIVE = 'DANGAN_UPDATE_TIMESTAMP';
+            const UPDATE_KEY_PERSONNEL = 'PERSONNEL_UPDATE_TIMESTAMP';
+            const UPDATE_KEY_REG = 'REG_UPDATE_TIMESTAMP';
             // 审核密码SHA256哈希（可选，若启用则需验证）
             const AUDIT_PASSWORD_HASH = '36684207f2e16c8704249953d564591ca9a6c52974d87faf080fdc96458d8c6e';
 
@@ -829,7 +833,7 @@
             let auditReminderTimer = null;
             let auditReminderShown = { archive: false, personnel: false, registration: false };
             let auditDataExists = { archive: false, personnel: false, registration: false };
-
+            let lastUpdateTime = { archive: 0, personnel: 0, registration: 0 };
             // 字段定义
             const a_encryptFields = ['engName','partyA','engAddress','contractPrice','cooperation','partner','phone'];
             const a_hiddenFields = ['cooperation','partner','phone'];
@@ -1356,6 +1360,10 @@
                 // 切换到系统时，如果该有审核数据且用户有审核权限，更新UI
                 if (permissions.audit) {
                     updateAuditReminderUI();
+                }
+                // 切换到该系统后，异步检查云端是否有更新
+                if (isLoggedIn && permissions.view) {
+                    setTimeout(() => checkSystemUpdates(systemId), 300);
                 }
             }
 
@@ -1960,6 +1968,8 @@
                         if (!res.success) throw new Error('分片写入失败');
                     }
                     await cloudUpdateRaw(getArchiveCloudKey(), JSON.stringify({ batches: batches.length }));
+            // 更新云端时间戳
+            await cloudUpdateRaw(UPDATE_KEY_ARCHIVE, Date.now().toString());
                     showToast('✅ 正式云端备份成功', 'success');
                     success = true;
                 } catch (e) {
@@ -2948,6 +2958,7 @@
                         if (!res.success) throw new Error('分片写入失败');
                     }
                     await cloudUpdateRaw(getPersonnelCloudKey(), JSON.stringify({ batches: batches.length }));
+            await cloudUpdateRaw(UPDATE_KEY_PERSONNEL, Date.now().toString());
                     showToast('✅ 正式云端备份成功', 'success');
                     success = true;
                 } catch (e) {
@@ -3658,6 +3669,7 @@
                         if (!res.success) throw new Error('分片写入失败');
                     }
                     await cloudUpdateRaw(getRegCloudKey(), JSON.stringify({ batches: batches.length }));
+            await cloudUpdateRaw(UPDATE_KEY_REG, Date.now().toString());
                     showToast('✅ 正式云端备份成功', 'success');
                     success = true;
                 } catch (e) {
@@ -4150,6 +4162,72 @@
                 });
             }
 
+            // ==================== 检查系统是否有云端更新 ====================
+            async function checkSystemUpdates(systemId) {
+                if (!isLoggedIn || !currentProjectCode) return;
+                let updateKey, fetchFunc, dataArray, saveFunc, refreshFunc, conflictFunc;
+                let systemName;
+                if (systemId === 'archive') {
+                    updateKey = UPDATE_KEY_ARCHIVE;
+                    fetchFunc = fetchArchiveCloudData;
+                    dataArray = a_allData;
+                    saveFunc = a_saveLocal;
+                    refreshFunc = a_refreshQueryTable;
+                    conflictFunc = resolveDataConflict;
+                    systemName = '档案';
+                } else if (systemId === 'personnel') {
+                    updateKey = UPDATE_KEY_PERSONNEL;
+                    fetchFunc = fetchPersonnelCloudData;
+                    dataArray = p_allData;
+                    saveFunc = p_saveLocal;
+                    refreshFunc = p_refreshQueryTable;
+                    conflictFunc = resolvePersonnelConflict;
+                    systemName = '人员';
+                } else if (systemId === 'registration') {
+                    updateKey = UPDATE_KEY_REG;
+                    fetchFunc = fetchRegistrationCloudData;
+                    dataArray = r_allData;
+                    saveFunc = r_saveLocal;
+                    refreshFunc = r_refreshQueryTable;
+                    conflictFunc = resolveDataConflict;
+                    systemName = '报名';
+                } else {
+                    return;
+                }
+
+                try {
+                    const raw = await cloudReadRaw(updateKey);
+                    if (!raw) return;
+                    const ts = parseInt(raw);
+                    if (ts > lastUpdateTime[systemId]) {
+                        // 有更新，拉取云端数据
+                        const remoteData = await fetchFunc(currentProjectCode);
+                        if (!remoteData) return;
+                        // 执行差异对比
+                        let result;
+                        if (systemId === 'personnel') {
+                            result = await conflictFunc(dataArray, remoteData);
+                        } else {
+                            result = await conflictFunc(dataArray, remoteData, systemId);
+                        }
+                        // 更新本地数组
+                        if (result !== dataArray) {
+                            if (systemId === 'archive') a_allData = result;
+                            else if (systemId === 'personnel') p_allData = result;
+                            else if (systemId === 'registration') r_allData = result;
+                            saveFunc(result);
+                            refreshFunc();
+                            showToast(`${systemName}系统数据已更新至最新`, 'success');
+                        } else {
+                            showToast(`${systemName}系统数据已是最新`, 'info');
+                        }
+                        // 记录更新时间（防止重复提示）
+                        lastUpdateTime[systemId] = ts;
+                    }
+                } catch (e) {
+                    console.warn(`检查${systemName}系统更新失败:`, e);
+                }
+            }
             // ==================== 初始化所有系统 ====================
             async function initAllSystems() {
                 // ---------- 档案 ----------
@@ -4313,6 +4391,14 @@
                     a_refreshQueryTable();
                     p_refreshQueryTable();
                     r_refreshQueryTable();
+// ===== 第6步：记录当前云端更新时间戳，避免首次切换时重复提示 =====
+                    const a_ts = await cloudReadRaw(UPDATE_KEY_ARCHIVE);
+                    if (a_ts) lastUpdateTime.archive = parseInt(a_ts);
+                    const p_ts = await cloudReadRaw(UPDATE_KEY_PERSONNEL);
+                    if (p_ts) lastUpdateTime.personnel = parseInt(p_ts);
+                    const r_ts = await cloudReadRaw(UPDATE_KEY_REG);
+                    if (r_ts) lastUpdateTime.registration = parseInt(r_ts);
+
                     setTimeout(() => {
                         a_refreshQueryTable();
                         p_refreshQueryTable();
